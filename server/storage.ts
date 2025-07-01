@@ -44,8 +44,10 @@ export class MemStorage implements IStorage {
   async createGroceryItem(insertItem: InsertGroceryItem): Promise<GroceryItem> {
     const id = this.currentId++;
     const item: GroceryItem = {
-      ...insertItem,
       id,
+      name: insertItem.name,
+      completed: insertItem.completed !== undefined ? insertItem.completed : false,
+      addedBy: insertItem.addedBy,
       createdAt: new Date(),
     };
     this.groceryItems.set(id, item);

@@ -99,7 +99,8 @@ The application follows a full-stack monorepo pattern with:
 
 ```
 Changelog:
-- July 01, 2025. Initial setup
+- July 01, 2025. Initial setup - Dutch family grocery list app created
+- July 01, 2025. WebSocket stability improved - fixed connection handling and duplicate key warnings
 ```
 
 ## User Preferences

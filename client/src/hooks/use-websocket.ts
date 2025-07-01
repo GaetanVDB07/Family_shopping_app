@@ -14,6 +14,11 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
 
   const connect = useCallback(() => {
     try {
+      // Close existing connection if any
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.close();
+      }
+
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
       
@@ -21,6 +26,11 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
 
       ws.current.onopen = () => {
         console.log('WebSocket connected');
+        // Clear any pending reconnection attempts
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = undefined;
+        }
       };
 
       ws.current.onmessage = (event) => {
@@ -46,10 +56,12 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
         }
       };
 
-      ws.current.onclose = () => {
+      ws.current.onclose = (event) => {
         console.log('WebSocket disconnected');
-        // Attempt to reconnect after 3 seconds
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        // Only attempt to reconnect if it wasn't a deliberate close
+        if (event.code !== 1000 && !reconnectTimeoutRef.current) {
+          reconnectTimeoutRef.current = setTimeout(connect, 3000);
+        }
       };
 
       ws.current.onerror = (error) => {
@@ -57,8 +69,10 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
       };
     } catch (error) {
       console.error('Error connecting to WebSocket:', error);
-      // Attempt to reconnect after 3 seconds
-      reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      // Attempt to reconnect after 3 seconds if not already scheduled
+      if (!reconnectTimeoutRef.current) {
+        reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      }
     }
   }, [onItemAdded, onItemUpdated, onItemDeleted, onSync]);
 
