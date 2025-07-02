@@ -49,15 +49,23 @@ A modern, collaborative grocery list application built for families to manage th
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Environment Setup**
    ```bash
+   # Copy the environment template
    cp .env.example .env
-   # Edit .env with your database URL
+   
+   # Edit .env with your database configuration
+   # For development, you can use memory storage (current default)
+   # For production, set up a PostgreSQL database URL
    ```
 
-4. **Set up the database**
+4. **Database Setup (Optional)**
    ```bash
+   # If using PostgreSQL, push the schema to your database
    npm run db:push
+   
+   # Note: Currently using in-memory storage for development
+   # Database setup is only needed for production deployment
    ```
 
 5. **Start the development server**
