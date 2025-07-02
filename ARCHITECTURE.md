@@ -1,4 +1,4 @@
-# Grocery List App - Replit Documentation
+# Grocery List App - Technical Documentation
 
 ## Overview
 
