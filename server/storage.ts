@@ -76,5 +76,5 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use database storage in production, memory storage for local development without DATABASE_URL
+// Use database storage when DATABASE_URL is available, otherwise memory storage
 export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();

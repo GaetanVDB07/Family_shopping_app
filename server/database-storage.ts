@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Client } from "pg";
 import { groceryItems, type GroceryItem, type InsertGroceryItem } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { IStorage } from "./storage";
@@ -8,8 +8,15 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required");
 }
 
-const sql = neon(process.env.DATABASE_URL);
-const db = drizzle(sql);
+// Create a PostgreSQL client for Supabase
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// Connect to the database
+await client.connect();
+
+const db = drizzle(client);
 
 export class DatabaseStorage implements IStorage {
   async getAllGroceryItems(): Promise<GroceryItem[]> {
