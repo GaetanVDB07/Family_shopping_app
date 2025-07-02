@@ -1,12 +1,19 @@
-import { groceryItems, type GroceryItem, type InsertGroceryItem } from "@shared/schema";
+import { groceryItems, type GroceryItem, type InsertGroceryItem, type Family, type FamilyMember } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 
 export interface IStorage {
-  getAllGroceryItems(): Promise<GroceryItem[]>;
+  // Grocery Items
+  getAllGroceryItems(familyId?: string): Promise<GroceryItem[]>;
   createGroceryItem(item: InsertGroceryItem): Promise<GroceryItem>;
   updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem | undefined>;
   deleteGroceryItem(id: number): Promise<boolean>;
   getGroceryItem(id: number): Promise<GroceryItem | undefined>;
+  
+  // Family Management
+  createFamily(family: { name: string; code: string; createdBy: string }): Promise<Family>;
+  getFamilyByCode(code: string): Promise<Family | undefined>;
+  addFamilyMember(member: { familyId: string; userId: string; userEmail: string; userName: string; role: string }): Promise<FamilyMember>;
+  getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -22,13 +29,14 @@ export class MemStorage implements IStorage {
   }
 
   private async seedInitialData() {
+    const dummyFamilyId = "demo-family-123";
     const initialItems: InsertGroceryItem[] = [
-      { name: "Melk (1 liter)", completed: false, addedBy: "Papa" },
-      { name: "Brood (volkoren)", completed: false, addedBy: "Mama" },
-      { name: "Bananen", completed: false, addedBy: "Lisa" },
-      { name: "Appels (elstar)", completed: false, addedBy: "Max" },
-      { name: "Eieren (12 stuks)", completed: true, addedBy: "Papa" },
-      { name: "Yoghurt (naturel)", completed: true, addedBy: "Mama" },
+      { name: "Melk (1 liter)", completed: false, addedBy: "demo-user", familyId: dummyFamilyId },
+      { name: "Brood (volkoren)", completed: false, addedBy: "demo-user", familyId: dummyFamilyId },
+      { name: "Bananen", completed: false, addedBy: "demo-user", familyId: dummyFamilyId },
+      { name: "Appels (elstar)", completed: false, addedBy: "demo-user", familyId: dummyFamilyId },
+      { name: "Eieren (12 stuks)", completed: true, addedBy: "demo-user", familyId: dummyFamilyId },
+      { name: "Yoghurt (naturel)", completed: true, addedBy: "demo-user", familyId: dummyFamilyId },
     ];
 
     for (const item of initialItems) {
@@ -36,8 +44,14 @@ export class MemStorage implements IStorage {
     }
   }
 
-  async getAllGroceryItems(): Promise<GroceryItem[]> {
-    return Array.from(this.groceryItems.values()).sort((a, b) => 
+  async getAllGroceryItems(familyId?: string): Promise<GroceryItem[]> {
+    const allItems = Array.from(this.groceryItems.values());
+    if (familyId) {
+      return allItems.filter(item => item.familyId === familyId).sort((a, b) => 
+        a.createdAt.getTime() - b.createdAt.getTime()
+      );
+    }
+    return allItems.sort((a, b) => 
       a.createdAt.getTime() - b.createdAt.getTime()
     );
   }
@@ -49,6 +63,7 @@ export class MemStorage implements IStorage {
       name: insertItem.name,
       completed: insertItem.completed !== undefined ? insertItem.completed : false,
       addedBy: insertItem.addedBy,
+      familyId: insertItem.familyId,
       createdAt: new Date(),
     };
     this.groceryItems.set(id, item);
@@ -73,6 +88,23 @@ export class MemStorage implements IStorage {
 
   async getGroceryItem(id: number): Promise<GroceryItem | undefined> {
     return this.groceryItems.get(id);
+  }
+
+  // Family Management (stub implementations for memory storage)
+  async createFamily(family: { name: string; code: string; createdBy: string }): Promise<Family> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async getFamilyByCode(code: string): Promise<Family | undefined> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async addFamilyMember(member: { familyId: string; userId: string; userEmail: string; userName: string; role: string }): Promise<FamilyMember> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined> {
+    throw new Error("Family management not supported in memory storage");
   }
 }
 
