@@ -1,4 +1,5 @@
 import { groceryItems, type GroceryItem, type InsertGroceryItem } from "@shared/schema";
+import { DatabaseStorage } from "./database-storage";
 
 export interface IStorage {
   getAllGroceryItems(): Promise<GroceryItem[]>;
@@ -75,4 +76,5 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Use database storage in production, memory storage for local development without DATABASE_URL
+export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
