@@ -57,7 +57,7 @@ export default function FamilySetup() {
       
       // Redirect to grocery list after 2 seconds
       setTimeout(() => {
-        setLocation('/');
+        window.location.reload(); // Force page reload to refresh family status
       }, 2000);
 
     } catch (err) {
@@ -98,7 +98,7 @@ export default function FamilySetup() {
       
       // Redirect to grocery list after 2 seconds
       setTimeout(() => {
-        setLocation('/');
+        window.location.reload(); // Force page reload to refresh family status
       }, 2000);
 
     } catch (err) {

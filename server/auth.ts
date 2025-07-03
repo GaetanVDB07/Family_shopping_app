@@ -1,18 +1,21 @@
-import dotenv from 'dotenv';
-// Load environment variables from .env file
-dotenv.config();
-
 import { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase environment variables');
-}
+let supabase: any = null;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+function getSupabaseClient() {
+  if (!supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+  }
+  return supabase;
+}
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -35,7 +38,8 @@ export async function authenticateUser(
 
     const token = authHeader.substring(7);
     
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const supabaseClient = getSupabaseClient();
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
     
     if (error || !user) {
       return res.status(401).json({ message: 'Invalid or expired token' });

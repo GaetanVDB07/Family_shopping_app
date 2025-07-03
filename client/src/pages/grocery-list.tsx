@@ -53,6 +53,14 @@ export default function GroceryList() {
       const response = await apiRequest("POST", "/api/grocery-items", data);
       return response.json();
     },
+    onSuccess: (newItem: GroceryItem) => {
+      // Update the cache with the new item
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => [...old, newItem]);
+      toast({
+        title: "Toegevoegd",
+        description: `"${newItem.name}" is toegevoegd aan de lijst.`,
+      });
+    },
     onError: () => {
       toast({
         title: "Fout",
@@ -68,6 +76,12 @@ export default function GroceryList() {
       const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed });
       return response.json();
     },
+    onSuccess: (updatedItem: GroceryItem) => {
+      // Update the cache with the updated item
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+      );
+    },
     onError: () => {
       toast({
         title: "Fout",
@@ -81,8 +95,13 @@ export default function GroceryList() {
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/grocery-items/${id}`);
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (deletedId: number) => {
+      // Update the cache by removing the deleted item
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.filter((item) => item.id !== deletedId)
+      );
       setItemToDelete(null);
       toast({
         title: "Verwijderd",

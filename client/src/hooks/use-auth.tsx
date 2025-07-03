@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import supabase from '@/lib/supabase';
+import { setAuthTokenGetter } from '@/lib/queryClient';
 
 interface AuthContextType {
   user: User | null;
@@ -17,6 +18,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Set up the token getter for the query client
+    setAuthTokenGetter(() => session?.access_token || null);
+  }, [session]);
 
   useEffect(() => {
     // Get initial session
