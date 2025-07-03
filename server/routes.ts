@@ -78,6 +78,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userFamily = await storage.getUserFamily(req.user.id);
+      
+      if (!userFamily) {
+        return res.status(404).json({ message: "User is not in any family" });
+      }
+      
       res.json(userFamily);
     } catch (error) {
       console.error('Get user family error:', error);

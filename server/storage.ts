@@ -13,6 +13,7 @@ export interface IStorage {
   createFamily(family: { name: string; code: string; createdBy: string }): Promise<Family>;
   getFamilyByCode(code: string): Promise<Family | undefined>;
   addFamilyMember(member: { familyId: string; userId: string; userEmail: string; userName: string; role: string }): Promise<FamilyMember>;
+  getFamilyMember(familyId: string, userId: string): Promise<FamilyMember | undefined>;
   getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined>;
 }
 
@@ -103,10 +104,28 @@ export class MemStorage implements IStorage {
     throw new Error("Family management not supported in memory storage");
   }
 
+  async getFamilyMember(familyId: string, userId: string): Promise<FamilyMember | undefined> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
   async getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined> {
     throw new Error("Family management not supported in memory storage");
   }
 }
 
-// Use database storage when DATABASE_URL is available, otherwise memory storage
-export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
+// Lazy-load storage based on environment variables
+let storageInstance: IStorage | null = null;
+
+export function getStorage(): IStorage {
+  if (!storageInstance) {
+    storageInstance = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
+  }
+  return storageInstance;
+}
+
+// For backwards compatibility, export storage as a getter
+export const storage = new Proxy({} as IStorage, {
+  get(target, prop) {
+    return (getStorage() as any)[prop];
+  }
+});
