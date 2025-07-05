@@ -44,35 +44,108 @@ export class DatabaseStorage implements IStorage {
   async getAllGroceryItems(familyId?: string): Promise<GroceryItem[]> {
     const db = initializeDatabase();
     if (familyId) {
-      const items = await db.select().from(groceryItems)
+      const items = await db.select({
+        id: groceryItems.id,
+        name: groceryItems.name,
+        completed: groceryItems.completed,
+        addedBy: familyMembers.userName, // Get user name instead of UUID
+        familyId: groceryItems.familyId,
+        createdAt: groceryItems.createdAt,
+      }).from(groceryItems)
+        .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
         .where(eq(groceryItems.familyId, familyId))
         .orderBy(groceryItems.createdAt);
-      return items;
+      
+      // Fallback to UUID if userName is null
+      return items.map((item: any) => ({
+        ...item,
+        addedBy: item.addedBy || 'Unknown User'
+      })) as GroceryItem[];
     } else {
-      const items = await db.select().from(groceryItems).orderBy(groceryItems.createdAt);
-      return items;
+      const items = await db.select({
+        id: groceryItems.id,
+        name: groceryItems.name,
+        completed: groceryItems.completed,
+        addedBy: familyMembers.userName, // Get user name instead of UUID
+        familyId: groceryItems.familyId,
+        createdAt: groceryItems.createdAt,
+      }).from(groceryItems)
+        .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+        .orderBy(groceryItems.createdAt);
+      
+      // Fallback to UUID if userName is null
+      return items.map((item: any) => ({
+        ...item,
+        addedBy: item.addedBy || 'Unknown User'
+      })) as GroceryItem[];
     }
   }
 
   async createGroceryItem(insertItem: InsertGroceryItem): Promise<GroceryItem> {
     const db = initializeDatabase();
     const [item] = await db.insert(groceryItems).values(insertItem).returning();
-    return item;
+    
+    // Get the user name for the response
+    const [itemWithUserName] = await db.select({
+      id: groceryItems.id,
+      name: groceryItems.name,
+      completed: groceryItems.completed,
+      addedBy: familyMembers.userName,
+      familyId: groceryItems.familyId,
+      createdAt: groceryItems.createdAt,
+    }).from(groceryItems)
+      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+      .where(eq(groceryItems.id, item.id));
+    
+    return {
+      ...itemWithUserName,
+      addedBy: itemWithUserName.addedBy || 'Unknown User'
+    } as GroceryItem;
   }
 
-  async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem | undefined> {
+  async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>, familyId?: string): Promise<GroceryItem | undefined> {
     const db = initializeDatabase();
+    
+    // Build the where condition - include family filtering for security
+    const whereCondition = familyId 
+      ? and(eq(groceryItems.id, id), eq(groceryItems.familyId, familyId))
+      : eq(groceryItems.id, id);
+    
     const [item] = await db
       .update(groceryItems)
       .set(updates)
-      .where(eq(groceryItems.id, id))
+      .where(whereCondition)
       .returning();
-    return item;
+    
+    if (!item) return undefined;
+    
+    // Get the user name for the response
+    const [itemWithUserName] = await db.select({
+      id: groceryItems.id,
+      name: groceryItems.name,
+      completed: groceryItems.completed,
+      addedBy: familyMembers.userName,
+      familyId: groceryItems.familyId,
+      createdAt: groceryItems.createdAt,
+    }).from(groceryItems)
+      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+      .where(eq(groceryItems.id, item.id));
+    
+    return {
+      ...itemWithUserName,
+      addedBy: itemWithUserName.addedBy || 'Unknown User'
+    } as GroceryItem;
   }
 
-  async deleteGroceryItem(id: number): Promise<boolean> {
+  async deleteGroceryItem(id: number, familyId?: string): Promise<boolean> {
     const db = initializeDatabase();
-    const result = await db.delete(groceryItems).where(eq(groceryItems.id, id));
+    
+    // Build the where condition - include family filtering for security
+    const whereCondition = familyId 
+      ? and(eq(groceryItems.id, id), eq(groceryItems.familyId, familyId))
+      : eq(groceryItems.id, id);
+    
+    const result = await db.delete(groceryItems).where(whereCondition);
     return (result.rowCount ?? 0) > 0;
   }
 

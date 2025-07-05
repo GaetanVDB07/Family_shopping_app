@@ -26,7 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         familyId: family.id,
         userId: req.user.id,
         userEmail: req.user.email,
-        userName: req.user.name,
+        userName: req.user.name || req.user.email, // Fallback to email if name is not available
         role: "admin",
       });
 
@@ -60,7 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         familyId: family.id,
         userId: req.user.id,
         userEmail: req.user.email,
-        userName: req.user.name,
+        userName: req.user.name || req.user.email, // Fallback to email if name is not available
         role: "member",
       });
 

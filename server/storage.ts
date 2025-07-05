@@ -5,8 +5,8 @@ export interface IStorage {
   // Grocery Items
   getAllGroceryItems(familyId?: string): Promise<GroceryItem[]>;
   createGroceryItem(item: InsertGroceryItem): Promise<GroceryItem>;
-  updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem | undefined>;
-  deleteGroceryItem(id: number): Promise<boolean>;
+  updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>, familyId?: string): Promise<GroceryItem | undefined>;
+  deleteGroceryItem(id: number, familyId?: string): Promise<boolean>;
   getGroceryItem(id: number): Promise<GroceryItem | undefined>;
   
   // Family Management
@@ -71,9 +71,14 @@ export class MemStorage implements IStorage {
     return item;
   }
 
-  async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem | undefined> {
+  async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>, familyId?: string): Promise<GroceryItem | undefined> {
     const existingItem = this.groceryItems.get(id);
     if (!existingItem) return undefined;
+    
+    // Check family id for security if provided
+    if (familyId && existingItem.familyId !== familyId) {
+      return undefined;
+    }
 
     const updatedItem: GroceryItem = {
       ...existingItem,
@@ -83,7 +88,14 @@ export class MemStorage implements IStorage {
     return updatedItem;
   }
 
-  async deleteGroceryItem(id: number): Promise<boolean> {
+  async deleteGroceryItem(id: number, familyId?: string): Promise<boolean> {
+    const existingItem = this.groceryItems.get(id);
+    
+    // Check family id for security if provided
+    if (familyId && existingItem && existingItem.familyId !== familyId) {
+      return false;
+    }
+    
     return this.groceryItems.delete(id);
   }
 
