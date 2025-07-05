@@ -8,6 +8,7 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 import GroceryList from "@/pages/grocery-list";
 import AuthPage from "@/pages/auth";
 import FamilySetup from "@/pages/family-setup";
+import FamilyManagement from "@/pages/family-management";
 
 function AuthenticatedApp() {
   const { user, loading: authLoading } = useAuth();
@@ -37,6 +38,7 @@ function AuthenticatedApp() {
   return (
     <Switch>
       <Route path="/family-setup" component={FamilySetup} />
+      <Route path="/family-management" component={FamilyManagement} />
       <Route path="/" component={GroceryList} />
       <Route path="*" component={GroceryList} />
     </Switch>

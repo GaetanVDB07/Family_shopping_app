@@ -5,6 +5,7 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { GroceryItemComponent } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
@@ -206,6 +207,7 @@ export default function GroceryList() {
                 </>
               )}
             </div>
+            <UserMenu />
           </div>
         </div>
       </header>

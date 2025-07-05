@@ -14,7 +14,12 @@ export interface IStorage {
   getFamilyByCode(code: string): Promise<Family | undefined>;
   addFamilyMember(member: { familyId: string; userId: string; userEmail: string; userName: string; role: string }): Promise<FamilyMember>;
   getFamilyMember(familyId: string, userId: string): Promise<FamilyMember | undefined>;
+  getFamilyMemberById(memberId: string): Promise<FamilyMember | undefined>;
   getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined>;
+  getFamilyDetails(familyId: string): Promise<{ id: string; name: string; code: string; members: FamilyMember[] } | undefined>;
+  removeFamilyMember(familyId: string, userId: string): Promise<boolean>;
+  removeFamilyMemberById(memberId: string): Promise<boolean>;
+  deleteFamily(familyId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -63,8 +68,8 @@ export class MemStorage implements IStorage {
       id,
       name: insertItem.name,
       completed: insertItem.completed !== undefined ? insertItem.completed : false,
-      addedBy: insertItem.addedBy,
-      familyId: insertItem.familyId,
+      addedBy: insertItem.addedBy || "demo-user",
+      familyId: insertItem.familyId || "demo-family-123",
       createdAt: new Date(),
     };
     this.groceryItems.set(id, item);
@@ -121,6 +126,26 @@ export class MemStorage implements IStorage {
   }
 
   async getUserFamily(userId: string): Promise<{ familyId: string; familyName: string; role: string } | undefined> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async getFamilyMemberById(memberId: string): Promise<FamilyMember | undefined> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async getFamilyDetails(familyId: string): Promise<{ id: string; name: string; code: string; members: FamilyMember[] } | undefined> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async removeFamilyMember(familyId: string, userId: string): Promise<boolean> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async removeFamilyMemberById(memberId: string): Promise<boolean> {
+    throw new Error("Family management not supported in memory storage");
+  }
+
+  async deleteFamily(familyId: string): Promise<boolean> {
     throw new Error("Family management not supported in memory storage");
   }
 }

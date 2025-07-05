@@ -90,6 +90,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/family/details", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userFamily = await storage.getUserFamily(req.user.id);
+      if (!userFamily) {
+        return res.status(404).json({ message: "Geen familie gevonden" });
+      }
+
+      // Check if user is admin
+      const member = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!member || member.role !== "admin") {
+        return res.status(403).json({ message: "Alleen admins kunnen familie details bekijken" });
+      }
+
+      const familyDetails = await storage.getFamilyDetails(userFamily.familyId);
+      res.json(familyDetails);
+    } catch (error) {
+      console.error('Get family details error:', error);
+      res.status(500).json({ message: "Kon familie details niet ophalen" });
+    }
+  });
+
+  app.post("/api/family/leave", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userFamily = await storage.getUserFamily(req.user.id);
+      if (!userFamily) {
+        return res.status(404).json({ message: "Geen familie gevonden" });
+      }
+
+      // Check if user is admin - admins cannot leave
+      const member = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (member?.role === "admin") {
+        return res.status(403).json({ message: "Admins kunnen de familie niet verlaten" });
+      }
+
+      const success = await storage.removeFamilyMember(userFamily.familyId, req.user.id);
+      if (!success) {
+        return res.status(404).json({ message: "Kon familie niet verlaten" });
+      }
+
+      res.json({ message: "Familie succesvol verlaten" });
+    } catch (error) {
+      console.error('Leave family error:', error);
+      res.status(500).json({ message: "Kon familie niet verlaten" });
+    }
+  });
+
+  app.delete("/api/family/members/:memberId", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userFamily = await storage.getUserFamily(req.user.id);
+      if (!userFamily) {
+        return res.status(404).json({ message: "Geen familie gevonden" });
+      }
+
+      // Check if user is admin
+      const adminMember = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!adminMember || adminMember.role !== "admin") {
+        return res.status(403).json({ message: "Alleen admins kunnen leden verwijderen" });
+      }
+
+      const memberId = req.params.memberId;
+      const memberToRemove = await storage.getFamilyMemberById(memberId);
+      
+      if (!memberToRemove || memberToRemove.familyId !== userFamily.familyId) {
+        return res.status(404).json({ message: "Familielid niet gevonden" });
+      }
+
+      // Cannot remove admin
+      if (memberToRemove.role === "admin") {
+        return res.status(403).json({ message: "Admin kan niet worden verwijderd" });
+      }
+
+      const success = await storage.removeFamilyMemberById(memberId);
+      if (!success) {
+        return res.status(404).json({ message: "Kon familielid niet verwijderen" });
+      }
+
+      res.json({ message: "Familielid succesvol verwijderd" });
+    } catch (error) {
+      console.error('Remove family member error:', error);
+      res.status(500).json({ message: "Kon familielid niet verwijderen" });
+    }
+  });
+
+  app.delete("/api/family", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userFamily = await storage.getUserFamily(req.user.id);
+      if (!userFamily) {
+        return res.status(404).json({ message: "Geen familie gevonden" });
+      }
+
+      // Check if user is admin - only admins can delete families
+      const member = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!member || member.role !== "admin") {
+        return res.status(403).json({ message: "Alleen admins kunnen de familie verwijderen" });
+      }
+
+      const success = await storage.deleteFamily(userFamily.familyId);
+      if (!success) {
+        return res.status(404).json({ message: "Kon familie niet verwijderen" });
+      }
+
+      res.json({ message: "Familie succesvol verwijderd" });
+    } catch (error) {
+      console.error('Delete family error:', error);
+      res.status(500).json({ message: "Kon familie niet verwijderen" });
+    }
+  });
+
   // Grocery Items API Routes (now with authentication and family context)
   app.get("/api/grocery-items", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {

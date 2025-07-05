@@ -219,4 +219,69 @@ export class DatabaseStorage implements IStorage {
     
     return result[0];
   }
+
+  async getFamilyMemberById(memberId: string): Promise<FamilyMember | undefined> {
+    const db = initializeDatabase();
+    const [member] = await db
+      .select()
+      .from(familyMembers)
+      .where(eq(familyMembers.id, memberId))
+      .limit(1);
+    return member;
+  }
+
+  async getFamilyDetails(familyId: string): Promise<{ id: string; name: string; code: string; members: FamilyMember[] } | undefined> {
+    const db = initializeDatabase();
+    
+    // Get family info
+    const [family] = await db
+      .select()
+      .from(families)
+      .where(eq(families.id, familyId))
+      .limit(1);
+    
+    if (!family) return undefined;
+    
+    // Get all family members
+    const members = await db
+      .select()
+      .from(familyMembers)
+      .where(eq(familyMembers.familyId, familyId))
+      .orderBy(familyMembers.joinedAt);
+    
+    return {
+      id: family.id,
+      name: family.name,
+      code: family.code,
+      members,
+    };
+  }
+
+  async removeFamilyMember(familyId: string, userId: string): Promise<boolean> {
+    const db = initializeDatabase();
+    const result = await db
+      .delete(familyMembers)
+      .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async removeFamilyMemberById(memberId: string): Promise<boolean> {
+    const db = initializeDatabase();
+    const result = await db
+      .delete(familyMembers)
+      .where(eq(familyMembers.id, memberId));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteFamily(familyId: string): Promise<boolean> {
+    const db = initializeDatabase();
+    
+    // Note: Due to foreign key constraints with CASCADE, deleting the family
+    // will automatically delete all related family members and grocery items
+    const result = await db
+      .delete(families)
+      .where(eq(families.id, familyId));
+    
+    return (result.rowCount ?? 0) > 0;
+  }
 }

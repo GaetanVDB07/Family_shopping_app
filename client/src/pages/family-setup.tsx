@@ -8,10 +8,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShoppingCart, Users, Plus, Key, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function FamilySetup() {
   const [location, setLocation] = useLocation();
   const { user, session, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -55,10 +57,13 @@ export default function FamilySetup() {
       const family = await response.json();
       setSuccess(`Familie "${familyName}" aangemaakt! Familie code: ${code}`);
       
-      // Redirect to grocery list after 2 seconds
+      // Invalidate family status query to trigger redirect
+      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      
+      // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {
-        window.location.reload(); // Force page reload to refresh family status
-      }, 2000);
+        setLocation("/");
+      }, 1500);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
@@ -96,10 +101,13 @@ export default function FamilySetup() {
       const result = await response.json();
       setSuccess(`Welkom bij familie "${result.familyName}"!`);
       
-      // Redirect to grocery list after 2 seconds
+      // Invalidate family status query to trigger redirect
+      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      
+      // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {
-        window.location.reload(); // Force page reload to refresh family status
-      }, 2000);
+        setLocation("/");
+      }, 1500);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
