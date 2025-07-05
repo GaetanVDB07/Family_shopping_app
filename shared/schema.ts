@@ -46,6 +46,9 @@ export const insertFamilyMemberSchema = createInsertSchema(familyMembers).omit({
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({
   id: true,
   createdAt: true,
+}).partial({
+  addedBy: true,  // Server will provide this
+  familyId: true, // Server will provide this
 });
 
 // Types

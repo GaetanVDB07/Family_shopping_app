@@ -139,7 +139,7 @@ export default function GroceryList() {
   }, [items]);
 
   const handleAddItem = useCallback(async (name: string, addedBy: string) => {
-    await addItemMutation.mutateAsync({ name, addedBy, completed: false });
+    await addItemMutation.mutateAsync({ name, completed: false });
   }, [addItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
