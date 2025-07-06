@@ -132,7 +132,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is distributed under a custom license that forbids copying or selling without permission. See the [LICENSE](LICENSE) file for details.
 
 ## 👨‍👩‍👧‍👦 Built for Families
 
