@@ -53,10 +53,10 @@ A modern, collaborative grocery list application built for families to manage th
    ```bash
    # Copy the environment template
    cp .env.example .env
-   
-   # Edit .env with your database configuration
-   # For development, you can use memory storage (current default)
-   # For production, set up a PostgreSQL database URL
+
+   # Edit .env with your database and Supabase configuration
+   # Set DATABASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY
+   # The client also uses VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
    ```
 
 4. **Database Setup (Optional)**
@@ -124,6 +124,10 @@ Create a `.env` file with:
 ```env
 DATABASE_URL=your_postgresql_connection_string
 NODE_ENV=development
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ## 📄 License
