@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
-// Load environment variables from .env file FIRST before any other imports
-dotenv.config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+console.log(`Loading environment from: ${envFile}`);
+dotenv.config({ path: envFile });
 
 import express, { type Request, type Response, type NextFunction } from "express";
 import { registerRoutes } from "./routes";

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './use-auth';
 
 interface FamilyMembership {
@@ -9,49 +9,39 @@ interface FamilyMembership {
 
 export function useFamilyStatus() {
   const { user, session } = useAuth();
-  const [familyMembership, setFamilyMembership] = useState<FamilyMembership | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function checkFamilyMembership() {
+  const { data: familyMembership, isLoading: loading, error } = useQuery<FamilyMembership | null>({
+    queryKey: ["/api/user/family"],
+    queryFn: async () => {
       if (!user || !session) {
-        setLoading(false);
-        return;
+        return null;
       }
 
-      try {
-        const response = await fetch('/api/user/family', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+      const response = await fetch('/api/user/family', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          setFamilyMembership(data || null);
-        } else if (response.status === 404) {
-          // User is not in any family
-          setFamilyMembership(null);
-        } else {
-          setError('Failed to check family status');
-        }
-      } catch (err) {
-        setError('Failed to check family status');
-        console.error('Error checking family status:', err);
-      } finally {
-        setLoading(false);
+      if (response.ok) {
+        const data = await response.json();
+        return data || null;
+      } else if (response.status === 404) {
+        // User is not in any family
+        return null;
+      } else {
+        throw new Error('Failed to check family status');
       }
-    }
-
-    checkFamilyMembership();
-  }, [user, session]);
+    },
+    enabled: !!user && !!session, // Only run if user and session exist
+    retry: 1,
+  });
 
   return {
     familyMembership,
     loading,
-    error,
+    error: error?.message || null,
     hasFamily: !!familyMembership,
   };
 }

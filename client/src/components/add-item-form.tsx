@@ -12,6 +12,7 @@ interface AddItemFormProps {
 export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,19 +27,28 @@ export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
       return;
     }
 
+    if (isSubmitting) {
+      console.log("Already submitting, ignoring duplicate submission");
+      return;
+    }
+
+    setIsSubmitting(true);
+    console.log(`[${new Date().toISOString()}] Form: Starting submission for "${name.trim()}"`);
+
     try {
       await onAddItem(name.trim(), addedBy);
       setName("");
-      toast({
-        title: "Toegevoegd",
-        description: `"${name}" toegevoegd aan lijst`,
-      });
+      console.log(`[${new Date().toISOString()}] Form: Submission completed successfully`);
+      // Success toast is handled by the mutation
     } catch (error) {
+      console.log(`[${new Date().toISOString()}] Form: Submission failed:`, error);
       toast({
         title: "Fout",
         description: "Er is iets misgegaan. Probeer het opnieuw.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -57,7 +67,7 @@ export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
         </div>
         <Button
           type="submit"
-          disabled={isLoading || !name.trim()}
+          disabled={isLoading || isSubmitting || !name.trim()}
           className="bg-primary hover:bg-green-700 text-white px-6 py-3 font-medium min-w-[60px]"
         >
           <Plus className="w-4 h-4" />

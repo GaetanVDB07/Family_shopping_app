@@ -9,12 +9,10 @@ dist/
 build/
 server/public
 
-# Environment variables
+# Environment variables - Keep all sensitive env files out of git
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # Database
 *.db
@@ -23,6 +21,7 @@ server/public
 # IDE files
 .vscode/
 .idea/
+.qodo/
 *.swp
 *.swo
 
@@ -53,3 +52,18 @@ coverage/
 tmp/
 temp/
 *.tar.gz
+
+# Debug and test scripts in root (keep organized scripts in scripts/ directory)
+/check-*.mjs
+/test-*.mjs
+/clean-*.mjs
+/cleanup-*.mjs
+/quick-fix.mjs
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Setup scripts (environment-specific) in root
+/setup-databases.sh

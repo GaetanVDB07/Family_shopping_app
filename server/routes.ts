@@ -245,10 +245,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Geen familie gevonden" });
       }
 
+      // ✅ Enhanced Security: Validate if user is trying to add item to a different family
+      if (req.body.familyId && req.body.familyId !== userFamily.familyId) {
+        console.log(`[${new Date().toISOString()}] SECURITY: User ${req.user.id} attempted to add item to different family. User family: ${userFamily.familyId}, Requested family: ${req.body.familyId}`);
+        return res.status(403).json({ 
+          message: "Je kunt alleen items toevoegen aan je eigen familie" 
+        });
+      }
+
+      // ✅ Verify user is actually a member of the family (double-check)
+      const familyMember = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!familyMember) {
+        console.log(`[${new Date().toISOString()}] SECURITY: User ${req.user.id} is not a verified member of family ${userFamily.familyId}`);
+        return res.status(403).json({ 
+          message: "Je bent geen geldig lid van deze familie" 
+        });
+      }
+
       const validatedData = insertGroceryItemSchema.parse({
         ...req.body,
         addedBy: req.user.id,
-        familyId: userFamily.familyId,
+        familyId: userFamily.familyId, // Always use the user's actual family
       });
 
       const item = await storage.createGroceryItem(validatedData);
@@ -264,21 +281,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/grocery-items/:id", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    const requestId = Math.random().toString(36).substr(2, 9);
+    
     try {
       if (!req.user) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - No user authenticated`);
         return res.status(401).json({ message: "Not authenticated" });
       }
 
       const userFamily = await storage.getUserFamily(req.user.id);
       if (!userFamily) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - No family found for user ${req.user.id}`);
         return res.status(404).json({ message: "Geen familie gevonden" });
+      }
+
+      // ✅ Verify user is a member of the family
+      const familyMember = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!familyMember) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - User ${req.user.id} is not a verified member of family ${userFamily.familyId}`);
+        return res.status(403).json({ 
+          message: "Je bent geen geldig lid van deze familie" 
+        });
       }
 
       const id = parseInt(req.params.id);
       const updates = req.body;
       
+      console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - Updating item ${id} for family ${userFamily.familyId}`);
       const item = await storage.updateGroceryItem(id, updates, userFamily.familyId);
       if (!item) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - Item ${id} not found in family ${userFamily.familyId}`);
         return res.status(404).json({ message: "Boodschappenitem niet gevonden" });
       }
       
@@ -286,27 +318,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastToFamily(userFamily.familyId, { type: 'itemUpdated', item });
       
       res.json(item);
+      console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - Successfully updated item ${id}`);
     } catch (error) {
-      console.error('Update grocery item error:', error);
+      console.error(`[${new Date().toISOString()}] REQUEST ${requestId}: PATCH - Update grocery item error:`, error);
       res.status(400).json({ message: "Fout bij bijwerken van item" });
     }
   });
 
   app.delete("/api/grocery-items/:id", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    const requestId = Math.random().toString(36).substr(2, 9);
+    
     try {
       if (!req.user) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - No user authenticated`);
         return res.status(401).json({ message: "Not authenticated" });
       }
 
       const userFamily = await storage.getUserFamily(req.user.id);
       if (!userFamily) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - No family found for user ${req.user.id}`);
         return res.status(404).json({ message: "Geen familie gevonden" });
       }
 
+      // ✅ Verify user is a member of the family
+      const familyMember = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      if (!familyMember) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - User ${req.user.id} is not a verified member of family ${userFamily.familyId}`);
+        return res.status(403).json({ 
+          message: "Je bent geen geldig lid van deze familie" 
+        });
+      }
+
       const id = parseInt(req.params.id);
+      
+      console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - Deleting item ${id} for family ${userFamily.familyId}`);
       const deleted = await storage.deleteGroceryItem(id, userFamily.familyId);
       
       if (!deleted) {
+        console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - Item ${id} not found in family ${userFamily.familyId}`);
         return res.status(404).json({ message: "Boodschappenitem niet gevonden" });
       }
       
@@ -314,8 +363,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastToFamily(userFamily.familyId, { type: 'itemDeleted', id });
       
       res.status(204).send();
+      console.log(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - Successfully deleted item ${id}`);
     } catch (error) {
-      console.error('Delete grocery item error:', error);
+      console.error(`[${new Date().toISOString()}] REQUEST ${requestId}: DELETE - Delete grocery item error:`, error);
       res.status(500).json({ message: "Fout bij verwijderen van item" });
     }
   });
@@ -360,6 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send current state to new client
       const items = await storage.getAllGroceryItems(userFamily.familyId);
+      console.log(`[${new Date().toISOString()}] WebSocket sync for family ${userFamily.familyId}: sending ${items.length} items`, items.map(item => ({ id: item.id, name: item.name })));
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'sync', items }));
       }

@@ -5,10 +5,15 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev:load-env": "cp .env.development .env && npm run dev",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:prod": "cp .env.production .env && npm run build",
     "start": "NODE_ENV=production node dist/index.js",
+    "start:prod": "cp .env.production .env && npm start",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "db:push:dev": "cp .env.development .env && drizzle-kit push",
+    "db:push:prod": "cp .env.production .env && drizzle-kit push",
     "test": "vitest"
   },
   "dependencies": {

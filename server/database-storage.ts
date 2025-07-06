@@ -52,15 +52,25 @@ export class DatabaseStorage implements IStorage {
         familyId: groceryItems.familyId,
         createdAt: groceryItems.createdAt,
       }).from(groceryItems)
-        .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+        .leftJoin(familyMembers, and(
+          eq(groceryItems.addedBy, familyMembers.userId),
+          eq(familyMembers.familyId, familyId) // Add family filter to the join
+        ))
         .where(eq(groceryItems.familyId, familyId))
         .orderBy(groceryItems.createdAt);
       
-      // Fallback to UUID if userName is null
-      return items.map((item: any) => ({
-        ...item,
-        addedBy: item.addedBy || 'Unknown User'
-      })) as GroceryItem[];
+      // Remove duplicates and fallback to UUID if userName is null
+      const uniqueItems = new Map();
+      items.forEach((item: any) => {
+        if (!uniqueItems.has(item.id)) {
+          uniqueItems.set(item.id, {
+            ...item,
+            addedBy: item.addedBy || 'Unknown User'
+          });
+        }
+      });
+      
+      return Array.from(uniqueItems.values()) as GroceryItem[];
     } else {
       const items = await db.select({
         id: groceryItems.id,
@@ -73,17 +83,29 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
         .orderBy(groceryItems.createdAt);
       
-      // Fallback to UUID if userName is null
-      return items.map((item: any) => ({
-        ...item,
-        addedBy: item.addedBy || 'Unknown User'
-      })) as GroceryItem[];
+      // Remove duplicates and fallback to UUID if userName is null
+      const uniqueItems = new Map();
+      items.forEach((item: any) => {
+        if (!uniqueItems.has(item.id)) {
+          uniqueItems.set(item.id, {
+            ...item,
+            addedBy: item.addedBy || 'Unknown User'
+          });
+        }
+      });
+      
+      return Array.from(uniqueItems.values()) as GroceryItem[];
     }
   }
 
   async createGroceryItem(insertItem: InsertGroceryItem): Promise<GroceryItem> {
     const db = initializeDatabase();
+    
+    console.log(`[${new Date().toISOString()}] DatabaseStorage.createGroceryItem called with:`, insertItem);
+    
     const [item] = await db.insert(groceryItems).values(insertItem).returning();
+    
+    console.log(`[${new Date().toISOString()}] Database inserted item:`, item);
     
     // Get the user name for the response
     const [itemWithUserName] = await db.select({
@@ -97,10 +119,14 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
       .where(eq(groceryItems.id, item.id));
     
-    return {
+    const result = {
       ...itemWithUserName,
       addedBy: itemWithUserName.addedBy || 'Unknown User'
     } as GroceryItem;
+    
+    console.log(`[${new Date().toISOString()}] Returning grocery item:`, result);
+    
+    return result;
   }
 
   async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>, familyId?: string): Promise<GroceryItem | undefined> {

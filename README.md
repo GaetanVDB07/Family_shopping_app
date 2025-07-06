@@ -50,16 +50,21 @@ A modern, collaborative grocery list application built for families to manage th
    ```
 
 3. **Environment Setup**
-   ```bash
-   # Copy the environment template
-   cp .env.example .env
 
+   ```bash
+   # For development environment
+   ./setup-env.sh dev
+   
+   # For production environment  
+   ./setup-env.sh prod
+   
+   # Or manually copy and edit:
+   cp .env.example .env
    # Edit .env with your database and Supabase configuration
-   # Set DATABASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY
-   # The client also uses VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
    ```
 
 4. **Database Setup (Optional)**
+
    ```bash
    # If using PostgreSQL, push the schema to your database
    npm run db:push
@@ -69,6 +74,7 @@ A modern, collaborative grocery list application built for families to manage th
    ```
 
 5. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -86,7 +92,7 @@ A modern, collaborative grocery list application built for families to manage th
 
 ## 🏗️ Project Structure
 
-```
+```text
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/     # React components
@@ -99,7 +105,12 @@ A modern, collaborative grocery list application built for families to manage th
 │   └── storage.ts         # Database layer
 ├── shared/                 # Shared types & schemas
 │   └── schema.ts          # Database schema & types
+├── scripts/               # Utility scripts
+│   └── README.md          # Scripts documentation
 └── docs/                  # Documentation
+    ├── ARCHITECTURE.md    # System architecture
+    ├── DATABASE_SETUP.md  # Database setup guide
+    └── DEPLOYMENT.md      # Deployment instructions
 ```
 
 ## 🤝 Contributing
