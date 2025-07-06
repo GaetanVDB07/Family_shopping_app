@@ -1,3 +1,4 @@
+import React from "react";
 import { GroceryItem } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Trash2, Check } from "lucide-react";
