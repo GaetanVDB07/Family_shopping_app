@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
@@ -8,6 +8,7 @@ import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialo
 import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShoppingCart, Wifi, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,31 +19,54 @@ export default function GroceryList() {
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items"],
   });
 
+  // Debug: Log items to see duplicates
+  useEffect(() => {
+    console.log(`[${new Date().toISOString()}] Items in cache:`, items.length);
+    const itemCounts = {};
+    items.forEach(item => {
+      itemCounts[item.id] = (itemCounts[item.id] || 0) + 1;
+    });
+    const duplicates = Object.entries(itemCounts).filter(([_, count]) => count > 1);
+    if (duplicates.length > 0) {
+      console.log(`[${new Date().toISOString()}] DUPLICATE ITEMS IN CACHE:`, duplicates);
+    }
+  }, [items]);
+
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected } = useWebSocket({
     onItemAdded: (item) => {
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => [...old, item]);
+      console.log(`[${new Date().toISOString()}] Client: WebSocket itemAdded:`, item);
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
+        // Check if item already exists to prevent duplicates
+        const exists = old.some(existingItem => existingItem.id === item.id);
+        console.log(`[${new Date().toISOString()}] Client: WebSocket item exists in cache:`, exists);
+        return exists ? old : [...old, item];
+      });
       setIsConnected(true);
     },
     onItemUpdated: (updatedItem) => {
+      console.log(`[${new Date().toISOString()}] Client: WebSocket itemUpdated:`, updatedItem);
       queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
         old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
       );
       setIsConnected(true);
     },
     onItemDeleted: (id) => {
+      console.log(`[${new Date().toISOString()}] Client: WebSocket itemDeleted:`, id);
       queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
         old.filter((item) => item.id !== id)
       );
       setIsConnected(true);
     },
     onSync: (syncedItems) => {
+      console.log(`[${new Date().toISOString()}] Client: WebSocket sync with ${syncedItems.length} items`);
       queryClient.setQueryData(["/api/grocery-items"], syncedItems);
       setIsConnected(true);
     },
@@ -51,18 +75,31 @@ export default function GroceryList() {
   // Add item mutation
   const addItemMutation = useMutation({
     mutationFn: async (data: InsertGroceryItem) => {
+      console.log(`[${new Date().toISOString()}] Client: Starting mutation for item:`, data);
       const response = await apiRequest("POST", "/api/grocery-items", data);
-      return response.json();
+      const result = await response.json();
+      console.log(`[${new Date().toISOString()}] Client: Mutation response:`, result);
+      return result;
     },
     onSuccess: (newItem: GroceryItem) => {
-      // Update the cache with the new item
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => [...old, newItem]);
+      console.log(`[${new Date().toISOString()}] Client: Mutation success, wsConnected:`, wsConnected);
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        console.log(`[${new Date().toISOString()}] Client: Updating cache via mutation success`);
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
+          // Check if item already exists to prevent duplicates
+          const exists = old.some(item => item.id === newItem.id);
+          console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists);
+          return exists ? old : [...old, newItem];
+        });
+      }
       toast({
         title: "Toegevoegd",
         description: `"${newItem.name}" is toegevoegd aan de lijst.`,
       });
     },
     onError: () => {
+      console.log(`[${new Date().toISOString()}] Client: Mutation error`);
       toast({
         title: "Fout",
         description: "Kon item niet toevoegen. Probeer het opnieuw.",
@@ -78,10 +115,12 @@ export default function GroceryList() {
       return response.json();
     },
     onSuccess: (updatedItem: GroceryItem) => {
-      // Update the cache with the updated item
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-      );
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+          old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+        );
+      }
     },
     onError: () => {
       toast({
@@ -99,10 +138,12 @@ export default function GroceryList() {
       return id;
     },
     onSuccess: (deletedId: number) => {
-      // Update the cache by removing the deleted item
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-        old.filter((item) => item.id !== deletedId)
-      );
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+          old.filter((item) => item.id !== deletedId)
+        );
+      }
       setItemToDelete(null);
       toast({
         title: "Verwijderd",
@@ -140,8 +181,13 @@ export default function GroceryList() {
   }, [items]);
 
   const handleAddItem = useCallback(async (name: string, addedBy: string) => {
-    await addItemMutation.mutateAsync({ name, completed: false });
-  }, [addItemMutation]);
+    console.log(`[${new Date().toISOString()}] Client: handleAddItem called with name: "${name}"`);
+    await addItemMutation.mutateAsync({ 
+      name, 
+      completed: false,
+      addedBy: user?.id || "" // Use current user's ID
+    });
+  }, [addItemMutation, user?.id]);
 
   const handleToggleItem = useCallback((id: number) => {
     const item = items.find((item) => item.id === id);
