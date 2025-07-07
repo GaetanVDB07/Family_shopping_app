@@ -67,3 +67,4 @@ temp/
 
 # Setup scripts (environment-specific) in root
 /setup-databases.sh
+.vercel

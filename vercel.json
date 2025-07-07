@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "name": "family-shopping-app",
   "builds": [
     {
-      "src": "dist/index.js",
+      "src": "package.json",
       "use": "@vercel/node"
-    },
-    {
-      "src": "client/dist/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -18,10 +13,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/dist/$1"
+      "dest": "/dist/public/$1"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
