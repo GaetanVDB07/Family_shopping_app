@@ -2,20 +2,20 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build",
+      "src":  "package.json",
+      "use":  "@vercel/static-build",
       "config": {
         "buildCommand": "npm run build",
-        "distDir": "dist/public"
+        "distDir":     "dist/public"
       }
     },
     {
-      "src": "server/index.ts",
+      "src": "dist/index.js",
       "use": "@vercel/node"
     }
   ],
   "rewrites": [
-    { "source": "/api/:match*", "destination": "/server/index.ts" },
-    { "source": "/:match*",  "destination": "/index.html" }
+    { "source": "/api/:match*", "destination": "/dist/index.js" },
+    { "source": "/:match*",      "destination": "/index.html"  }
   ]
 }
