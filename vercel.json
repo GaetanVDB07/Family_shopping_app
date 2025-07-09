@@ -8,16 +8,12 @@
         "buildCommand": "npm run build",
         "distDir": "dist/public"
       }
-    },
-    {
-      "src": "api/server.ts",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/server.ts"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
