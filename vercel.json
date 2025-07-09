@@ -9,5 +9,11 @@
         "distDir": "dist/public"
       }
     }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.js"
+    }
   ]
 }
