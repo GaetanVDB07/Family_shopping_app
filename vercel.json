@@ -10,12 +10,12 @@
       }
     },
     {
-      "src": "dist/index.js",
+      "src": "server/index.ts",
       "use": "@vercel/node"
     }
   ],
   "rewrites": [
-    { "source": "/api/:match*", "destination": "/dist/index.js" },
+    { "source": "/api/:match*", "destination": "/server/index.ts" },
     { "source": "/:match*",      "destination": "/index.html"  }
   ]
 }
