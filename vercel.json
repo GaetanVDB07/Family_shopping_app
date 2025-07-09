@@ -6,7 +6,7 @@
       "use": "@vercel/static-build",
       "config": {
         "buildCommand": "npm run build",
-        "distDir": "dist"
+        "distDir": "dist/public"
       }
     },
     {
@@ -14,14 +14,8 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  "rewrites": [
+    { "source": "/api/:match*", "destination": "/server/index.ts" },
+    { "source": "/:match*",  "destination": "/index.html" }
   ]
 }
