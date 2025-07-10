@@ -1,19 +1,15 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Client } from "pg";
-import { 
+const { drizzle } = require("drizzle-orm/node-postgres");
+const { Client } = require("pg");
+const { 
   groceryItems, 
   families, 
-  familyMembers,
-  type GroceryItem, 
-  type InsertGroceryItem,
-  type Family,
-  type FamilyMember
-} from "../shared/schema";
-import { eq, and } from "drizzle-orm";
+  familyMembers
+} = require("../../shared/schema");
+const { eq, and } = require("drizzle-orm");
 
 // Lazy initialization to ensure environment variables are loaded
-let db: any = null;
-let client: Client | null = null;
+let db = null;
+let client = null;
 
 function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
@@ -36,12 +32,11 @@ function initializeDatabase() {
   return db;
 }
 
-export function getDatabase() {
+function getDatabase() {
   if (!db) {
     initializeDatabase();
   }
   return db;
 }
 
-export { groceryItems, families, familyMembers, eq, and };
-export type { GroceryItem, InsertGroceryItem, Family, FamilyMember };
+module.exports = { getDatabase, groceryItems, families, familyMembers, eq, and };

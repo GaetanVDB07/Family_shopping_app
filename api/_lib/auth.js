@@ -1,7 +1,6 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
-let supabase: any = null;
+let supabase = null;
 
 function getSupabaseClient() {
   if (!supabase) {
@@ -17,15 +16,7 @@ function getSupabaseClient() {
   return supabase;
 }
 
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-  name?: string;
-}
-
-export async function authenticateUser(
-  req: VercelRequest
-): Promise<AuthenticatedUser> {
+async function authenticateUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('No authorization token provided');
@@ -42,9 +33,9 @@ export async function authenticateUser(
 
   return {
     id: user.id,
-    email: user.email!,
+    email: user.email,
     name: user.user_metadata?.name || user.email?.split('@')[0],
   };
 }
 
-export { supabase };
+module.exports = { authenticateUser, supabase };
