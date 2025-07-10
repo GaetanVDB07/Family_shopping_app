@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { type WebSocketMessage, type GroceryItem } from '@shared/schema';
+import { type GroceryItem } from '@shared/schema';
 import { useAuth } from './use-auth';
+import supabase from '@/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseWebSocketProps {
   onItemAdded: (item: GroceryItem) => void;
@@ -10,94 +12,103 @@ interface UseWebSocketProps {
 }
 
 export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync }: UseWebSocketProps) {
-  const ws = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const { session } = useAuth();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { session, user } = useAuth();
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     try {
-      // Don't connect if no session/token available
-      if (!session?.access_token) {
-        console.log('No session token available, skipping WebSocket connection');
+      // Don't connect if no user is authenticated
+      if (!user || !session) {
+        console.log('No authenticated user, skipping realtime connection');
         return;
       }
 
-      // Close existing connection if any
-      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-        ws.current.close();
+      // First, get the user's family ID to know which changes to listen for
+      const response = await fetch('/api/user/family', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.log('No family found, skipping realtime connection');
+        return;
       }
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = import.meta.env.DEV ? 'localhost:5000' : window.location.host;
-      const wsUrl = `${protocol}//${host}/ws?token=${session.access_token}`;
-      
-      console.log('Connecting to WebSocket:', wsUrl.replace(session.access_token, 'TOKEN_HIDDEN'));
-      ws.current = new WebSocket(wsUrl);
+      const { family } = await response.json();
+      if (!family) {
+        console.log('User not in a family, skipping realtime connection');
+        return;
+      }
 
-      ws.current.onopen = () => {
-        console.log('WebSocket connected');
-        // Clear any pending reconnection attempts
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-          reconnectTimeoutRef.current = undefined;
-        }
-      };
+      // Close existing channel if any
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+      }
 
-      ws.current.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case 'itemAdded':
-              onItemAdded(message.item);
-              break;
-            case 'itemUpdated':
-              onItemUpdated(message.item);
-              break;
-            case 'itemDeleted':
-              onItemDeleted(message.id);
-              break;
-            case 'sync':
-              onSync(message.items);
-              break;
+      // Create a new channel for grocery items changes
+      const channel = supabase
+        .channel(`grocery-items-${family.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'grocery_items',
+            filter: `family_id=eq.${family.id}`
+          },
+          (payload) => {
+            console.log('Item added:', payload.new);
+            onItemAdded(payload.new as GroceryItem);
           }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'grocery_items',
+            filter: `family_id=eq.${family.id}`
+          },
+          (payload) => {
+            console.log('Item updated:', payload.new);
+            onItemUpdated(payload.new as GroceryItem);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'grocery_items',
+            filter: `family_id=eq.${family.id}`
+          },
+          (payload) => {
+            console.log('Item deleted:', payload.old);
+            onItemDeleted((payload.old as GroceryItem).id);
+          }
+        )
+        .subscribe((status) => {
+          console.log('Realtime subscription status:', status);
+        });
 
-      ws.current.onclose = (event) => {
-        console.log('WebSocket disconnected');
-        // Only attempt to reconnect if it wasn't a deliberate close and we have a session
-        if (event.code !== 1000 && !reconnectTimeoutRef.current && session?.access_token) {
-          reconnectTimeoutRef.current = setTimeout(connect, 3000);
-        }
-      };
+      channelRef.current = channel;
 
-      ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
-      // Attempt to reconnect after 3 seconds if not already scheduled and we have a session
-      if (!reconnectTimeoutRef.current && session?.access_token) {
-        reconnectTimeoutRef.current = setTimeout(connect, 3000);
-      }
+      console.error('Error connecting to Supabase Realtime:', error);
     }
-  }, [onItemAdded, onItemUpdated, onItemDeleted, onSync, session?.access_token]);
+  }, [onItemAdded, onItemUpdated, onItemDeleted, onSync, session, user]);
 
   useEffect(() => {
     connect();
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (ws.current) {
-        ws.current.close();
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
       }
     };
   }, [connect]);
 
-  return { isConnected: ws.current?.readyState === WebSocket.OPEN };
+  return { isConnected: channelRef.current?.state === 'joined' };
 }
