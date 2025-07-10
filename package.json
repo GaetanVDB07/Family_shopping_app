@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "dev:load-env": "cp .env.development .env && npm run dev",
-    "build": "npx vite build client/index.html",
+    "build": "npx vite build",
     "build:prod": "cp .env.production .env && npm run build",
     "start": "NODE_ENV=production node dist/index.js",
     "start:prod": "cp .env.production .env && npm start",
