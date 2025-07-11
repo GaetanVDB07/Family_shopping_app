@@ -24,6 +24,8 @@ export default function GroceryList() {
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items"],
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
   // Debug: Log items to see duplicates
@@ -81,35 +83,54 @@ export default function GroceryList() {
       console.log(`[${new Date().toISOString()}] Client: Mutation response:`, result);
       return result;
     },
-    onSuccess: (newItem: GroceryItem) => {
-      console.log(`[${new Date().toISOString()}] Client: Mutation success, wsConnected:`, wsConnected);
+    onMutate: async (newItem) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => [
+        ...old,
+        { ...newItem, id: Date.now(), createdAt: new Date().toISOString() } as GroceryItem
+      ]);
+
+      // Return a context object with the snapshotted value
+      return { previousItems };
+    },
+    onSuccess: (newItem: GroceryItem, variables, context) => {
+      console.log(`[${new Date().toISOString()}] Client: Mutation success`);
       
-      // Always invalidate queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
-      
-      // Also optimistically update cache if WebSocket is not connected
-      if (!wsConnected) {
-        console.log(`[${new Date().toISOString()}] Client: Updating cache via mutation success`);
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
-          // Check if item already exists to prevent duplicates
-          const exists = old.some(item => item.id === newItem.id);
-          console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists);
-          return exists ? old : [...old, newItem];
-        });
-      }
+      // Replace the optimistic item with the real one from the server
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
+        return old.map(item => 
+          // Replace the optimistic item (with temp ID) with the real one
+          item.id === context?.previousItems?.length ? newItem : 
+          item.name === newItem.name && item.addedBy === newItem.addedBy ? newItem : item
+        );
+      });
       
       toast({
         title: "Toegevoegd",
         description: `"${newItem.name}" is toegevoegd aan de lijst.`,
       });
     },
-    onError: () => {
+    onError: (err, newItem, context) => {
       console.log(`[${new Date().toISOString()}] Client: Mutation error`);
+      
+      // Rollback to the previous value
+      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
+      
       toast({
         title: "Fout",
         description: "Kon item niet toevoegen. Probeer het opnieuw.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
@@ -119,23 +140,33 @@ export default function GroceryList() {
       const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed });
       return response.json();
     },
-    onSuccess: (updatedItem: GroceryItem) => {
-      // Always invalidate queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
-      
-      // Also optimistically update cache if WebSocket is not connected
-      if (!wsConnected) {
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-          old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-        );
-      }
+    onMutate: async ({ id, completed }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically update
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === id ? { ...item, completed } : item))
+      );
+
+      return { previousItems };
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
+      
       toast({
         title: "Fout",
         description: "Kon item niet bijwerken. Probeer het opnieuw.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Refetch to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
@@ -145,28 +176,40 @@ export default function GroceryList() {
       await apiRequest("DELETE", `/api/grocery-items/${id}`);
       return id;
     },
-    onSuccess: (deletedId: number) => {
-      // Always invalidate queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
-      
-      // Also optimistically update cache if WebSocket is not connected
-      if (!wsConnected) {
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-          old.filter((item) => item.id !== deletedId)
-        );
-      }
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically update
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.filter((item) => item.id !== id)
+      );
+
+      return { previousItems };
+    },
+    onSuccess: () => {
       setItemToDelete(null);
       toast({
         title: "Verwijderd",
         description: "Item verwijderd van lijst",
       });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
+      
       toast({
         title: "Fout",
         description: "Kon item niet verwijderen. Probeer het opnieuw.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Refetch to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
