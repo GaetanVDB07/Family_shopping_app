@@ -83,7 +83,11 @@ export default function GroceryList() {
     },
     onSuccess: (newItem: GroceryItem) => {
       console.log(`[${new Date().toISOString()}] Client: Mutation success, wsConnected:`, wsConnected);
-      // Only update cache if WebSocket is not connected
+      
+      // Always invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
+      
+      // Also optimistically update cache if WebSocket is not connected
       if (!wsConnected) {
         console.log(`[${new Date().toISOString()}] Client: Updating cache via mutation success`);
         queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
@@ -93,6 +97,7 @@ export default function GroceryList() {
           return exists ? old : [...old, newItem];
         });
       }
+      
       toast({
         title: "Toegevoegd",
         description: `"${newItem.name}" is toegevoegd aan de lijst.`,
@@ -115,7 +120,10 @@ export default function GroceryList() {
       return response.json();
     },
     onSuccess: (updatedItem: GroceryItem) => {
-      // Only update cache if WebSocket is not connected
+      // Always invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
+      
+      // Also optimistically update cache if WebSocket is not connected
       if (!wsConnected) {
         queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
           old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
@@ -138,7 +146,10 @@ export default function GroceryList() {
       return id;
     },
     onSuccess: (deletedId: number) => {
-      // Only update cache if WebSocket is not connected
+      // Always invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
+      
+      // Also optimistically update cache if WebSocket is not connected
       if (!wsConnected) {
         queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
           old.filter((item) => item.id !== deletedId)
