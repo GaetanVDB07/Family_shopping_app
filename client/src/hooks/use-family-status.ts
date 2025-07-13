@@ -2,9 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './use-auth';
 
 interface FamilyMembership {
-  familyId: string;
-  familyName: string;
-  role: string;
+  family: {
+    id: string;
+    name: string;
+    code: string;
+    role: string;
+    joinedAt: string;
+  } | null;
 }
 
 export function useFamilyStatus() {
@@ -39,9 +43,9 @@ export function useFamilyStatus() {
   });
 
   return {
-    familyMembership,
+    familyMembership: familyMembership?.family || null,
     loading,
     error: error?.message || null,
-    hasFamily: !!familyMembership,
+    hasFamily: !!familyMembership?.family,
   };
 }
