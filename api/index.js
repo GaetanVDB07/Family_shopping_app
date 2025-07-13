@@ -1,34 +1,24 @@
 // Central API router that handles all API routes
 import { createClient } from '@supabase/supabase-js';
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Client } from "pg";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 import { eq, and } from "drizzle-orm";
 
 // Import schema from shared directory
 import { groceryItems, families, familyMembers } from "../shared/schema.js";
 
-// Database setup
+// Database setup for serverless environment
 let db = null;
-let client = null;
-
-function initializeDatabase() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required");
-  }
-
-  if (!client) {
-    client = new Client({
-      connectionString: process.env.DATABASE_URL,
-    });
-    client.connect().catch(console.error);
-    db = drizzle(client);
-  }
-  return db;
-}
 
 function getDatabase() {
   if (!db) {
-    initializeDatabase();
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is required");
+    }
+    
+    // Use Neon's serverless driver for Vercel
+    const sql = neon(process.env.DATABASE_URL);
+    db = drizzle(sql);
   }
   return db;
 }
@@ -75,22 +65,24 @@ function generateFamilyCode() {
 
 // Main handler function
 export default async function handler(req, res) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   try {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
     const { url, method } = req;
     const pathname = new URL(url, `http://${req.headers.host}`).pathname;
     
     // Remove /api prefix if present
     const apiPath = pathname.replace(/^\/api/, '');
+    
+    console.log(`[API] ${method} ${apiPath}`);
     
     // Route to appropriate handler
     switch (true) {
@@ -141,7 +133,17 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error('API Error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    console.error('Request details:', {
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      body: req.body
+    });
+    return res.status(500).json({ 
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }
 
