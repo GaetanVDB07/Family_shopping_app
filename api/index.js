@@ -1,6 +1,6 @@
 // Central API router that handles all API routes
 import { createClient } from '@supabase/supabase-js';
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { eq, and } from "drizzle-orm";
 
