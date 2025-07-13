@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import supabase from '@/lib/supabase';
 import { setAuthTokenGetter } from '@/lib/queryClient';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextType {
   user: User | null;
@@ -19,7 +18,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Set up the token getter for the query client
@@ -40,11 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        // Clear all queries when user logs out
-        if (event === 'SIGNED_OUT') {
-          queryClient.clear();
-        }
       }
     );
 
@@ -73,8 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // Clear all queries before signing out
-    queryClient.clear();
     const { error } = await supabase.auth.signOut();
     return { error };
   };

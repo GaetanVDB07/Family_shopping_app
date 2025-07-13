@@ -432,20 +432,10 @@ async function handleGetGroceryItems(req, res) {
       return res.status(404).json({ message: 'No family found' });
     }
 
-    // Join grocery items with family members to get the user name
     const items = await database
-      .select({
-        id: groceryItems.id,
-        name: groceryItems.name,
-        completed: groceryItems.completed,
-        addedBy: familyMembers.userName,
-        familyId: groceryItems.familyId,
-        createdAt: groceryItems.createdAt,
-      })
+      .select()
       .from(groceryItems)
-      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
-      .where(eq(groceryItems.familyId, userFamily.familyId))
-      .orderBy(groceryItems.createdAt);
+      .where(eq(groceryItems.familyId, userFamily.familyId));
 
     return res.status(200).json(items);
   } catch (error) {
@@ -487,13 +477,7 @@ async function handleCreateGroceryItem(req, res) {
       })
       .returning();
 
-    // Return the item with the user name instead of user ID
-    const itemWithUserName = {
-      ...item,
-      addedBy: userFamily.userName || user.email?.split('@')[0] || 'Onbekend'
-    };
-
-    return res.status(201).json(itemWithUserName);
+    return res.status(201).json(item);
   } catch (error) {
     console.error('Error creating grocery item:', error);
     if (error.message.includes('authorization')) {
@@ -532,26 +516,11 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    // Get the user name for the addedBy field
-    const [itemWithUserName] = await database
-      .select({
-        id: groceryItems.id,
-        name: groceryItems.name,
-        completed: groceryItems.completed,
-        addedBy: familyMembers.userName,
-        familyId: groceryItems.familyId,
-        createdAt: groceryItems.createdAt,
-      })
-      .from(groceryItems)
-      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
-      .where(eq(groceryItems.id, parseInt(itemId)));
-
-    return res.status(200).json(itemWithUserName || item);
+    return res.status(200).json(item);
   } catch (error) {
     console.error('Error updating grocery item:', error);
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
-    }
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
