@@ -9,7 +9,6 @@ import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
-import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShoppingCart, Wifi, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,13 +20,10 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { familyMembership } = useFamilyStatus();
 
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items"],
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
   // Debug: Log items to see duplicates
@@ -42,16 +38,6 @@ export default function GroceryList() {
       console.log(`[${new Date().toISOString()}] DUPLICATE ITEMS IN CACHE:`, duplicates);
     }
   }, [items]);
-
-  // Update page title with family name
-  useEffect(() => {
-    const familyName = familyMembership?.familyName;
-    if (familyName) {
-      document.title = `${familyName} - Familie Boodschappenlijst`;
-    } else {
-      document.title = 'Familie Boodschappenlijst';
-    }
-  }, [familyMembership?.familyName]);
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected } = useWebSocket({
@@ -95,54 +81,30 @@ export default function GroceryList() {
       console.log(`[${new Date().toISOString()}] Client: Mutation response:`, result);
       return result;
     },
-    onMutate: async (newItem) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
-
-      // Snapshot the previous value
-      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
-
-      // Optimistically update to the new value
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => [
-        ...old,
-        { ...newItem, id: Date.now(), createdAt: new Date().toISOString() } as GroceryItem
-      ]);
-
-      // Return a context object with the snapshotted value
-      return { previousItems };
-    },
-    onSuccess: (newItem: GroceryItem, variables, context) => {
-      console.log(`[${new Date().toISOString()}] Client: Mutation success`);
-      
-      // Replace the optimistic item with the real one from the server
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
-        return old.map(item => 
-          // Replace the optimistic item (with temp ID) with the real one
-          item.id === context?.previousItems?.length ? newItem : 
-          item.name === newItem.name && item.addedBy === newItem.addedBy ? newItem : item
-        );
-      });
-      
+    onSuccess: (newItem: GroceryItem) => {
+      console.log(`[${new Date().toISOString()}] Client: Mutation success, wsConnected:`, wsConnected);
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        console.log(`[${new Date().toISOString()}] Client: Updating cache via mutation success`);
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
+          // Check if item already exists to prevent duplicates
+          const exists = old.some(item => item.id === newItem.id);
+          console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists);
+          return exists ? old : [...old, newItem];
+        });
+      }
       toast({
         title: "Toegevoegd",
         description: `"${newItem.name}" is toegevoegd aan de lijst.`,
       });
     },
-    onError: (err, newItem, context) => {
+    onError: () => {
       console.log(`[${new Date().toISOString()}] Client: Mutation error`);
-      
-      // Rollback to the previous value
-      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
-      
       toast({
         title: "Fout",
         description: "Kon item niet toevoegen. Probeer het opnieuw.",
         variant: "destructive",
       });
-    },
-    onSettled: () => {
-      // Always refetch after error or success to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
@@ -152,33 +114,20 @@ export default function GroceryList() {
       const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed });
       return response.json();
     },
-    onMutate: async ({ id, completed }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
-
-      // Snapshot the previous value
-      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
-
-      // Optimistically update
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-        old.map((item) => (item.id === id ? { ...item, completed } : item))
-      );
-
-      return { previousItems };
+    onSuccess: (updatedItem: GroceryItem) => {
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+          old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+        );
+      }
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
-      
+    onError: () => {
       toast({
         title: "Fout",
         description: "Kon item niet bijwerken. Probeer het opnieuw.",
         variant: "destructive",
       });
-    },
-    onSettled: () => {
-      // Refetch to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
@@ -188,40 +137,25 @@ export default function GroceryList() {
       await apiRequest("DELETE", `/api/grocery-items/${id}`);
       return id;
     },
-    onMutate: async (id) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
-
-      // Snapshot the previous value
-      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
-
-      // Optimistically update
-      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-        old.filter((item) => item.id !== id)
-      );
-
-      return { previousItems };
-    },
-    onSuccess: () => {
+    onSuccess: (deletedId: number) => {
+      // Only update cache if WebSocket is not connected
+      if (!wsConnected) {
+        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+          old.filter((item) => item.id !== deletedId)
+        );
+      }
       setItemToDelete(null);
       toast({
         title: "Verwijderd",
         description: "Item verwijderd van lijst",
       });
     },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      queryClient.setQueryData(["/api/grocery-items"], context?.previousItems);
-      
+    onError: () => {
       toast({
         title: "Fout",
         description: "Kon item niet verwijderen. Probeer het opnieuw.",
         variant: "destructive",
       });
-    },
-    onSettled: () => {
-      // Refetch to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-items"] });
     },
   });
 
@@ -251,7 +185,7 @@ export default function GroceryList() {
     await addItemMutation.mutateAsync({ 
       name, 
       completed: false,
-      addedBy: user?.id || "" // Keep sending user ID, API will return user name
+      addedBy: user?.id || "" // Use current user's ID
     });
   }, [addItemMutation, user?.id]);
 
@@ -279,16 +213,7 @@ export default function GroceryList() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <ShoppingCart className="text-xl" />
-              <div>
-                <h1 className="text-lg font-semibold">
-                  {familyMembership?.familyName || 'Familie'} Boodschappenlijst
-                </h1>
-                {familyMembership?.familyName && (
-                  <p className="text-xs text-green-100 opacity-90">
-                    Familie: {familyMembership.familyName}
-                  </p>
-                )}
-              </div>
+              <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
             </div>
           </div>
         </div>
@@ -310,16 +235,7 @@ export default function GroceryList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <ShoppingCart className="text-xl" />
-            <div>
-              <h1 className="text-lg font-semibold">
-                {familyMembership?.familyName || 'Familie'} Boodschappenlijst
-              </h1>
-              {familyMembership?.familyName && (
-                <p className="text-xs text-green-100 opacity-90">
-                  Familie: {familyMembership.familyName}
-                </p>
-              )}
-            </div>
+            <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
           </div>
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1">
