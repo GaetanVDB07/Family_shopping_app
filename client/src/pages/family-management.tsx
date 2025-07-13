@@ -36,6 +36,7 @@ interface FamilyDetails {
   name: string;
   code: string;
   members: FamilyMember[];
+  userRole: string;
 }
 
 export default function FamilyManagement() {

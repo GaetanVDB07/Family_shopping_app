@@ -315,7 +315,9 @@ async function handleGetFamilyDetails(req, res) {
       .where(eq(familyMembers.familyId, userFamily.family.id));
 
     return res.status(200).json({
-      family: userFamily.family,
+      id: userFamily.family.id,
+      name: userFamily.family.name,
+      code: userFamily.family.code,
       members: allMembers,
       userRole: userFamily.member.role,
     });
