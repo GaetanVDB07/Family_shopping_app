@@ -82,17 +82,14 @@ export default function GroceryList() {
       return result;
     },
     onSuccess: (newItem: GroceryItem) => {
-      console.log(`[${new Date().toISOString()}] Client: Mutation success, wsConnected:`, wsConnected);
-      // Only update cache if WebSocket is not connected
-      if (!wsConnected) {
-        console.log(`[${new Date().toISOString()}] Client: Updating cache via mutation success`);
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
-          // Check if item already exists to prevent duplicates
-          const exists = old.some(item => item.id === newItem.id);
-          console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists);
-          return exists ? old : [...old, newItem];
-        });
-      }
+      console.log(`[${new Date().toISOString()}] Client: Mutation success`);
+      // Always update cache to ensure UI feedback
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) => {
+        // Check if item already exists to prevent duplicates
+        const exists = old.some(item => item.id === newItem.id);
+        console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists);
+        return exists ? old : [...old, newItem];
+      });
       toast({
         title: "Toegevoegd",
         description: `"${newItem.name}" is toegevoegd aan de lijst.`,
@@ -114,15 +111,32 @@ export default function GroceryList() {
       const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed });
       return response.json();
     },
-    onSuccess: (updatedItem: GroceryItem) => {
-      // Only update cache if WebSocket is not connected
-      if (!wsConnected) {
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-          old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-        );
-      }
+    onMutate: async ({ id, completed }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === id ? { ...item, completed } : item))
+      );
+
+      // Return a context object with the snapshotted value
+      return { previousItems };
     },
-    onError: () => {
+    onSuccess: (updatedItem: GroceryItem) => {
+      // Update with the actual response from the server
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+      );
+    },
+    onError: (err, { id }, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items"], context.previousItems);
+      }
       toast({
         title: "Fout",
         description: "Kon item niet bijwerken. Probeer het opnieuw.",
@@ -137,17 +151,40 @@ export default function GroceryList() {
       await apiRequest("DELETE", `/api/grocery-items/${id}`);
       return id;
     },
-    onSuccess: (deletedId: number) => {
-      // Only update cache if WebSocket is not connected
-      if (!wsConnected) {
-        queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
-          old.filter((item) => item.id !== deletedId)
-        );
-      }
+    onMutate: async (id: number) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically remove the item
+      queryClient.setQueryData(["/api/grocery-items"], (old: GroceryItem[] = []) =>
+        old.filter((item) => item.id !== id)
+      );
+
+      return { previousItems };
+    },
+    onSuccess: () => {
       setItemToDelete(null);
       toast({
         title: "Verwijderd",
         description: "Item verwijderd van lijst",
+      });
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items"], context.previousItems);
+      }
+      setItemToDelete(null);
+      toast({
+        title: "Fout",
+        description: "Kon item niet verwijderen. Probeer het opnieuw.",
+        variant: "destructive",
+      });
+    },
+  });
       });
     },
     onError: () => {
