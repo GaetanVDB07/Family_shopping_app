@@ -554,7 +554,6 @@ async function handleUpdateGroceryItem(req, res, itemId) {
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
     }
-    }
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
