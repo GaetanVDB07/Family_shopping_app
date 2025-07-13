@@ -185,16 +185,6 @@ export default function GroceryList() {
       });
     },
   });
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Fout",
-        description: "Kon item niet verwijderen. Probeer het opnieuw.",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
