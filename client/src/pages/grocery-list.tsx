@@ -9,6 +9,7 @@ import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
+import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShoppingCart, Wifi, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +21,7 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { familyMembership } = useFamilyStatus();
 
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
@@ -40,6 +42,16 @@ export default function GroceryList() {
       console.log(`[${new Date().toISOString()}] DUPLICATE ITEMS IN CACHE:`, duplicates);
     }
   }, [items]);
+
+  // Update page title with family name
+  useEffect(() => {
+    const familyName = familyMembership?.familyName;
+    if (familyName) {
+      document.title = `${familyName} - Familie Boodschappenlijst`;
+    } else {
+      document.title = 'Familie Boodschappenlijst';
+    }
+  }, [familyMembership?.familyName]);
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected } = useWebSocket({
@@ -239,7 +251,7 @@ export default function GroceryList() {
     await addItemMutation.mutateAsync({ 
       name, 
       completed: false,
-      addedBy: user?.id || "" // Use current user's ID
+      addedBy: user?.id || "" // Keep sending user ID, API will return user name
     });
   }, [addItemMutation, user?.id]);
 
@@ -267,7 +279,16 @@ export default function GroceryList() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <ShoppingCart className="text-xl" />
-              <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
+              <div>
+                <h1 className="text-lg font-semibold">
+                  {familyMembership?.familyName || 'Familie'} Boodschappenlijst
+                </h1>
+                {familyMembership?.familyName && (
+                  <p className="text-xs text-green-100 opacity-90">
+                    Familie: {familyMembership.familyName}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -289,7 +310,16 @@ export default function GroceryList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <ShoppingCart className="text-xl" />
-            <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
+            <div>
+              <h1 className="text-lg font-semibold">
+                {familyMembership?.familyName || 'Familie'} Boodschappenlijst
+              </h1>
+              {familyMembership?.familyName && (
+                <p className="text-xs text-green-100 opacity-90">
+                  Familie: {familyMembership.familyName}
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1">
