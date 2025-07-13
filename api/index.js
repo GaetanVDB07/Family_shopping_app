@@ -1,7 +1,7 @@
 // Central API router that handles all API routes
 import { createClient } from '@supabase/supabase-js';
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Client } from "pg";
 import { eq, and } from "drizzle-orm";
 
 // Import schema from shared directory
@@ -9,16 +9,26 @@ import { groceryItems, families, familyMembers } from "../shared/schema.js";
 
 // Database setup for serverless environment
 let db = null;
+let client = null;
+
+function initializeDatabase() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required");
+  }
+
+  if (!client) {
+    client = new Client({
+      connectionString: process.env.DATABASE_URL,
+    });
+    client.connect().catch(console.error);
+    db = drizzle(client);
+  }
+  return db;
+}
 
 function getDatabase() {
   if (!db) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL is required");
-    }
-    
-    // Use Neon's serverless driver for Vercel
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql);
+    initializeDatabase();
   }
   return db;
 }
