@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "dev:load-env": "cp .env.development .env && npm run dev",
+    "vercel:dev": "cp .env.development .env && vercel dev",
     "build": "npx vite build",
     "build:prod": "cp .env.production .env && npm run build",
     "start": "NODE_ENV=production node dist/index.js",
