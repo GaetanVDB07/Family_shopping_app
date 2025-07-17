@@ -24,7 +24,7 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { family } = useFamilyStatus();
+  const { familyMembership } = useFamilyStatus();
 
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
@@ -294,7 +294,7 @@ export default function GroceryList() {
               <ShoppingCart className="text-xl" />
               <div>
                 <h1 className="text-lg font-semibold">
-                  {family?.name ? `${family.name}` : 'Familie Boodschappenlijst'}
+                  {familyMembership?.name ? `${familyMembership.name}` : 'Familie Boodschappenlijst'}
                 </h1>
               </div>
             </div>
@@ -320,7 +320,7 @@ export default function GroceryList() {
             <ShoppingCart className="text-xl" />
             <div>
               <h1 className="text-lg font-semibold">
-                {family?.name ? `${family.name}` : 'Familie Boodschappenlijst'}
+                {familyMembership?.name ? `${familyMembership.name}` : 'Familie Boodschappenlijst'}
               </h1>
             </div>
           </div>
