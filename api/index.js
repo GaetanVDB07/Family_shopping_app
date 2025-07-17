@@ -138,6 +138,9 @@ export default async function handler(req, res) {
         const deleteItemId = apiPath.split('/')[2];
         return await handleDeleteGroceryItem(req, res, deleteItemId);
         
+      case apiPath === '/grocery-items/delete-all' && method === 'DELETE':
+        return await handleDeleteAllGroceryItems(req, res);
+        
       default:
         return res.status(404).json({ message: 'API route not found' });
     }
@@ -595,6 +598,40 @@ async function handleDeleteGroceryItem(req, res, itemId) {
     return res.status(200).json({ message: 'Item deleted successfully' });
   } catch (error) {
     console.error('Error deleting grocery item:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleDeleteAllGroceryItems(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    const [userFamily] = await database
+      .select()
+      .from(familyMembers)
+      .where(eq(familyMembers.userId, user.id))
+      .limit(1);
+
+    if (!userFamily) {
+      return res.status(404).json({ message: 'No family found' });
+    }
+
+    // Delete all items for this family
+    const deletedItems = await database
+      .delete(groceryItems)
+      .where(eq(groceryItems.familyId, userFamily.familyId))
+      .returning();
+
+    return res.status(200).json({ 
+      message: 'All items deleted successfully',
+      deletedCount: deletedItems.length
+    });
+  } catch (error) {
+    console.error('Error deleting all grocery items:', error);
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
     }

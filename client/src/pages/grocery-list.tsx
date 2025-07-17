@@ -5,17 +5,20 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { GroceryItemComponent } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
 import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShoppingCart, Wifi, WifiOff } from "lucide-react";
+import { Search, ShoppingCart, Wifi, WifiOff, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [itemToDelete, setItemToDelete] = useState<GroceryItem | null>(null);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -186,6 +189,45 @@ export default function GroceryList() {
     },
   });
 
+  // Delete all items mutation
+  const deleteAllItemsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/grocery-items/delete-all");
+      return response.json();
+    },
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items"] });
+
+      // Snapshot the previous value
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items"]);
+
+      // Optimistically clear all items
+      queryClient.setQueryData(["/api/grocery-items"], []);
+
+      return { previousItems };
+    },
+    onSuccess: (response) => {
+      setShowDeleteAllDialog(false);
+      toast({
+        title: "Lijst gewist",
+        description: `${response.deletedCount} items verwijderd van de lijst`,
+      });
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, roll back
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items"], context.previousItems);
+      }
+      setShowDeleteAllDialog(false);
+      toast({
+        title: "Fout",
+        description: "Kon lijst niet wissen. Probeer het opnieuw.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter and sort items
   const filteredItems = useMemo(() => {
     const filtered = items.filter((item) =>
@@ -232,6 +274,14 @@ export default function GroceryList() {
       deleteItemMutation.mutate(itemToDelete.id);
     }
   }, [itemToDelete, deleteItemMutation]);
+
+  const handleDeleteAll = useCallback(() => {
+    setShowDeleteAllDialog(true);
+  }, []);
+
+  const handleConfirmDeleteAll = useCallback(() => {
+    deleteAllItemsMutation.mutate();
+  }, [deleteAllItemsMutation]);
 
   if (isLoading) {
     return (
@@ -301,10 +351,23 @@ export default function GroceryList() {
 
       {/* Quick Stats */}
       <div className="p-4 bg-white border-b border-gray-100">
-        <div className="flex justify-between text-sm text-gray-600">
-          <span>{stats.total} items totaal</span>
-          <span className="text-primary">{stats.completed} afgevinkt</span>
-          <span className="text-orange-500">{stats.remaining} nog te doen</span>
+        <div className="flex justify-between items-center">
+          <div className="flex justify-between text-sm text-gray-600 flex-1">
+            <span>{stats.total} items totaal</span>
+            <span className="text-primary">{stats.completed} afgevinkt</span>
+            <span className="text-orange-500">{stats.remaining} nog te doen</span>
+          </div>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDeleteAll}
+              className="ml-4 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Wis alles
+            </Button>
+          )}
         </div>
       </div>
 
@@ -376,6 +439,15 @@ export default function GroceryList() {
         onClose={() => setItemToDelete(null)}
         onConfirm={handleConfirmDelete}
         isLoading={deleteItemMutation.isPending}
+      />
+
+      {/* Delete All Confirmation Dialog */}
+      <DeleteAllConfirmationDialog
+        isOpen={showDeleteAllDialog}
+        onClose={() => setShowDeleteAllDialog(false)}
+        onConfirm={handleConfirmDeleteAll}
+        isLoading={deleteAllItemsMutation.isPending}
+        itemCount={items.length}
       />
     </div>
   );
