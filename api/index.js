@@ -130,6 +130,9 @@ export default async function handler(req, res) {
       case apiPath === '/grocery-items' && method === 'POST':
         return await handleCreateGroceryItem(req, res);
         
+      case apiPath === '/grocery-items/delete-all' && method === 'DELETE':
+        return await handleDeleteAllGroceryItems(req, res);
+        
       case apiPath.startsWith('/grocery-items/') && method === 'PATCH':
         const itemId = apiPath.split('/')[2];
         return await handleUpdateGroceryItem(req, res, itemId);
@@ -137,9 +140,6 @@ export default async function handler(req, res) {
       case apiPath.startsWith('/grocery-items/') && method === 'DELETE':
         const deleteItemId = apiPath.split('/')[2];
         return await handleDeleteGroceryItem(req, res, deleteItemId);
-        
-      case apiPath === '/grocery-items/delete-all' && method === 'DELETE':
-        return await handleDeleteAllGroceryItems(req, res);
         
       default:
         return res.status(404).json({ message: 'API route not found' });
