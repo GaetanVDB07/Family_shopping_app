@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
+import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShoppingCart, Wifi, WifiOff, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,7 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { family } = useFamilyStatus();
 
   // Fetch grocery items
   const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
@@ -290,7 +292,11 @@ export default function GroceryList() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <ShoppingCart className="text-xl" />
-              <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
+              <div>
+                <h1 className="text-lg font-semibold">
+                  {family?.name ? `${family.name}` : 'Familie Boodschappenlijst'}
+                </h1>
+              </div>
             </div>
           </div>
         </div>
@@ -312,7 +318,11 @@ export default function GroceryList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <ShoppingCart className="text-xl" />
-            <h1 className="text-lg font-semibold">Familie Boodschappenlijst</h1>
+            <div>
+              <h1 className="text-lg font-semibold">
+                {family?.name ? `${family.name}` : 'Familie Boodschappenlijst'}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1">
