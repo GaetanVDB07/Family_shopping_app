@@ -1,0 +1,22 @@
+{
+  "name": "Familie Boodschappenlijst",
+  "short_name": "Familie Boodschappen",
+  "description": "Deel je boodschappenlijst met je familie",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4ade80",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "lifestyle"],
+  "lang": "nl",
+  "scope": "/",
+  "prefer_related_applications": false
+}
