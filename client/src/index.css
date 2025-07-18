@@ -31,6 +31,13 @@
   --background-light: hsl(0, 0%, 98%);
 }
 
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+  :root {
+    --radius: 0.75rem; /* Larger border radius for mobile */
+  }
+}
+
 .dark {
   --background: hsl(240, 10%, 3.9%);
   --foreground: hsl(0, 0%, 98%);
@@ -67,6 +74,30 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Mobile-specific enhancements */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    /* Smooth scrolling for mobile */
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better mobile tap highlights */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+  }
+  
+  /* Safe area support for mobile devices */
+  @supports (padding: env(safe-area-inset-top)) {
+    .safe-top {
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 }
 
@@ -81,4 +112,82 @@
 
 .accent-orange {
   color: hsl(36, 100%, 50%);
+}
+
+/* Mobile-specific animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pull to refresh indicator */
+.pull-refresh-indicator {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Swipe gesture feedback */
+.swipe-delete {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.swipe-delete.swiping {
+  transform: translateX(var(--swipe-distance, 0));
+}
+
+/* Better mobile touch targets */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Larger text for better readability on mobile */
+  .mobile-text {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  /* Enhanced button sizing for mobile */
+  .mobile-button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 12px;
+  }
 }

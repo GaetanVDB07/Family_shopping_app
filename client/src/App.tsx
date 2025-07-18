@@ -16,10 +16,10 @@ function AuthenticatedApp() {
 
   if (authLoading || familyLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Laden...</p>
+          <p className="text-gray-600 mobile-text">Laden...</p>
         </div>
       </div>
     );
@@ -36,12 +36,14 @@ function AuthenticatedApp() {
 
   // User is authenticated and has a family, show the grocery list
   return (
-    <Switch>
-      <Route path="/family-setup" component={FamilySetup} />
-      <Route path="/family-management" component={FamilyManagement} />
-      <Route path="/" component={GroceryList} />
-      <Route path="*" component={GroceryList} />
-    </Switch>
+    <div className="min-h-screen bg-background">
+      <Switch>
+        <Route path="/family-setup" component={FamilySetup} />
+        <Route path="/family-management" component={FamilyManagement} />
+        <Route path="/" component={GroceryList} />
+        <Route path="*" component={GroceryList} />
+      </Switch>
+    </div>
   );
 }
 
@@ -50,8 +52,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <Toaster />
-          <AuthenticatedApp />
+          <div className="min-h-screen bg-background">
+            <Toaster />
+            <AuthenticatedApp />
+          </div>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

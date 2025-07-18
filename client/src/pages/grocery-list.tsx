@@ -13,7 +13,8 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShoppingCart, Wifi, WifiOff, Trash2 } from "lucide-react";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
@@ -27,8 +28,20 @@ export default function GroceryList() {
   const { familyMembership } = useFamilyStatus();
 
   // Fetch grocery items
-  const { data: items = [], isLoading } = useQuery<GroceryItem[]>({
+  const { data: items = [], isLoading, refetch } = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items"],
+  });
+
+  // Pull to refresh functionality
+  const { isPulling, isRefreshing, pullDistance, shouldShowIndicator } = usePullToRefresh({
+    onRefresh: async () => {
+      await refetch();
+      toast({
+        title: "Bijgewerkt",
+        description: "Lijst is ververst",
+      });
+    },
+    threshold: 80,
   });
 
   // Debug: Log items to see duplicates
@@ -288,23 +301,23 @@ export default function GroceryList() {
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
-        <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
+        <div className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <ShoppingCart className="text-xl" />
+              <ShoppingCart className="text-2xl" />
               <div>
-                <h1 className="text-lg font-semibold">
+                <h1 className="text-xl font-semibold">
                   {familyMembership?.name ? `${familyMembership.name}` : 'Familie Boodschappenlijst'}
                 </h1>
               </div>
             </div>
           </div>
         </div>
-        <div className="p-4 space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-6 w-full" />
+        <div className="p-6 space-y-6">
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-8 w-full" />
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
       </div>
@@ -312,31 +325,49 @@ export default function GroceryList() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
-      {/* Header */}
-      <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
+      {/* Pull to refresh indicator */}
+      {shouldShowIndicator && (
+        <div 
+          className="absolute top-0 left-0 right-0 z-40 flex items-center justify-center pt-4 transition-all duration-300"
+          style={{
+            transform: `translateY(${isRefreshing ? '0px' : `-${Math.max(0, 60 - pullDistance)}px`})`,
+            opacity: isRefreshing ? 1 : Math.min(1, pullDistance / 40),
+          }}
+        >
+          <div className="bg-white rounded-full p-3 shadow-lg border border-gray-200">
+            <RefreshCw className={`w-5 h-5 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+          </div>
+        </div>
+      )}
+
+      {/* Header with better mobile spacing */}
+      <header 
+        className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md"
+        style={{ paddingTop: 'max(24px, env(safe-area-inset-top))' }}
+      >
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <ShoppingCart className="text-xl" />
+          <div className="flex items-center space-x-4">
+            <ShoppingCart className="text-2xl" />
             <div>
-              <h1 className="text-lg font-semibold">
+              <h1 className="text-xl font-semibold leading-tight">
                 {familyMembership?.name ? `${familyMembership.name}` : 'Familie Boodschappenlijst'}
               </h1>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               {wsConnected ? (
                 <>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <Wifi className="w-4 h-4" />
-                  <span className="text-xs">Online</span>
+                  <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
+                  <Wifi className="w-5 h-5" />
+                  <span className="text-sm">Live</span>
                 </>
               ) : (
                 <>
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  <WifiOff className="w-4 h-4" />
-                  <span className="text-xs">Offline</span>
+                  <div className="w-2.5 h-2.5 bg-red-400 rounded-full"></div>
+                  <WifiOff className="w-5 h-5" />
+                  <span className="text-sm">Offline</span>
                 </>
               )}
             </div>
@@ -345,91 +376,105 @@ export default function GroceryList() {
         </div>
       </header>
 
-      {/* Search Bar */}
-      <div className="p-4 bg-white border-b border-gray-100">
+      {/* Search Bar with better mobile design */}
+      <div className="p-6 bg-white border-b border-gray-100">
         <div className="relative">
           <Input
             type="text"
             placeholder="Zoek in boodschappenlijst..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-3 border-gray-200 focus:ring-2 focus:ring-primary focus:border-primary"
+            className="pl-12 pr-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
           />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="p-4 bg-white border-b border-gray-100">
+      {/* Quick Stats with better mobile layout */}
+      <div className="px-6 py-4 bg-white border-b border-gray-100">
         <div className="flex justify-between items-center">
-          <div className="flex justify-between text-sm text-gray-600 flex-1">
-            <span>{stats.total} items totaal</span>
-            <span className="text-primary">{stats.completed} afgevinkt</span>
-            <span className="text-orange-500">{stats.remaining} nog te doen</span>
+          <div className="flex justify-between text-sm text-gray-600 flex-1 space-x-4">
+            <span className="font-medium">{stats.total} items</span>
+            <span className="text-primary font-medium">{stats.completed} klaar</span>
+            <span className="text-orange-500 font-medium">{stats.remaining} te doen</span>
           </div>
           {items.length > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleDeleteAll}
-              className="ml-4 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              className="ml-4 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2"
             >
-              <Trash2 className="w-4 h-4 mr-1" />
+              <Trash2 className="w-4 h-4 mr-2" />
               Wis alles
             </Button>
           )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="pb-20">
+      {/* Main Content with better mobile spacing */}
+      <main className="pb-32"> {/* Increased bottom padding for better FAB spacing */}
         {items.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium mb-2">Geen boodschappen</h3>
-            <p className="text-sm">Voeg je eerste item toe om te beginnen</p>
+          <div className="p-12 text-center text-gray-500">
+            <ShoppingCart className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+            <h3 className="text-xl font-medium mb-3">Geen boodschappen</h3>
+            <p className="text-base">Voeg je eerste item toe om te beginnen</p>
           </div>
         ) : (
           <>
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
-              <div className="p-4">
-                <h2 className="text-sm font-medium text-gray-600 mb-3 uppercase tracking-wide">
-                  Nog te kopen
+              <div className="px-6 py-4">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">
+                  Nog te kopen ({filteredItems.pending.length})
                 </h2>
-                {filteredItems.pending.map((item) => (
-                  <GroceryItemComponent
-                    key={item.id}
-                    item={item}
-                    onToggle={handleToggleItem}
-                    onDelete={handleDeleteItem}
-                  />
-                ))}
+                <div className="space-y-2">
+                  {filteredItems.pending.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="animate-in slide-in-from-left duration-300"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <GroceryItemComponent
+                        item={item}
+                        onToggle={handleToggleItem}
+                        onDelete={handleDeleteItem}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Completed Items */}
             {filteredItems.completed.length > 0 && (
-              <div className="p-4 border-t border-gray-100">
-                <h2 className="text-sm font-medium text-gray-600 mb-3 uppercase tracking-wide">
-                  Afgevinkt
+              <div className="px-6 py-4 border-t border-gray-100">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">
+                  Afgevinkt ({filteredItems.completed.length})
                 </h2>
-                {filteredItems.completed.map((item) => (
-                  <GroceryItemComponent
-                    key={item.id}
-                    item={item}
-                    onToggle={handleToggleItem}
-                    onDelete={handleDeleteItem}
-                  />
-                ))}
+                <div className="space-y-2">
+                  {filteredItems.completed.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="animate-in slide-in-from-left duration-300"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <GroceryItemComponent
+                        item={item}
+                        onToggle={handleToggleItem}
+                        onDelete={handleDeleteItem}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {searchQuery && filteredItems.pending.length === 0 && filteredItems.completed.length === 0 && (
-              <div className="p-8 text-center text-gray-500">
-                <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium mb-2">Geen resultaten</h3>
-                <p className="text-sm">Geen items gevonden voor "{searchQuery}"</p>
+              <div className="p-12 text-center text-gray-500">
+                <Search className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+                <h3 className="text-xl font-medium mb-3">Geen resultaten</h3>
+                <p className="text-base">Geen items gevonden voor "{searchQuery}"</p>
               </div>
             )}
           </>
