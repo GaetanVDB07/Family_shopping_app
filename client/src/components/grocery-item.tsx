@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import { GroceryItem } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Trash2, Check } from "lucide-react";
@@ -11,60 +11,130 @@ interface GroceryItemProps {
 }
 
 export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemProps) {
+  const [isPressed, setIsPressed] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    
+    currentX.current = e.touches[0].clientX;
+    const diff = currentX.current - startX.current;
+    
+    // Only allow swipe to the left for delete action
+    if (diff < 0) {
+      setSwipeOffset(Math.max(diff, -100));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    
+    // If swiped more than 50px, trigger delete
+    if (swipeOffset < -50) {
+      onDelete(item);
+    }
+    
+    // Reset swipe offset
+    setSwipeOffset(0);
+  };
+
+  const handleMouseDown = () => setIsPressed(true);
+  const handleMouseUp = () => setIsPressed(false);
+  const handleMouseLeave = () => setIsPressed(false);
+
   return (
-    <div className={cn(
-      "mb-2 border border-gray-100 rounded-lg p-3 shadow-sm transition-all",
-      item.completed 
-        ? "bg-gray-50 opacity-75" 
-        : "bg-white hover:shadow-md"
-    )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3 flex-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "w-5 h-5 p-0 border-2 rounded hover:border-primary transition-colors",
-              item.completed
-                ? "bg-primary border-primary"
-                : "border-gray-300"
-            )}
-            onClick={() => onToggle(item.id)}
-          >
-            {item.completed && (
-              <Check className="w-3 h-3 text-white" />
-            )}
-          </Button>
-          <span className={cn(
-            "font-medium",
-            item.completed
-              ? "text-gray-600 line-through"
-              : "text-gray-800"
-          )}>
-            {item.name}
-          </span>
+    <div 
+      className={cn(
+        "mb-3 border border-gray-100 rounded-xl shadow-sm transition-all duration-200 overflow-hidden relative",
+        "touch-manipulation select-none", // Better touch handling
+        item.completed 
+          ? "bg-gray-50 opacity-75" 
+          : "bg-white hover:shadow-md active:shadow-lg",
+        isPressed && "scale-[0.98]",
+        isDragging && "transition-none"
+      )}
+      style={{
+        transform: `translateX(${swipeOffset}px)`,
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Swipe action background */}
+      {swipeOffset < -10 && (
+        <div className="absolute inset-y-0 right-0 bg-red-500 flex items-center justify-center px-6 rounded-r-xl">
+          <Trash2 className="w-5 h-5 text-white" />
         </div>
-        <div className="flex items-center space-x-2">
-          <span className={cn(
-            "text-xs px-2 py-1 rounded",
-            item.completed
-              ? "text-gray-400 bg-gray-200"
-              : "text-gray-500 bg-gray-100"
-          )}>
-            {item.addedBy}
-          </span>
+      )}
+
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4 flex-1">
+            {/* Enhanced checkbox button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "w-7 h-7 p-0 border-2 rounded-lg hover:border-primary transition-all duration-200 flex-shrink-0",
+                "active:scale-95", // Touch feedback
+                item.completed
+                  ? "bg-primary border-primary shadow-sm"
+                  : "border-gray-300 hover:border-primary/60"
+              )}
+              onClick={() => onToggle(item.id)}
+            >
+              {item.completed && (
+                <Check className="w-4 h-4 text-white" />
+              )}
+            </Button>
+            
+            {/* Item text with better typography */}
+            <div className="flex-1 min-w-0">
+              <span className={cn(
+                "font-medium text-base leading-relaxed block",
+                item.completed
+                  ? "text-gray-600 line-through"
+                  : "text-gray-800"
+              )}>
+                {item.name}
+              </span>
+              {/* Added by info */}
+              <span className={cn(
+                "text-sm mt-1 inline-block px-2 py-0.5 rounded-full",
+                item.completed
+                  ? "text-gray-400 bg-gray-200"
+                  : "text-gray-500 bg-gray-100"
+              )}>
+                door {item.addedBy}
+              </span>
+            </div>
+          </div>
+          
+          {/* Enhanced delete button */}
           <Button
             variant="ghost"
             size="sm"
             className={cn(
-              "p-1 rounded transition-all",
+              "p-2 rounded-lg transition-all duration-200 flex-shrink-0 ml-2",
+              "active:scale-95", // Touch feedback
               item.completed
                 ? "text-red-400 hover:text-red-600 hover:bg-red-50"
                 : "text-red-500 hover:text-red-700 hover:bg-red-50"
             )}
             onClick={() => onDelete(item)}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </Button>
         </div>
       </div>
