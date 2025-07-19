@@ -66,6 +66,21 @@ export interface User {
   name?: string;
 }
 
+// Extended types for multi-family support
+export interface UserFamilyMembership {
+  familyId: string;
+  familyName: string;
+  familyCode: string;
+  role: string;
+  joinedAt: string;
+  isActive?: boolean; // For current active family
+}
+
+export interface FamilyWithRole extends Family {
+  role: string;
+  memberCount: number;
+}
+
 // WebSocket message types
 export type WebSocketMessage = 
   | { type: 'itemAdded'; item: GroceryItem }

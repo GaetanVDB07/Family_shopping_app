@@ -7,9 +7,11 @@ import {
   type GroceryItem, 
   type InsertGroceryItem,
   type Family,
-  type FamilyMember
+  type FamilyMember,
+  type UserFamilyMembership,
+  type FamilyWithRole
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import type { IStorage } from "./storage";
 
 // Lazy initialization to ensure environment variables are loaded
@@ -309,5 +311,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(families.id, familyId));
     
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async getUserFamilies(userId: string): Promise<UserFamilyMembership[]> {
+    const db = initializeDatabase();
+    const result = await db
+      .select({
+        familyId: familyMembers.familyId,
+        familyName: families.name,
+        familyCode: families.code,
+        role: familyMembers.role,
+        joinedAt: familyMembers.joinedAt,
+      })
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(eq(familyMembers.userId, userId))
+      .orderBy(familyMembers.joinedAt);
+    
+    return result.map((row: any) => ({
+      familyId: row.familyId,
+      familyName: row.familyName,
+      familyCode: row.familyCode,
+      role: row.role,
+      joinedAt: row.joinedAt.toISOString(),
+    }));
+  }
+
+  async getAllUserFamiliesWithDetails(userId: string): Promise<FamilyWithRole[]> {
+    const db = initializeDatabase();
+    
+    // Get all families the user is a member of, with member count
+    const result = await db
+      .select({
+        id: families.id,
+        name: families.name,
+        code: families.code,
+        createdAt: families.createdAt,
+        createdBy: families.createdBy,
+        role: familyMembers.role,
+        memberCount: count(familyMembers.id),
+      })
+      .from(families)
+      .innerJoin(familyMembers, eq(families.id, familyMembers.familyId))
+      .where(eq(familyMembers.userId, userId))
+      .groupBy(families.id, familyMembers.role)
+      .orderBy(families.name);
+    
+    return result.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      createdAt: row.createdAt,
+      createdBy: row.createdBy,
+      role: row.role,
+      memberCount: Number(row.memberCount),
+    }));
   }
 }

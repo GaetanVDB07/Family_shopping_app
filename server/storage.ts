@@ -1,4 +1,4 @@
-import { groceryItems, type GroceryItem, type InsertGroceryItem, type Family, type FamilyMember } from "@shared/schema";
+import { groceryItems, type GroceryItem, type InsertGroceryItem, type Family, type FamilyMember, type UserFamilyMembership, type FamilyWithRole } from "@shared/schema";
 import { DatabaseStorage } from "./database-storage";
 
 export interface IStorage {
@@ -20,6 +20,10 @@ export interface IStorage {
   removeFamilyMember(familyId: string, userId: string): Promise<boolean>;
   removeFamilyMemberById(memberId: string): Promise<boolean>;
   deleteFamily(familyId: string): Promise<boolean>;
+  
+  // Multi-family support
+  getUserFamilies(userId: string): Promise<UserFamilyMembership[]>;
+  getAllUserFamiliesWithDetails(userId: string): Promise<FamilyWithRole[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -147,6 +151,14 @@ export class MemStorage implements IStorage {
 
   async deleteFamily(familyId: string): Promise<boolean> {
     throw new Error("Family management not supported in memory storage");
+  }
+
+  async getUserFamilies(userId: string): Promise<UserFamilyMembership[]> {
+    throw new Error("Multi-family management not supported in memory storage");
+  }
+
+  async getAllUserFamiliesWithDetails(userId: string): Promise<FamilyWithRole[]> {
+    throw new Error("Multi-family management not supported in memory storage");
   }
 }
 

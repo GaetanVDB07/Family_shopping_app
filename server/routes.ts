@@ -71,6 +71,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint: Get all families for a user
+  app.get("/api/user/families", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const userFamilies = await storage.getAllUserFamiliesWithDetails(req.user.id);
+      res.json(userFamilies);
+    } catch (error) {
+      console.error('Get user families error:', error);
+      res.status(500).json({ message: "Kon families niet ophalen" });
+    }
+  });
+
   app.get("/api/user/family", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.user) {
@@ -214,7 +229,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Grocery Items API Routes (now with authentication and family context)
+  // Grocery Items API Routes (now with family context parameter)
+  app.get("/api/grocery-items/:familyId", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const familyId = req.params.familyId;
+      
+      // Check if user is a member of the requested family
+      const familyMember = await storage.getFamilyMember(familyId, req.user.id);
+      if (!familyMember) {
+        return res.status(403).json({ message: "Je bent geen lid van deze familie" });
+      }
+
+      const items = await storage.getAllGroceryItems(familyId);
+      res.json(items);
+    } catch (error) {
+      console.error('Get grocery items error:', error);
+      res.status(500).json({ message: "Fout bij ophalen van boodschappenlijst" });
+    }
+  });
+
+  // Legacy endpoint - returns items for user's first family (for backward compatibility)
   app.get("/api/grocery-items", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.user) {
@@ -240,38 +278,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const userFamily = await storage.getUserFamily(req.user.id);
-      if (!userFamily) {
-        return res.status(404).json({ message: "Geen familie gevonden" });
+      const { familyId, ...itemData } = req.body;
+      
+      // Require familyId in the new multi-family system
+      if (!familyId) {
+        return res.status(400).json({ message: "Familie ID is vereist" });
       }
 
-      // ✅ Enhanced Security: Validate if user is trying to add item to a different family
-      if (req.body.familyId && req.body.familyId !== userFamily.familyId) {
-        console.log(`[${new Date().toISOString()}] SECURITY: User ${req.user.id} attempted to add item to different family. User family: ${userFamily.familyId}, Requested family: ${req.body.familyId}`);
-        return res.status(403).json({ 
-          message: "Je kunt alleen items toevoegen aan je eigen familie" 
-        });
-      }
-
-      // ✅ Verify user is actually a member of the family (double-check)
-      const familyMember = await storage.getFamilyMember(userFamily.familyId, req.user.id);
+      // ✅ Verify user is actually a member of the specified family
+      const familyMember = await storage.getFamilyMember(familyId, req.user.id);
       if (!familyMember) {
-        console.log(`[${new Date().toISOString()}] SECURITY: User ${req.user.id} is not a verified member of family ${userFamily.familyId}`);
+        console.log(`[${new Date().toISOString()}] SECURITY: User ${req.user.id} attempted to add item to family ${familyId} - not a member`);
         return res.status(403).json({ 
-          message: "Je bent geen geldig lid van deze familie" 
+          message: "Je bent geen lid van deze familie" 
         });
       }
 
       const validatedData = insertGroceryItemSchema.parse({
-        ...req.body,
+        ...itemData,
         addedBy: req.user.id,
-        familyId: userFamily.familyId, // Always use the user's actual family
+        familyId: familyId, // Use the specified familyId
       });
 
       const item = await storage.createGroceryItem(validatedData);
       
       // Broadcast to family members
-      broadcastToFamily(userFamily.familyId, { type: 'itemAdded', item });
+      broadcastToFamily(familyId, { type: 'itemAdded', item });
       
       res.status(201).json(item);
     } catch (error) {

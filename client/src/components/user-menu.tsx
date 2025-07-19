@@ -23,17 +23,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Menu, Settings, UserX, LogOut, Users } from "lucide-react";
+import { Menu, Settings, UserX, LogOut, Users, Home } from "lucide-react";
 
 export function UserMenu() {
   const [, setLocation] = useLocation();
-  const { familyMembership } = useFamilyStatus();
+  const { familyMembership, allFamilies } = useFamilyStatus();
   const { signOut } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
-  const isAdmin = familyMembership?.role === "admin";
+  // Get current family from localStorage
+  const currentFamilyId = localStorage.getItem('currentFamilyId');
+  const currentFamily = allFamilies.find(f => f.familyId === currentFamilyId);
+  const isAdmin = currentFamily?.role === "admin" || familyMembership?.role === "admin";
 
   // Leave family mutation
   const leaveFamilyMutation = useMutation({
@@ -43,11 +46,12 @@ export function UserMenu() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       toast({
         title: "Familie verlaten",
         description: "Je hebt de familie succesvol verlaten.",
       });
-      setLocation("/family-setup");
+      setLocation("/families");
     },
     onError: () => {
       toast({
@@ -98,24 +102,29 @@ export function UserMenu() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="px-2 py-1.5 text-sm font-medium">
-            {familyMembership?.familyName}
+            {currentFamily?.familyName || "Onbekende Familie"}
           </div>
           <div className="px-2 py-1 text-xs text-gray-500">
-            {isAdmin ? "Admin" : "Lid"}
+            {isAdmin ? "Admin" : "Lid"} • {allFamilies.length} {allFamilies.length === 1 ? 'familie' : 'families'}
           </div>
           <DropdownMenuSeparator />
           
-          {isAdmin && (
+          <DropdownMenuItem onClick={() => setLocation("/families")}>
+            <Home className="w-4 h-4 mr-2" />
+            Alle Families
+          </DropdownMenuItem>
+
+          {isAdmin && currentFamilyId && (
             <DropdownMenuItem onClick={() => {
               console.log("Navigating to family management...");
-              setLocation("/family-management");
+              setLocation(`/family-management/${currentFamilyId}`);
             }}>
               <Users className="w-4 h-4 mr-2" />
               Familie Beheren
             </DropdownMenuItem>
           )}
           
-          {!isAdmin && (
+          {!isAdmin && currentFamilyId && (
             <DropdownMenuItem 
               onClick={handleLeaveFamily}
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -143,7 +152,7 @@ export function UserMenu() {
           <AlertDialogHeader>
             <AlertDialogTitle>Familie verlaten?</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je de familie "{familyMembership?.familyName}" wilt verlaten? 
+              Weet je zeker dat je de familie "{currentFamily?.familyName}" wilt verlaten? 
               Je verliest toegang tot de gedeelde boodschappenlijst en kunt alleen opnieuw 
               toetreden als een admin je uitnodigt.
             </AlertDialogDescription>

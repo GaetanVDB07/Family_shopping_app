@@ -1,0 +1,293 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Users, Plus, UserPlus, Crown, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import type { FamilyWithRole } from "@shared/schema";
+
+export default function FamiliesOverview() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [joinCode, setJoinCode] = useState("");
+  const [newFamilyName, setNewFamilyName] = useState("");
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch all families the user is a member of
+  const { data: families, isLoading } = useQuery<FamilyWithRole[]>({
+    queryKey: ["/api/user/families"],
+    retry: 1,
+  });
+
+  // Join family mutation
+  const joinFamilyMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest("POST", "/api/families/join", { code });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      toast({
+        title: "Familie toegevoegd",
+        description: "Je bent succesvol toegevoegd aan de familie.",
+      });
+      setJoinCode("");
+      setShowJoinDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fout",
+        description: error.message || "Kon niet bij familie voegen.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create family mutation
+  const createFamilyMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const response = await apiRequest("POST", "/api/families", {
+        name,
+        code,
+        createdBy: user?.id,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      toast({
+        title: "Familie aangemaakt",
+        description: "Je nieuwe familie is succesvol aangemaakt.",
+      });
+      setNewFamilyName("");
+      setShowCreateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Fout",
+        description: error.message || "Kon familie niet aanmaken.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleJoinFamily = () => {
+    if (joinCode.trim()) {
+      joinFamilyMutation.mutate(joinCode.trim());
+    }
+  };
+
+  const handleCreateFamily = () => {
+    if (newFamilyName.trim()) {
+      createFamilyMutation.mutate(newFamilyName.trim());
+    }
+  };
+
+  const navigateToFamily = (familyId: string) => {
+    // Store the current family ID for the grocery list
+    localStorage.setItem('currentFamilyId', familyId);
+    setLocation(`/grocery-list/${familyId}`);
+  };
+
+  const navigateToFamilyManagement = (familyId: string) => {
+    localStorage.setItem('currentFamilyId', familyId);
+    setLocation(`/family-management/${familyId}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+        <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
+          <h1 className="text-lg font-semibold">Laden...</h1>
+        </div>
+        <div className="p-4">
+          <div className="animate-pulse space-y-4">
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      {/* Header */}
+      <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/")} className="text-white hover:bg-white/20">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-lg font-semibold">Mijn Families</h1>
+          </div>
+          <span className="text-sm opacity-75">{families?.length || 0}</span>
+        </div>
+      </header>
+
+      <div className="p-4 space-y-6">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center space-x-2">
+                <Plus className="w-4 h-4" />
+                <span>Nieuwe Familie</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nieuwe Familie Aanmaken</DialogTitle>
+                <DialogDescription>
+                  Maak een nieuwe familie aan en nodig anderen uit om deel te nemen.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="family-name">Familie Naam</Label>
+                  <Input
+                    id="family-name"
+                    value={newFamilyName}
+                    onChange={(e) => setNewFamilyName(e.target.value)}
+                    placeholder="Bijv. Familie van der Berg"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  Annuleren
+                </Button>
+                <Button 
+                  onClick={handleCreateFamily}
+                  disabled={!newFamilyName.trim() || createFamilyMutation.isPending}
+                >
+                  {createFamilyMutation.isPending ? "Aanmaken..." : "Familie Aanmaken"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <UserPlus className="w-4 h-4" />
+                <span>Familie Joinen</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Familie Joinen</DialogTitle>
+                <DialogDescription>
+                  Voer de 6-cijferige familiecode in om je bij een bestaande familie aan te sluiten.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="join-code">Familie Code</Label>
+                  <Input
+                    id="join-code"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="ABCD12"
+                    maxLength={6}
+                    className="font-mono text-center tracking-wider"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowJoinDialog(false)}>
+                  Annuleren
+                </Button>
+                <Button 
+                  onClick={handleJoinFamily}
+                  disabled={!joinCode.trim() || joinFamilyMutation.isPending}
+                >
+                  {joinFamilyMutation.isPending ? "Joinen..." : "Familie Joinen"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Families List */}
+        {families && families.length > 0 ? (
+          <div className="space-y-4">
+            {families.map((family) => (
+              <Card key={family.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center space-x-2">
+                      <Users className="w-5 h-5" />
+                      <span>{family.name}</span>
+                    </CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={family.role === "admin" ? "default" : "secondary"}>
+                        {family.role === "admin" ? (
+                          <><Crown className="w-3 h-3 mr-1" />Admin</>
+                        ) : (
+                          "Lid"
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+                  <CardDescription>
+                    {family.memberCount} {family.memberCount === 1 ? 'lid' : 'leden'} • Code: {family.code}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex space-x-2">
+                    <Button 
+                      className="flex-1" 
+                      onClick={() => navigateToFamily(family.id)}
+                    >
+                      Boodschappenlijst
+                    </Button>
+                    {family.role === "admin" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigateToFamilyManagement(family.id)}
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Geen families</h3>
+              <p className="text-gray-500 mb-6">Je bent nog geen lid van een familie. Maak een nieuwe familie aan of join een bestaande familie.</p>
+              <div className="space-y-2">
+                <Button onClick={() => setShowCreateDialog(true)} className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nieuwe Familie Aanmaken
+                </Button>
+                <Button onClick={() => setShowJoinDialog(true)} variant="outline" className="w-full">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Familie Joinen
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
