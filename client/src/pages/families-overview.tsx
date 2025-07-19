@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, Plus, UserPlus, Crown, Settings } from "lucide-react";
+import { Users, Plus, UserPlus, Crown, Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { FamilyWithRole } from "@shared/schema";
@@ -16,6 +17,7 @@ import type { FamilyWithRole } from "@shared/schema";
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { updateCurrentFamily } = useCurrentFamily();
   const { toast } = useToast();
   const [joinCode, setJoinCode] = useState("");
   const [newFamilyName, setNewFamilyName] = useState("");
@@ -96,12 +98,12 @@ export default function FamiliesOverview() {
 
   const navigateToFamily = (familyId: string) => {
     // Store the current family ID for the grocery list
-    localStorage.setItem('currentFamilyId', familyId);
+    updateCurrentFamily(familyId);
     setLocation(`/grocery-list/${familyId}`);
   };
 
   const navigateToFamilyManagement = (familyId: string) => {
-    localStorage.setItem('currentFamilyId', familyId);
+    updateCurrentFamily(familyId);
     setLocation(`/family-management/${familyId}`);
   };
 
@@ -128,9 +130,6 @@ export default function FamiliesOverview() {
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/")} className="text-white hover:bg-white/20">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
             <h1 className="text-lg font-semibold">Mijn Families</h1>
           </div>
           <span className="text-sm opacity-75">{families?.length || 0}</span>

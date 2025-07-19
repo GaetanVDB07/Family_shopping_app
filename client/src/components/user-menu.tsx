@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useFamilyStatus } from "@/hooks/use-family-status";
+import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -28,14 +29,12 @@ import { Menu, Settings, UserX, LogOut, Users, Home } from "lucide-react";
 export function UserMenu() {
   const [, setLocation] = useLocation();
   const { familyMembership, allFamilies } = useFamilyStatus();
+  const { currentFamilyId, currentFamily } = useCurrentFamily();
   const { signOut } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
-  // Get current family from localStorage
-  const currentFamilyId = localStorage.getItem('currentFamilyId');
-  const currentFamily = allFamilies.find(f => f.familyId === currentFamilyId);
   const isAdmin = currentFamily?.role === "admin" || familyMembership?.role === "admin";
 
   // Leave family mutation
