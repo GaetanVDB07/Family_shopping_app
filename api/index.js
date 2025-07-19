@@ -130,6 +130,10 @@ export default async function handler(req, res) {
       case apiPath === '/grocery-items' && method === 'GET':
         return await handleGetGroceryItems(req, res);
         
+      case apiPath.startsWith('/grocery-items/') && method === 'GET' && apiPath.split('/').length === 3:
+        const familyId = apiPath.split('/')[2];
+        return await handleGetGroceryItemsByFamily(req, res, familyId);
+        
       case apiPath === '/grocery-items' && method === 'POST':
         return await handleCreateGroceryItem(req, res);
         
@@ -525,6 +529,46 @@ async function handleGetGroceryItems(req, res) {
     return res.status(200).json(items);
   } catch (error) {
     console.error('Error fetching grocery items:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleGetGroceryItemsByFamily(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    // Verify user is a member of the requested family
+    const [userFamilyMembership] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
+
+    if (!userFamilyMembership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
+
+    // Join grocery items with family members to get the user name
+    const items = await database
+      .select({
+        id: groceryItems.id,
+        name: groceryItems.name,
+        completed: groceryItems.completed,
+        addedBy: familyMembers.userName,
+        familyId: groceryItems.familyId,
+        createdAt: groceryItems.createdAt,
+      })
+      .from(groceryItems)
+      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+      .where(eq(groceryItems.familyId, familyId))
+      .orderBy(groceryItems.createdAt);
+
+    return res.status(200).json(items);
+  } catch (error) {
+    console.error('Error fetching grocery items by family:', error);
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
     }
