@@ -13,9 +13,10 @@ import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
+import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, ArrowLeft, Users } from "lucide-react";
+import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
@@ -28,23 +29,18 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { familyMembership, allFamilies } = useFamilyStatus();
+  const { allFamilies } = useFamilyStatus();
+  const { currentFamilyId, currentFamily, updateCurrentFamily } = useCurrentFamily();
 
-  // Get family ID from URL params or fallback to first family for legacy support
-  const familyId = params.familyId || localStorage.getItem('currentFamilyId') || familyMembership?.id;
-  
-  // Find the current family info
-  const currentFamily = useMemo(() => {
-    if (!familyId) return null;
-    return allFamilies.find(f => f.familyId === familyId) || null;
-  }, [familyId, allFamilies]);
-
-  // Redirect to families overview if no family found
+  // Update current family if URL param is different (for direct navigation)
   useEffect(() => {
-    if (!familyId && allFamilies.length > 0) {
-      setLocation("/families");
+    if (params.familyId && params.familyId !== currentFamilyId) {
+      updateCurrentFamily(params.familyId);
     }
-  }, [familyId, allFamilies, setLocation]);
+  }, [params.familyId, currentFamilyId, updateCurrentFamily]);
+
+  // Use current family ID, fallback to URL param for direct navigation
+  const familyId = currentFamilyId || params.familyId;
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch } = useQuery<GroceryItem[]>({
@@ -329,14 +325,6 @@ export default function GroceryList() {
         <div className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setLocation("/families")} 
-                className="text-white hover:bg-white/20 p-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
               <ShoppingCart className="text-2xl" />
               <div>
                 <h1 className="text-xl font-semibold">
@@ -400,14 +388,6 @@ export default function GroceryList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setLocation("/families")} 
-                className="text-white hover:bg-white/20 p-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
               <ShoppingCart className="text-2xl" />
             </div>
             <div>
