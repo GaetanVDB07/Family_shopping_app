@@ -137,8 +137,9 @@ export default async function handler(req, res) {
       case apiPath === '/grocery-items' && method === 'POST':
         return await handleCreateGroceryItem(req, res);
         
-      case apiPath === '/grocery-items/delete-all' && method === 'DELETE':
-        return await handleDeleteAllGroceryItems(req, res);
+      case apiPath.startsWith('/grocery-items/delete-all/') && method === 'DELETE':
+        const deleteAllFamilyId = apiPath.split('/')[3];
+        return await handleDeleteAllGroceryItems(req, res, deleteAllFamilyId);
         
       case apiPath.startsWith('/grocery-items/') && method === 'PATCH':
         const itemId = apiPath.split('/')[2];
@@ -707,25 +708,25 @@ async function handleDeleteGroceryItem(req, res, itemId) {
   }
 }
 
-async function handleDeleteAllGroceryItems(req, res) {
+async function handleDeleteAllGroceryItems(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
 
-    const [userFamily] = await database
+    // Verify user is a member of the requested family
+    const [userFamilyMembership] = await database
       .select()
       .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
 
-    if (!userFamily) {
-      return res.status(404).json({ message: 'No family found' });
+    if (!userFamilyMembership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
     }
 
     // Delete all items for this family
     const deletedItems = await database
       .delete(groceryItems)
-      .where(eq(groceryItems.familyId, userFamily.familyId))
+      .where(eq(groceryItems.familyId, familyId))
       .returning();
 
     return res.status(200).json({ 
