@@ -232,7 +232,7 @@ export default function GroceryList() {
   // Delete all items mutation
   const deleteAllItemsMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/grocery-items/delete-all");
+      const response = await apiRequest("DELETE", `/api/grocery-items/delete-all/${familyId}`);
       return response.json();
     },
     onMutate: async () => {
