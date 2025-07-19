@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,22 +41,34 @@ interface FamilyDetails {
 
 export default function FamilyManagement() {
   const [, setLocation] = useLocation();
-  const { familyMembership, loading: familyLoading } = useFamilyStatus();
+  const params = useParams();
+  const { allFamilies, familiesLoading } = useFamilyStatus();
   const { user } = useAuth();
   const { toast } = useToast();
   const [copiedCode, setCopiedCode] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch family details including members - MUST be before any conditional returns
+  // Get family ID from URL params or localStorage
+  const familyId = params.familyId || localStorage.getItem('currentFamilyId');
+  
+  // Find user's role in this family
+  const userFamily = allFamilies.find(f => f.familyId === familyId);
+  const isAdmin = userFamily?.role === "admin";
+
+  // Fetch family details including members - only for admins
   const { data: family, isLoading, error } = useQuery<FamilyDetails>({
-    queryKey: ["/api/family/details"],
+    queryKey: ["/api/family/details", familyId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/family/details");
+      return response.json();
+    },
     retry: 1,
-    enabled: !familyLoading && familyMembership?.role === "admin", // Only run if admin
+    enabled: !familiesLoading && isAdmin && !!familyId,
   });
 
   // Log for debugging
-  console.log("Family management - familyLoading:", familyLoading, "role:", familyMembership?.role, "isLoading:", isLoading, "error:", error, "family:", family);
+  console.log("Family management - familiesLoading:", familiesLoading, "role:", userFamily?.role, "isLoading:", isLoading, "error:", error, "family:", family);
 
   // Remove member mutation - MUST be before any conditional returns
   const removeMemberMutation = useMutation({
@@ -65,7 +77,8 @@ export default function FamilyManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/family/details"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       toast({
         title: "Lid verwijderd",
         description: "Het familielid is succesvol verwijderd.",
@@ -87,12 +100,13 @@ export default function FamilyManagement() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
       toast({
         title: "Familie verwijderd",
         description: "De familie is succesvol verwijderd.",
       });
-      setLocation("/family-setup");
+      setLocation("/families");
     },
     onError: () => {
       toast({
@@ -105,14 +119,14 @@ export default function FamilyManagement() {
 
   // Redirect if not admin (only after family data is loaded)
   useEffect(() => {
-    if (!familyLoading && familyMembership?.role !== "admin") {
-      console.log("Redirecting non-admin user, role:", familyMembership?.role);
-      setLocation("/");
+    if (!familiesLoading && !isAdmin) {
+      console.log("Redirecting non-admin user, role:", userFamily?.role);
+      setLocation("/families");
     }
-  }, [familyLoading, familyMembership?.role, setLocation]);
+  }, [familiesLoading, isAdmin, userFamily?.role, setLocation]);
 
   // Show loading while family membership is being checked
-  if (familyLoading) {
+  if (familiesLoading) {
     return (
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
@@ -129,8 +143,29 @@ export default function FamilyManagement() {
   }
 
   // Return null if not admin (will redirect via useEffect)
-  if (familyMembership?.role !== "admin") {
-    return null;
+  if (!isAdmin) {
+    return (
+      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+        <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-lg font-semibold">Geen toegang</h1>
+          </div>
+        </div>
+        <div className="p-4">
+          <Alert>
+            <AlertDescription>
+              Je hebt geen admin-rechten voor deze familie.
+            </AlertDescription>
+          </Alert>
+          <Button onClick={() => setLocation("/families")} className="mt-4">
+            Terug naar families
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const handleCopyCode = async () => {
@@ -182,7 +217,7 @@ export default function FamilyManagement() {
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/")} className="text-white hover:bg-white/20">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <h1 className="text-lg font-semibold">Familie Beheer</h1>
@@ -203,7 +238,7 @@ export default function FamilyManagement() {
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/")} className="text-white hover:bg-white/20">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <h1 className="text-lg font-semibold">Familie Beheer</h1>
@@ -215,8 +250,8 @@ export default function FamilyManagement() {
               <strong>Fout bij laden familie gegevens:</strong> {error.message}
             </AlertDescription>
           </Alert>
-          <Button onClick={() => setLocation("/")} className="mt-4">
-            Terug naar boodschappenlijst
+          <Button onClick={() => setLocation("/families")} className="mt-4">
+            Terug naar families
           </Button>
         </div>
       </div>
@@ -228,7 +263,7 @@ export default function FamilyManagement() {
       {/* Header */}
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/")} className="text-white hover:bg-white/20">
+          <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-lg font-semibold">Familie Beheer</h1>
