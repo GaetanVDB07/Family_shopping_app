@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 
 // Import schema from shared directory
 import { groceryItems, families, familyMembers } from "../shared/schema.js";
@@ -105,6 +105,9 @@ export default async function handler(req, res) {
       case apiPath === '/user/family' && method === 'GET':
         return await handleGetUserFamily(req, res);
         
+      case apiPath === '/user/families' && method === 'GET':
+        return await handleGetUserFamilies(req, res);
+        
       case apiPath === '/families' && method === 'POST':
         return await handleCreateFamily(req, res);
         
@@ -195,6 +198,61 @@ async function handleGetUserFamily(req, res) {
       return res.status(401).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleGetUserFamilies(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    // Get all families the user is a member of
+    const result = await database
+      .select({
+        familyId: families.id,
+        familyName: families.name,
+        familyCode: families.code,
+        createdAt: families.createdAt,
+        createdBy: families.createdBy,
+        role: familyMembers.role,
+        joinedAt: familyMembers.joinedAt,
+      })
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(eq(familyMembers.userId, user.id))
+      .orderBy(families.name);
+
+    // For each family, get the member count
+    const userFamilies = await Promise.all(
+      result.map(async (row) => {
+        const [memberCountResult] = await database
+          .select({ count: count(familyMembers.id) })
+          .from(familyMembers)
+          .where(eq(familyMembers.familyId, row.familyId));
+
+        return {
+          familyId: row.familyId,
+          familyName: row.familyName,
+          familyCode: row.familyCode,
+          role: row.role,
+          joinedAt: row.joinedAt.toISOString(),
+          id: row.familyId,
+          name: row.familyName,
+          code: row.familyCode,
+          createdAt: row.createdAt,
+          createdBy: row.createdBy,
+          memberCount: Number(memberCountResult.count),
+        };
+      })
+    );
+
+    return res.status(200).json(userFamilies);
+  } catch (error) {
+    console.error('Error fetching user families:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Kon families niet ophalen' });
   }
 }
 
