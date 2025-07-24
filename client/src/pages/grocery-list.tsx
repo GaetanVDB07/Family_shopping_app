@@ -525,13 +525,13 @@ export default function GroceryList() {
           </div>
         </div>
         {items.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleMarkAllCompleted}
               disabled={markAllCompletedMutation.isPending}
-              className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 rounded-lg px-3 py-2 whitespace-nowrap"
+              className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 rounded-lg px-3 py-2 w-full"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               Alles afvinken
@@ -541,16 +541,16 @@ export default function GroceryList() {
               size="sm"
               onClick={handleMarkAllPending}
               disabled={markAllPendingMutation.isPending}
-              className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg px-3 py-2 whitespace-nowrap"
+              className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg px-3 py-2 w-full"
             >
               <Circle className="w-4 h-4 mr-2" />
-              Alles nog te kopen
+              Nog te kopen
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleDeleteAll}
-              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2 whitespace-nowrap"
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2 w-full"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Wis alles
