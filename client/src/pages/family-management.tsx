@@ -60,7 +60,7 @@ export default function FamilyManagement() {
   const { data: family, isLoading, error } = useQuery<FamilyDetails>({
     queryKey: ["/api/family/details", familyId],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/family/details");
+      const response = await apiRequest("GET", `/api/family/details/${familyId}`);
       return response.json();
     },
     retry: 1,

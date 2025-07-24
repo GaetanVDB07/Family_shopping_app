@@ -73,6 +73,33 @@ function generateFamilyCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Helper function to generate unique family codes
+async function generateUniqueFamilyCode() {
+  const database = getDatabase();
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (attempts < maxAttempts) {
+    const code = generateFamilyCode();
+    
+    // Check if code already exists
+    const [existingFamily] = await database
+      .select()
+      .from(families)
+      .where(eq(families.code, code))
+      .limit(1);
+
+    if (!existingFamily) {
+      return code; // Found unique code
+    }
+    
+    attempts++;
+  }
+  
+  // If we couldn't generate a unique code after max attempts
+  throw new Error('Unable to generate unique family code');
+}
+
 // Main handler function
 async function handler(req, res) {
   try {
@@ -116,6 +143,10 @@ async function handler(req, res) {
         
       case apiPath === '/family/details' && method === 'GET':
         return await handleGetFamilyDetails(req, res);
+        
+      case apiPath.startsWith('/family/details/') && method === 'GET':
+        const familyDetailsId = apiPath.split('/')[3];
+        return await handleGetFamilyDetailsByID(req, res, familyDetailsId);
         
       case apiPath === '/family/details' && method === 'DELETE':
         return await handleDeleteFamily(req, res);
@@ -279,7 +310,7 @@ async function handleCreateFamily(req, res) {
     }
 
     const database = getDatabase();
-    const code = generateFamilyCode();
+    const code = await generateUniqueFamilyCode();
 
     const [family] = await database
       .insert(families)
@@ -397,6 +428,50 @@ async function handleGetFamilyDetails(req, res) {
     });
   } catch (error) {
     console.error('Error fetching family details:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleGetFamilyDetailsByID(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    // Check if user is a member of the requested family
+    const [userFamily] = await database
+      .select({
+        family: families,
+        member: familyMembers,
+      })
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(and(
+        eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, familyId)
+      ))
+      .limit(1);
+
+    if (!userFamily) {
+      return res.status(404).json({ message: 'Family not found or access denied' });
+    }
+
+    const allMembers = await database
+      .select()
+      .from(familyMembers)
+      .where(eq(familyMembers.familyId, familyId));
+
+    return res.status(200).json({
+      id: userFamily.family.id,
+      name: userFamily.family.name,
+      code: userFamily.family.code,
+      members: allMembers,
+      userRole: userFamily.member.role,
+    });
+  } catch (error) {
+    console.error('Error fetching family details by ID:', error);
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
     }
