@@ -141,6 +141,14 @@ async function handler(req, res) {
         const deleteAllFamilyId = apiPath.split('/')[3];
         return await handleDeleteAllGroceryItems(req, res, deleteAllFamilyId);
         
+      case apiPath.startsWith('/grocery-items/mark-all-completed/') && method === 'PATCH':
+        const markCompletedFamilyId = apiPath.split('/')[3];
+        return await handleMarkAllItemsCompleted(req, res, markCompletedFamilyId);
+        
+      case apiPath.startsWith('/grocery-items/mark-all-pending/') && method === 'PATCH':
+        const markPendingFamilyId = apiPath.split('/')[3];
+        return await handleMarkAllItemsPending(req, res, markPendingFamilyId);
+        
       case apiPath.startsWith('/grocery-items/') && method === 'PATCH':
         const itemId = apiPath.split('/')[2];
         return await handleUpdateGroceryItem(req, res, itemId);
@@ -735,6 +743,78 @@ async function handleDeleteAllGroceryItems(req, res, familyId) {
     });
   } catch (error) {
     console.error('Error deleting all grocery items:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleMarkAllItemsCompleted(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    // Verify user is a member of the requested family
+    const [userFamilyMembership] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
+
+    if (!userFamilyMembership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
+
+    // Mark all items as completed for this family
+    const updatedItems = await database
+      .update(groceryItems)
+      .set({ completed: true })
+      .where(eq(groceryItems.familyId, familyId))
+      .returning();
+
+    return res.status(200).json({ 
+      message: 'All items marked as completed',
+      updatedCount: updatedItems.length,
+      items: updatedItems
+    });
+  } catch (error) {
+    console.error('Error marking all items as completed:', error);
+    if (error.message.includes('authorization')) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleMarkAllItemsPending(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    // Verify user is a member of the requested family
+    const [userFamilyMembership] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
+
+    if (!userFamilyMembership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
+
+    // Mark all items as pending for this family
+    const updatedItems = await database
+      .update(groceryItems)
+      .set({ completed: false })
+      .where(eq(groceryItems.familyId, familyId))
+      .returning();
+
+    return res.status(200).json({ 
+      message: 'All items marked as pending',
+      updatedCount: updatedItems.length,
+      items: updatedItems
+    });
+  } catch (error) {
+    console.error('Error marking all items as pending:', error);
     if (error.message.includes('authorization')) {
       return res.status(401).json({ message: error.message });
     }
