@@ -58,11 +58,8 @@ export default function FamiliesOverview() {
   // Create family mutation
   const createFamilyMutation = useMutation({
     mutationFn: async (name: string) => {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const response = await apiRequest("POST", "/api/families", {
         name,
-        code,
-        createdBy: user?.id,
       });
       return response.json();
     },
