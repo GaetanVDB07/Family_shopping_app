@@ -15,10 +15,12 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const startX = useRef(0);
+  const startY = useRef(0);
   const currentX = useRef(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
 
@@ -26,19 +28,25 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
     if (!isDragging) return;
     
     currentX.current = e.touches[0].clientX;
-    const diff = currentX.current - startX.current;
+    const currentY = e.touches[0].clientY;
     
-    // Only allow swipe to the left for delete action
-    if (diff < 0) {
-      setSwipeOffset(Math.max(diff, -100));
+    const diffX = currentX.current - startX.current;
+    const diffY = Math.abs(currentY - startY.current);
+    
+    // Only allow swipe if horizontal movement is significantly more than vertical
+    // This prevents accidental swipes during scroll or pull-to-refresh
+    if (Math.abs(diffX) > diffY * 1.5 && diffX < 0) {
+      // Prevent scrolling when swiping horizontally
+      e.preventDefault();
+      setSwipeOffset(Math.max(diffX, -100));
     }
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
     
-    // If swiped more than 50px, trigger delete
-    if (swipeOffset < -50) {
+    // If swiped more than 60px (increased threshold), trigger delete
+    if (swipeOffset < -60) {
       onDelete(item);
     }
     
