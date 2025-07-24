@@ -74,7 +74,7 @@ function generateFamilyCode() {
 }
 
 // Main handler function
-export default async function handler(req, res) {
+async function handler(req, res) {
   try {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -741,3 +741,45 @@ async function handleDeleteAllGroceryItems(req, res, familyId) {
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+// Express middleware adapter for development
+function expressMiddleware(req, res, next) {
+  // Adapt Express request to Vercel format
+  const vercelReq = {
+    ...req,
+    url: req.originalUrl || req.url,
+    method: req.method,
+    headers: req.headers,
+    body: req.body
+  };
+
+  // Adapt Express response to Vercel format
+  const vercelRes = {
+    setHeader: (name, value) => {
+      res.setHeader(name, value);
+      return vercelRes;
+    },
+    status: (code) => {
+      res.status(code);
+      return vercelRes;
+    },
+    json: (data) => {
+      res.json(data);
+      return vercelRes;
+    },
+    end: () => {
+      res.end();
+      return vercelRes;
+    }
+  };
+
+  // Call the handler and handle any errors
+  handler(vercelReq, vercelRes)
+    .catch(next);
+}
+
+// Export for Vercel serverless function (production)
+export default handler;
+
+// Export for Express middleware (development)
+export { expressMiddleware };
