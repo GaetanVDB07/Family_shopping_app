@@ -16,7 +16,7 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users } from "lucide-react";
+import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
@@ -264,6 +264,76 @@ export default function GroceryList() {
     },
   });
 
+  // Mark all items as completed mutation
+  const markAllCompletedMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", `/api/grocery-items/mark-all-completed/${familyId}`);
+      return response.json();
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items", familyId] });
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items", familyId]);
+      
+      // Optimistically mark all items as completed
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        old.map((item) => ({ ...item, completed: true }))
+      );
+      
+      return { previousItems };
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Alles afgevinkt",
+        description: `${response.updatedCount} items gemarkeerd als afgevinkt`,
+      });
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
+      }
+      toast({
+        title: "Fout",
+        description: "Kon items niet markeren. Probeer het opnieuw.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mark all items as pending mutation
+  const markAllPendingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("PATCH", `/api/grocery-items/mark-all-pending/${familyId}`);
+      return response.json();
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items", familyId] });
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items", familyId]);
+      
+      // Optimistically mark all items as pending
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        old.map((item) => ({ ...item, completed: false }))
+      );
+      
+      return { previousItems };
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Alles nog te kopen",
+        description: `${response.updatedCount} items gemarkeerd als nog te kopen`,
+      });
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
+      }
+      toast({
+        title: "Fout",
+        description: "Kon items niet markeren. Probeer het opnieuw.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter and sort items
   const filteredItems = useMemo(() => {
     const filtered = items.filter((item) =>
@@ -318,6 +388,14 @@ export default function GroceryList() {
   const handleConfirmDeleteAll = useCallback(() => {
     deleteAllItemsMutation.mutate();
   }, [deleteAllItemsMutation]);
+
+  const handleMarkAllCompleted = useCallback(() => {
+    markAllCompletedMutation.mutate();
+  }, [markAllCompletedMutation]);
+
+  const handleMarkAllPending = useCallback(() => {
+    markAllPendingMutation.mutate();
+  }, [markAllPendingMutation]);
 
   if (isLoading) {
     return (
@@ -439,24 +517,46 @@ export default function GroceryList() {
 
       {/* Quick Stats with better mobile layout */}
       <div className="px-6 py-4 bg-white border-b border-gray-100">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-3">
           <div className="flex justify-between text-sm text-gray-600 flex-1 space-x-4">
             <span className="font-medium">{stats.total} items</span>
             <span className="text-primary font-medium">{stats.completed} klaar</span>
             <span className="text-orange-500 font-medium">{stats.remaining} te doen</span>
           </div>
-          {items.length > 0 && (
+        </div>
+        {items.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllCompleted}
+              disabled={markAllCompletedMutation.isPending}
+              className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 rounded-lg px-3 py-2 whitespace-nowrap"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Alles afvinken
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllPending}
+              disabled={markAllPendingMutation.isPending}
+              className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg px-3 py-2 whitespace-nowrap"
+            >
+              <Circle className="w-4 h-4 mr-2" />
+              Alles nog te kopen
+            </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleDeleteAll}
-              className="ml-4 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2"
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2 whitespace-nowrap"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Wis alles
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content with better mobile spacing */}
