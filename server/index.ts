@@ -5,8 +5,11 @@ console.log(`Loading environment from: ${envFile}`);
 dotenv.config({ path: envFile });
 
 import express, { type Request, type Response, type NextFunction } from "express";
-import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { createServer } from "http";
+// Use the same API logic as production
+// @ts-ignore - API handler is in JavaScript
+import { expressMiddleware } from "../api/index.js";
 
 const app = express();
 app.use(express.json());
@@ -42,8 +45,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Use the same API handler as production
+app.use('/api', expressMiddleware);
+
 (async () => {
-  const server = await registerRoutes(app);
+  const server = createServer(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
