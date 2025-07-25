@@ -23,6 +23,13 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
         return;
       }
 
+      // Close existing channel first to prevent duplicates (important for development)
+      if (channelRef.current) {
+        console.log('Closing existing WebSocket channel to prevent duplicates');
+        await channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+
       // First, get the user's family ID to know which changes to listen for
       const response = await fetch('/api/user/family', {
         headers: {
@@ -40,11 +47,6 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
       if (!family) {
         console.log('User not in a family, skipping realtime connection');
         return;
-      }
-
-      // Close existing channel if any
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
       }
 
       // Create a new channel for grocery items changes
@@ -103,9 +105,12 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
   useEffect(() => {
     connect();
 
+    // Cleanup function that's called when component unmounts or dependencies change
     return () => {
+      console.log('Cleaning up WebSocket connection');
       if (channelRef.current) {
         channelRef.current.unsubscribe();
+        channelRef.current = null;
       }
     };
   }, [connect]);

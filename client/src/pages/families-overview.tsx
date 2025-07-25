@@ -39,10 +39,6 @@ export default function FamiliesOverview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      toast({
-        title: "Familie toegevoegd",
-        description: "Je bent succesvol toegevoegd aan de familie.",
-      });
       setJoinCode("");
       setShowJoinDialog(false);
     },
@@ -65,10 +61,6 @@ export default function FamiliesOverview() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      toast({
-        title: "Familie aangemaakt",
-        description: "Je nieuwe familie is succesvol aangemaakt.",
-      });
       setNewFamilyName("");
       setShowCreateDialog(false);
     },

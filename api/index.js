@@ -188,6 +188,9 @@ async function handler(req, res) {
         const deleteItemId = apiPath.split('/')[2];
         return await handleDeleteGroceryItem(req, res, deleteItemId);
         
+      case apiPath === '/cleanup-duplicates' && method === 'POST':
+        return await handleCleanupDuplicates(req, res);
+        
       default:
         return res.status(404).json({ message: 'API route not found' });
     }
@@ -646,11 +649,23 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
         createdAt: groceryItems.createdAt,
       })
       .from(groceryItems)
-      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
+      .leftJoin(familyMembers, and(
+        eq(groceryItems.addedBy, familyMembers.userId),
+        eq(familyMembers.familyId, familyId)
+      ))
       .where(eq(groceryItems.familyId, familyId))
       .orderBy(groceryItems.createdAt);
 
-    return res.status(200).json(items);
+    // Deduplicate results in case of JOIN issues
+    const uniqueItems = items.filter((item, index, self) => 
+      self.findIndex(i => i.id === item.id) === index
+    );
+
+    if (uniqueItems.length !== items.length) {
+      console.warn(`⚠️ JOIN produced ${items.length} rows, deduplicated to ${uniqueItems.length} unique items`);
+    }
+
+    return res.status(200).json(uniqueItems);
   } catch (error) {
     console.error('Error fetching grocery items by family:', error);
     if (error.message.includes('authorization')) {
@@ -931,6 +946,72 @@ function expressMiddleware(req, res, next) {
   // Call the handler and handle any errors
   handler(vercelReq, vercelRes)
     .catch(next);
+}
+
+// Cleanup duplicate items handler
+async function handleCleanupDuplicates(req, res) {
+  try {
+    const database = getDatabase();
+    
+    console.log('🧹 Starting duplicate cleanup...');
+    
+    // Get all grocery items grouped by family
+    const allItems = await database.select().from(groceryItems);
+    
+    console.log(`Found ${allItems.length} total items`);
+    
+    // Group by family and name to find duplicates
+    const familyGroups = {};
+    allItems.forEach(item => {
+      const key = `${item.familyId}-${item.name.toLowerCase()}`;
+      if (!familyGroups[key]) {
+        familyGroups[key] = [];
+      }
+      familyGroups[key].push(item);
+    });
+    
+    let duplicatesFound = 0;
+    let duplicatesRemoved = 0;
+    
+    // Process each group
+    for (const [key, items] of Object.entries(familyGroups)) {
+      if (items.length > 1) {
+        duplicatesFound += items.length - 1;
+        console.log(`Found ${items.length} duplicates of "${items[0].name}" in family ${items[0].familyId}`);
+        
+        // Keep the first item (oldest), delete the rest
+        const itemsToDelete = items.slice(1);
+        
+        for (const item of itemsToDelete) {
+          await database
+            .delete(groceryItems)
+            .where(eq(groceryItems.id, item.id));
+          duplicatesRemoved++;
+          console.log(`Deleted duplicate item ID ${item.id}: "${item.name}"`);
+        }
+      }
+    }
+    
+    const response = {
+      success: true,
+      message: `Cleanup complete`,
+      duplicatesFound,
+      duplicatesRemoved,
+      totalItemsAfter: allItems.length - duplicatesRemoved
+    };
+    
+    console.log('✅ Cleanup results:', response);
+    
+    return res.status(200).json(response);
+    
+  } catch (error) {
+    console.error('❌ Cleanup error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to cleanup duplicates', 
+      error: error.message 
+    });
+  }
 }
 
 // Export for Vercel serverless function (production)
