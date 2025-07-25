@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 dotenv.config({ path: '.env.development' });
 
 // Import schema
-import { families, familyMembers, groceryItems } from "./shared/schema.js";
+import { families, familyMembers, groceryItems } from "../shared/schema.js";
 
 async function cleanupFamilies() {
   console.log('🧹 Family cleanup tool...\n');

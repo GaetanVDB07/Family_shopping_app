@@ -46,10 +46,6 @@ export function UserMenu() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      toast({
-        title: "Familie verlaten",
-        description: "Je hebt de familie succesvol verlaten.",
-      });
       setLocation("/families");
     },
     onError: () => {

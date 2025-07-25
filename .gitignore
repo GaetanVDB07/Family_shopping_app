@@ -13,6 +13,7 @@ server/public
 .env
 .env.*
 !.env.example
+.github*
 
 # Database
 *.db

@@ -79,10 +79,6 @@ export default function FamilyManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      toast({
-        title: "Lid verwijderd",
-        description: "Het familielid is succesvol verwijderd.",
-      });
     },
     onError: () => {
       toast({
@@ -102,10 +98,6 @@ export default function FamilyManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
-      toast({
-        title: "Familie verwijderd",
-        description: "De familie is succesvol verwijderd.",
-      });
       setLocation("/families");
     },
     onError: () => {
@@ -173,10 +165,6 @@ export default function FamilyManagement() {
       try {
         await navigator.clipboard.writeText(family.code);
         setCopiedCode(true);
-        toast({
-          title: "Code gekopieerd",
-          description: "De familiecode is gekopieerd naar het klembord.",
-        });
         setTimeout(() => setCopiedCode(false), 2000);
       } catch (err) {
         toast({
