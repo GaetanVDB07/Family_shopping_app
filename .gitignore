@@ -13,7 +13,11 @@ server/public
 .env
 .env.*
 !.env.example
+# Allow committing workflows while ignoring other GitHub configs by default
 .github*
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
 
 # Database
 *.db

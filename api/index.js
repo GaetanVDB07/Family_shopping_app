@@ -125,6 +125,10 @@ async function handler(req, res) {
     switch (true) {
       case apiPath === '/ping':
         return res.status(200).json({ ok: true });
+      
+      // Keepalive endpoint to prevent Supabase/DB from idling
+      case apiPath === '/cron/keepalive':
+        return await handleKeepalive(req, res);
         
       case apiPath === '/test':
         return res.status(200).json({ message: 'API is working!', method, url });
@@ -245,6 +249,32 @@ async function handleGetUserFamily(req, res) {
       return res.status(401).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Keepalive handler: runs a trivial DB query and a tiny Supabase request
+async function handleKeepalive(_req, res) {
+  try {
+    // Ensure DB client is initialized and touch Postgres
+    const _db = getDatabase();
+    if (client) {
+      await client.query('select 1');
+    }
+
+    // Optionally touch Supabase (harmless head-count on a small table)
+    try {
+      const sb = getSupabaseClient();
+      // Use a lightweight query that doesn't require auth
+      await sb.from('grocery_items').select('id', { count: 'exact', head: true }).limit(1);
+    } catch (e) {
+      // Don't fail the keepalive if Supabase anon is not configured
+      console.warn('[keepalive] Supabase ping skipped/failed:', e?.message || e);
+    }
+
+    return res.status(200).json({ ok: true, message: 'keepalive ok' });
+  } catch (error) {
+    console.error('Keepalive error:', error);
+    return res.status(500).json({ ok: false, message: 'keepalive failed' });
   }
 }
 
