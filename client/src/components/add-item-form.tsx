@@ -1,21 +1,50 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { GroceryItem } from "@shared/schema";
 
 interface AddItemFormProps {
   onAddItem: (name: string, addedBy: string) => Promise<void>;
   isLoading: boolean;
+  existingItems: GroceryItem[];
 }
 
-export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
+export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const matchingExistingItems = useMemo(() => {
+    const query = name.trim().toLowerCase();
+    if (!query) {
+      return [] as string[];
+    }
+
+    const seen = new Set<string>();
+    const matches: string[] = [];
+
+    for (const item of existingItems) {
+      const itemName = item.name.trim();
+      if (!itemName) {
+        continue;
+      }
+
+      const normalized = itemName.toLowerCase();
+      if (normalized.includes(query) && !seen.has(normalized)) {
+        seen.add(normalized);
+        matches.push(itemName);
+      }
+    }
+
+    return matches
+      .sort((a, b) => a.localeCompare(b, "nl", { sensitivity: "base" }))
+      .slice(0, 6);
+  }, [existingItems, name]);
 
   // Auto-focus input when form becomes visible
   useEffect(() => {
@@ -63,6 +92,13 @@ export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSelectExisting = (existingName: string) => {
+    setName(existingName);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   };
 
   return (
@@ -116,11 +152,33 @@ export function AddItemForm({ onAddItem, isLoading }: AddItemFormProps) {
           </Button>
         </form>
         
-        {/* Quick add suggestions - could be expanded later */}
-        {name.trim() && (
-          <div className="mt-3 text-xs text-gray-500 text-center">
-            Druk op Enter om "{name.trim()}" toe te voegen
+        {matchingExistingItems.length > 0 ? (
+          <div className="mt-4">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Beschikbare items
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {matchingExistingItems.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleSelectExisting(item);
+                  }}
+                  className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary/10 rounded-full border border-gray-200 transition-colors"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
+        ) : (
+          name.trim() && (
+            <div className="mt-3 text-xs text-gray-500 text-center">
+              Druk op Enter om "{name.trim()}" toe te voegen
+            </div>
+          )
         )}
       </div>
     </div>

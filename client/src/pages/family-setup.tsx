@@ -59,6 +59,7 @@ export default function FamilySetup() {
       
       // Invalidate family status query to trigger redirect
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       
       // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {
@@ -103,6 +104,7 @@ export default function FamilySetup() {
       
       // Invalidate family status query to trigger redirect
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       
       // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {

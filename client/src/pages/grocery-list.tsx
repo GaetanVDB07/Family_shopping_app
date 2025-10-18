@@ -661,6 +661,7 @@ export default function GroceryList() {
       <AddItemForm
         onAddItem={handleAddItem}
         isLoading={addItemMutation.isPending}
+        existingItems={items}
       />
 
       {/* Delete All Confirmation Dialog */}

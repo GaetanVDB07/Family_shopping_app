@@ -12,10 +12,3 @@ jobs:
       - name: Hit production keepalive
         run: |
           curl -sS -f "${{ secrets.PROD_BASE_URL }}/api/cron/keepalive" -o /dev/null || exit 1
-      - name: Hit development keepalive (optional)
-        run: |
-          if [ -n "${{ secrets.DEV_BASE_URL }}" ]; then
-            curl -sS -f "${{ secrets.DEV_BASE_URL }}/api/cron/keepalive" -o /dev/null || echo "Dev keepalive failed or not set";
-          else
-            echo "DEV_BASE_URL not set; skipping dev keepalive";
-          fi
