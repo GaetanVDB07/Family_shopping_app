@@ -6,12 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShoppingCart, Users, Plus, Key, LogOut } from 'lucide-react';
+import { Users, Plus, Key, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function FamilySetup() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { user, session, signOut } = useAuth();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -54,7 +54,7 @@ export default function FamilySetup() {
         throw new Error('Kon familie niet aanmaken');
       }
 
-      const family = await response.json();
+  await response.json();
       setSuccess(`Familie "${familyName}" aangemaakt! Familie code: ${code}`);
       
       // Invalidate family status query to trigger redirect
@@ -63,7 +63,7 @@ export default function FamilySetup() {
       
       // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {
-        setLocation("/");
+        setLocation("/families");
       }, 1500);
 
     } catch (err) {
@@ -108,7 +108,7 @@ export default function FamilySetup() {
       
       // Small delay to show success message, then the App will automatically redirect
       setTimeout(() => {
-        setLocation("/");
+        setLocation("/families");
       }, 1500);
 
     } catch (err) {

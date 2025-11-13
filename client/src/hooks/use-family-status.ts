@@ -21,10 +21,11 @@ interface UserFamilyMembership {
 
 export function useFamilyStatus() {
   const { user, session } = useAuth();
+  const userId = user?.id ?? null;
 
   // Legacy single family query for backward compatibility
   const { data: familyMembership, isLoading: loading, error } = useQuery<FamilyMembership | null>({
-    queryKey: ["/api/user/family"],
+    queryKey: ["/api/user/family", userId],
     queryFn: async () => {
       if (!user || !session) {
         return null;
@@ -43,6 +44,8 @@ export function useFamilyStatus() {
       } else if (response.status === 404) {
         // User is not in any family
         return null;
+      } else if (response.status === 401) {
+        return null;
       } else {
         throw new Error('Failed to check family status');
       }
@@ -53,7 +56,7 @@ export function useFamilyStatus() {
 
   // New multi-family query
   const { data: allFamilies, isLoading: familiesLoading } = useQuery<UserFamilyMembership[]>({
-    queryKey: ["/api/user/families"],
+    queryKey: ["/api/user/families", userId],
     queryFn: async () => {
       if (!user || !session) {
         return [];
@@ -70,6 +73,8 @@ export function useFamilyStatus() {
         const data = await response.json();
         return data || [];
       } else if (response.status === 404) {
+        return [];
+      } else if (response.status === 401) {
         return [];
       } else {
         throw new Error('Failed to fetch user families');

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
@@ -7,11 +7,17 @@ import { GroceryItem } from "@shared/schema";
 
 interface AddItemFormProps {
   onAddItem: (name: string, addedBy: string) => Promise<void>;
+  onReactivateItem: (itemId: number) => void;
   isLoading: boolean;
   existingItems: GroceryItem[];
 }
 
-export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemFormProps) {
+interface MatchingExistingItem {
+  displayName: string;
+  reactivateId?: number;
+}
+
+export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,14 +25,13 @@ export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemForm
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const matchingExistingItems = useMemo(() => {
+  const matchingExistingItems = useMemo<MatchingExistingItem[]>(() => {
     const query = name.trim().toLowerCase();
     if (!query) {
-      return [] as string[];
+      return [];
     }
 
-    const seen = new Set<string>();
-    const matches: string[] = [];
+    const matches = new Map<string, MatchingExistingItem>();
 
     for (const item of existingItems) {
       const itemName = item.name.trim();
@@ -35,14 +40,31 @@ export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemForm
       }
 
       const normalized = itemName.toLowerCase();
-      if (normalized.includes(query) && !seen.has(normalized)) {
-        seen.add(normalized);
-        matches.push(itemName);
+      if (!normalized.includes(query)) {
+        continue;
+      }
+
+      if (!matches.has(normalized)) {
+        matches.set(normalized, {
+          displayName: itemName,
+          reactivateId: item.completed ? item.id : undefined,
+        });
+        continue;
+      }
+
+      const existingMatch = matches.get(normalized)!;
+
+      if (!existingMatch.reactivateId && item.completed) {
+        existingMatch.reactivateId = item.id;
+      }
+
+      if (itemName.length < existingMatch.displayName.length) {
+        existingMatch.displayName = itemName;
       }
     }
 
-    return matches
-      .sort((a, b) => a.localeCompare(b, "nl", { sensitivity: "base" }))
+    return Array.from(matches.values())
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "nl", { sensitivity: "base" }))
       .slice(0, 6);
   }, [existingItems, name]);
 
@@ -94,8 +116,13 @@ export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemForm
     }
   };
 
-  const handleSelectExisting = (existingName: string) => {
-    setName(existingName);
+  const handleSelectExisting = (match: MatchingExistingItem) => {
+    if (match.reactivateId) {
+      setName("");
+      onReactivateItem(match.reactivateId);
+    } else {
+      setName(match.displayName);
+    }
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
@@ -158,17 +185,17 @@ export function AddItemForm({ onAddItem, isLoading, existingItems }: AddItemForm
               Beschikbare items
             </div>
             <div className="flex flex-wrap gap-2">
-              {matchingExistingItems.map((item) => (
+              {matchingExistingItems.map((match) => (
                 <button
-                  key={item}
+                  key={match.displayName}
                   type="button"
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    handleSelectExisting(item);
+                    handleSelectExisting(match);
                   }}
                   className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary/10 rounded-full border border-gray-200 transition-colors"
                 >
-                  {item}
+                  {match.displayName}
                 </button>
               ))}
             </div>
