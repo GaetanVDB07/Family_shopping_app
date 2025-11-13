@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useFamilyStatus } from "@/hooks/use-family-status";
@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Menu, Settings, UserX, LogOut, Users, Home } from "lucide-react";
+import { Menu, UserX, LogOut, Users, Home, UserMinus } from "lucide-react";
 
 export function UserMenu() {
   const [, setLocation] = useLocation();
@@ -34,8 +34,13 @@ export function UserMenu() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
 
   const isAdmin = currentFamily?.role === "admin" || familyMembership?.role === "admin";
+  const adminFamilies = useMemo(
+    () => allFamilies.filter((family) => family.role === "admin"),
+    [allFamilies]
+  );
 
   // Leave family mutation
   const leaveFamilyMutation = useMutation({
@@ -79,12 +84,45 @@ export function UserMenu() {
       await signOut();
       setLocation("/");
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Kon niet uitloggen. Probeer het opnieuw.";
       toast({
         title: "Fout",
-        description: "Kon niet uitloggen. Probeer het opnieuw.",
+        description: message,
         variant: "destructive",
       });
     }
+  };
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/user/account");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Kon account niet verwijderen");
+      }
+      return response.json();
+    },
+    onSuccess: async () => {
+      queryClient.clear();
+      await signOut();
+      setShowDeleteAccountDialog(false);
+      toast({
+        title: "Account verwijderd",
+        description: "Je account en gegevens zijn verwijderd.",
+      });
+      setLocation("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Fout",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const confirmDeleteAccount = () => {
+    deleteAccountMutation.mutate();
   };
 
   return (
@@ -128,6 +166,14 @@ export function UserMenu() {
               Familie Verlaten
             </DropdownMenuItem>
           )}
+
+          <DropdownMenuItem
+            onClick={() => setShowDeleteAccountDialog(true)}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <UserMinus className="w-4 h-4 mr-2" />
+            Account verwijderen
+          </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
@@ -160,6 +206,32 @@ export function UserMenu() {
               disabled={leaveFamilyMutation.isPending}
             >
               {leaveFamilyMutation.isPending ? "Bezig..." : "Familie Verlaten"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Account verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {adminFamilies.length > 0
+                ? `Als admin verwijder je ook de families: ${adminFamilies
+                    .map((family) => `"${family.familyName}"`)
+                    .join(', ')}.`
+                : "Je verliest toegang tot alle gedeelde boodschappenlijsten."}
+              {adminFamilies.length > 0 ? " Deze actie kan niet ongedaan worden gemaakt." : " Dit kan niet ongedaan worden gemaakt."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAccountMutation.isPending}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteAccount}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteAccountMutation.isPending}
+            >
+              {deleteAccountMutation.isPending ? "Bezig..." : "Verwijder account"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

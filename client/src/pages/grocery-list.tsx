@@ -27,15 +27,28 @@ export default function GroceryList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { allFamilies } = useFamilyStatus();
+  const { allFamilies, familiesLoading } = useFamilyStatus();
   const { currentFamilyId, currentFamily, updateCurrentFamily } = useCurrentFamily();
 
   // Update current family if URL param is different (for direct navigation)
   useEffect(() => {
-    if (params.familyId && params.familyId !== currentFamilyId) {
-      updateCurrentFamily(params.familyId);
+    if (!params.familyId || params.familyId === currentFamilyId || familiesLoading) {
+      return;
     }
-  }, [params.familyId, currentFamilyId, updateCurrentFamily]);
+
+    const belongsToFamily = allFamilies.some((family) => family.familyId === params.familyId);
+
+    if (belongsToFamily) {
+      updateCurrentFamily(params.familyId);
+      return;
+    }
+
+    if (currentFamilyId) {
+      setLocation(`/grocery-list/${currentFamilyId}`);
+    } else {
+      setLocation("/families");
+    }
+  }, [params.familyId, currentFamilyId, familiesLoading, allFamilies, updateCurrentFamily, setLocation]);
 
   // Use current family ID, fallback to URL param for direct navigation
   const familyId = currentFamilyId || params.familyId;
@@ -398,6 +411,13 @@ export default function GroceryList() {
     });
   }, [addItemMutation, user?.id]);
 
+  const handleReactivateItem = useCallback((id: number) => {
+    const item = items.find((entry) => entry.id === id);
+    if (item && item.completed) {
+      toggleItemMutation.mutate({ id, completed: false });
+    }
+  }, [items, toggleItemMutation]);
+
   const handleToggleItem = useCallback((id: number) => {
     const item = items.find((item) => item.id === id);
     if (item) {
@@ -660,6 +680,7 @@ export default function GroceryList() {
       {/* Add Item Form */}
       <AddItemForm
         onAddItem={handleAddItem}
+        onReactivateItem={handleReactivateItem}
         isLoading={addItemMutation.isPending}
         existingItems={items}
       />

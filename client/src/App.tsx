@@ -15,13 +15,22 @@ import FamiliesOverview from "@/pages/families-overview";
 
 function DefaultRedirect() {
   const [, setLocation] = useLocation();
-  const { currentFamilyId } = useCurrentFamily();
+  const { hasFamilies, familiesLoading } = useFamilyStatus();
 
   useEffect(() => {
-    if (currentFamilyId) {
-      setLocation(`/grocery-list/${currentFamilyId}`);
+    if (familiesLoading) {
+      return;
     }
-  }, [currentFamilyId, setLocation]);
+
+    if (hasFamilies) {
+      setLocation("/families");
+      return;
+    }
+
+    if (!hasFamilies && !familiesLoading) {
+      setLocation("/family-setup");
+    }
+  }, [hasFamilies, familiesLoading, setLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -36,7 +45,7 @@ function DefaultRedirect() {
 function AuthenticatedApp() {
   const { user, loading: authLoading } = useAuth();
   const { hasFamilies, familiesLoading } = useFamilyStatus();
-  const { currentFamilyId, isLoading: currentFamilyLoading } = useCurrentFamily();
+  const { isLoading: currentFamilyLoading } = useCurrentFamily();
 
   if (authLoading || familiesLoading || currentFamilyLoading) {
     return (

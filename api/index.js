@@ -4,6 +4,15 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import { eq, and, count } from "drizzle-orm";
 
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+    this.isHttpError = true;
+  }
+}
+
 // Import schema from shared directory
 import { groceryItems, families, familyMembers } from "../shared/schema.js";
 
@@ -35,6 +44,7 @@ function getDatabase() {
 
 // Supabase setup
 let supabase = null;
+let supabaseService = null;
 
 function getSupabaseClient() {
   if (!supabase) {
@@ -46,11 +56,25 @@ function getSupabaseClient() {
   return supabase;
 }
 
+function getSupabaseServiceClient() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
+  if (!supabaseService) {
+    supabaseService = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+  }
+
+  return supabaseService;
+}
+
 // Authentication helper
 async function authenticateUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
+    throw new HttpError(401, 'No authorization token provided');
   }
 
   const token = authHeader.substring(7);
@@ -58,7 +82,7 @@ async function authenticateUser(req) {
   const { data: { user }, error } = await supabaseClient.auth.getUser(token);
   
   if (error || !user) {
-    throw new Error('Invalid or expired token');
+    throw new HttpError(401, 'Invalid or expired token');
   }
 
   return {
@@ -121,83 +145,145 @@ async function handler(req, res) {
     
     console.log(`[API] ${method} ${apiPath}`);
     
-    // Route to appropriate handler
-    switch (true) {
-      case apiPath === '/ping':
-        return res.status(200).json({ ok: true });
-      
-      // Keepalive endpoint to prevent Supabase/DB from idling
-      case apiPath === '/cron/keepalive':
-        return await handleKeepalive(req, res);
-        
-      case apiPath === '/test':
-        return res.status(200).json({ message: 'API is working!', method, url });
-        
-      case apiPath === '/user/family' && method === 'GET':
-        return await handleGetUserFamily(req, res);
-        
-      case apiPath === '/user/families' && method === 'GET':
-        return await handleGetUserFamilies(req, res);
-        
-      case apiPath === '/families' && method === 'POST':
-        return await handleCreateFamily(req, res);
-        
-      case apiPath === '/families/join' && method === 'POST':
-        return await handleJoinFamily(req, res);
-        
-      case apiPath === '/family/details' && method === 'GET':
-        return await handleGetFamilyDetails(req, res);
-        
-      case apiPath.startsWith('/family/details/') && method === 'GET':
-        const familyDetailsId = apiPath.split('/')[3];
-        return await handleGetFamilyDetailsByID(req, res, familyDetailsId);
-        
-      case apiPath === '/family/details' && method === 'DELETE':
-        return await handleDeleteFamily(req, res);
-        
-      case apiPath === '/family/leave' && method === 'POST':
-        return await handleLeaveFamily(req, res);
-        
-      case apiPath.startsWith('/family/members/') && method === 'DELETE':
-        const memberId = apiPath.split('/')[3];
-        return await handleRemoveFamilyMember(req, res, memberId);
-        
-      case apiPath === '/grocery-items' && method === 'GET':
-        return await handleGetGroceryItems(req, res);
-        
-      case apiPath.startsWith('/grocery-items/') && method === 'GET' && apiPath.split('/').length === 3:
-        const familyId = apiPath.split('/')[2];
-        return await handleGetGroceryItemsByFamily(req, res, familyId);
-        
-      case apiPath === '/grocery-items' && method === 'POST':
-        return await handleCreateGroceryItem(req, res);
-        
-      case apiPath.startsWith('/grocery-items/delete-all/') && method === 'DELETE':
-        const deleteAllFamilyId = apiPath.split('/')[3];
-        return await handleDeleteAllGroceryItems(req, res, deleteAllFamilyId);
-        
-      case apiPath.startsWith('/grocery-items/mark-all-completed/') && method === 'PATCH':
-        const markCompletedFamilyId = apiPath.split('/')[3];
-        return await handleMarkAllItemsCompleted(req, res, markCompletedFamilyId);
-        
-      case apiPath.startsWith('/grocery-items/mark-all-pending/') && method === 'PATCH':
-        const markPendingFamilyId = apiPath.split('/')[3];
-        return await handleMarkAllItemsPending(req, res, markPendingFamilyId);
-        
-      case apiPath.startsWith('/grocery-items/') && method === 'PATCH':
-        const itemId = apiPath.split('/')[2];
-        return await handleUpdateGroceryItem(req, res, itemId);
-        
-      case apiPath.startsWith('/grocery-items/') && method === 'DELETE':
-        const deleteItemId = apiPath.split('/')[2];
-        return await handleDeleteGroceryItem(req, res, deleteItemId);
-        
-      case apiPath === '/cleanup-duplicates' && method === 'POST':
-        return await handleCleanupDuplicates(req, res);
-        
-      default:
-        return res.status(404).json({ message: 'API route not found' });
+    const routes = [
+      {
+        match: (path, mthd) => (path === '/ping' ? {} : null),
+        handler: async (_req, res) => res.status(200).json({ ok: true }),
+      },
+      {
+        match: (path, mthd) => (path === '/cron/keepalive' ? {} : null),
+        handler: handleKeepalive,
+      },
+      {
+        match: (path, mthd) => (path === '/test' ? { url, method: mthd } : null),
+        handler: async (_req, res, params) => res.status(200).json({ message: 'API is working!', method: params.method, url: params.url }),
+      },
+      {
+        match: (path, mthd) => (path === '/user/family' && mthd === 'GET' ? {} : null),
+        handler: handleGetUserFamily,
+      },
+      {
+        match: (path, mthd) => (path === '/user/families' && mthd === 'GET' ? {} : null),
+        handler: handleGetUserFamilies,
+      },
+      {
+        match: (path, mthd) => (path === '/families' && mthd === 'POST' ? {} : null),
+        handler: handleCreateFamily,
+      },
+      {
+        match: (path, mthd) => (path === '/families/join' && mthd === 'POST' ? {} : null),
+        handler: handleJoinFamily,
+      },
+      {
+        match: (path, mthd) => (path === '/family/details' && mthd === 'GET' ? {} : null),
+        handler: handleGetFamilyDetails,
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/family/details/') && mthd === 'GET') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleGetFamilyDetailsByID(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => (path === '/family/details' && mthd === 'DELETE' ? {} : null),
+        handler: handleDeleteFamily,
+      },
+      {
+        match: (path, mthd) => (path === '/family/leave' && mthd === 'POST' ? {} : null),
+        handler: handleLeaveFamily,
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/family/members/') && mthd === 'DELETE') {
+            return { memberId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleRemoveFamilyMember(req, res, params.memberId),
+      },
+      {
+        match: (path, mthd) => (path === '/grocery-items' && mthd === 'GET' ? {} : null),
+        handler: handleGetGroceryItems,
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/') && mthd === 'GET' && path.split('/').length === 3) {
+            return { familyId: path.split('/')[2] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleGetGroceryItemsByFamily(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => (path === '/grocery-items' && mthd === 'POST' ? {} : null),
+        handler: handleCreateGroceryItem,
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/delete-all/') && mthd === 'DELETE') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleDeleteAllGroceryItems(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/mark-all-completed/') && mthd === 'PATCH') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleMarkAllItemsCompleted(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/mark-all-pending/') && mthd === 'PATCH') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleMarkAllItemsPending(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/') && mthd === 'PATCH') {
+            return { itemId: path.split('/')[2] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleUpdateGroceryItem(req, res, params.itemId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/') && mthd === 'DELETE') {
+            return { itemId: path.split('/')[2] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleDeleteGroceryItem(req, res, params.itemId),
+      },
+      {
+        match: (path, mthd) => (path === '/cleanup-duplicates' && mthd === 'POST' ? {} : null),
+        handler: handleCleanupDuplicates,
+      },
+      {
+        match: (path, mthd) => (path === '/user/account' && mthd === 'DELETE' ? {} : null),
+        handler: handleDeleteAccount,
+      },
+    ];
+
+    for (const route of routes) {
+      const params = route.match(apiPath, method);
+      if (params) {
+        return await route.handler(req, res, params);
+      }
     }
+
+    return res.status(404).json({ message: 'API route not found' });
   } catch (error) {
     console.error('API Error:', error);
     console.error('Error stack:', error.stack);
@@ -207,6 +293,9 @@ async function handler(req, res) {
       headers: req.headers,
       body: req.body
     });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
     return res.status(500).json({ 
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -245,8 +334,8 @@ async function handleGetUserFamily(req, res) {
     });
   } catch (error) {
     console.error('Error fetching user family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -256,7 +345,7 @@ async function handleGetUserFamily(req, res) {
 async function handleKeepalive(_req, res) {
   try {
     // Ensure DB client is initialized and touch Postgres
-    const _db = getDatabase();
+    getDatabase();
     if (client) {
       await client.query('select 1');
     }
@@ -326,8 +415,8 @@ async function handleGetUserFamilies(req, res) {
     return res.status(200).json(userFamilies);
   } catch (error) {
     console.error('Error fetching user families:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Kon families niet ophalen' });
   }
@@ -367,8 +456,8 @@ async function handleCreateFamily(req, res) {
     return res.status(201).json({ family });
   } catch (error) {
     console.error('Error creating family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -421,8 +510,8 @@ async function handleJoinFamily(req, res) {
     return res.status(200).json({ family });
   } catch (error) {
     console.error('Error joining family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -461,8 +550,8 @@ async function handleGetFamilyDetails(req, res) {
     });
   } catch (error) {
     console.error('Error fetching family details:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -505,8 +594,8 @@ async function handleGetFamilyDetailsByID(req, res, familyId) {
     });
   } catch (error) {
     console.error('Error fetching family details by ID:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -541,8 +630,8 @@ async function handleDeleteFamily(req, res) {
     return res.status(200).json({ message: 'Family deleted successfully' });
   } catch (error) {
     console.error('Error deleting family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -570,8 +659,8 @@ async function handleLeaveFamily(req, res) {
     return res.status(200).json({ message: 'Left family successfully' });
   } catch (error) {
     console.error('Error leaving family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -606,8 +695,8 @@ async function handleRemoveFamilyMember(req, res, memberId) {
     return res.status(200).json({ message: 'Member removed successfully' });
   } catch (error) {
     console.error('Error removing family member:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -646,8 +735,8 @@ async function handleGetGroceryItems(req, res) {
     return res.status(200).json(items);
   } catch (error) {
     console.error('Error fetching grocery items:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -698,8 +787,8 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
     return res.status(200).json(uniqueItems);
   } catch (error) {
     console.error('Error fetching grocery items by family:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -744,8 +833,8 @@ async function handleCreateGroceryItem(req, res) {
     return res.status(201).json(itemWithUserName);
   } catch (error) {
     console.error('Error creating grocery item:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -771,7 +860,7 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       .update(groceryItems)
       .set({ completed })
       .where(and(
-        eq(groceryItems.id, parseInt(itemId)),
+  eq(groceryItems.id, Number.parseInt(itemId, 10)),
         eq(groceryItems.familyId, userFamily.familyId)
       ))
       .returning();
@@ -792,13 +881,13 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       })
       .from(groceryItems)
       .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
-      .where(eq(groceryItems.id, parseInt(itemId)));
+  .where(eq(groceryItems.id, Number.parseInt(itemId, 10)));
 
     return res.status(200).json(itemWithUserName || item);
   } catch (error) {
     console.error('Error updating grocery item:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -822,15 +911,15 @@ async function handleDeleteGroceryItem(req, res, itemId) {
     await database
       .delete(groceryItems)
       .where(and(
-        eq(groceryItems.id, parseInt(itemId)),
+  eq(groceryItems.id, Number.parseInt(itemId, 10)),
         eq(groceryItems.familyId, userFamily.familyId)
       ));
 
     return res.status(200).json({ message: 'Item deleted successfully' });
   } catch (error) {
     console.error('Error deleting grocery item:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -863,8 +952,8 @@ async function handleDeleteAllGroceryItems(req, res, familyId) {
     });
   } catch (error) {
     console.error('Error deleting all grocery items:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -899,8 +988,8 @@ async function handleMarkAllItemsCompleted(req, res, familyId) {
     });
   } catch (error) {
     console.error('Error marking all items as completed:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -935,8 +1024,8 @@ async function handleMarkAllItemsPending(req, res, familyId) {
     });
   } catch (error) {
     console.error('Error marking all items as pending:', error);
-    if (error.message.includes('authorization')) {
-      return res.status(401).json({ message: error.message });
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
     }
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -992,19 +1081,19 @@ async function handleCleanupDuplicates(req, res) {
     
     // Group by family and name to find duplicates
     const familyGroups = {};
-    allItems.forEach(item => {
+    for (const item of allItems) {
       const key = `${item.familyId}-${item.name.toLowerCase()}`;
       if (!familyGroups[key]) {
         familyGroups[key] = [];
       }
       familyGroups[key].push(item);
-    });
+    }
     
     let duplicatesFound = 0;
     let duplicatesRemoved = 0;
     
     // Process each group
-    for (const [key, items] of Object.entries(familyGroups)) {
+    for (const items of Object.values(familyGroups)) {
       if (items.length > 1) {
         duplicatesFound += items.length - 1;
         console.log(`Found ${items.length} duplicates of "${items[0].name}" in family ${items[0].familyId}`);
@@ -1041,6 +1130,70 @@ async function handleCleanupDuplicates(req, res) {
       message: 'Failed to cleanup duplicates', 
       error: error.message 
     });
+  }
+}
+
+async function handleDeleteAccount(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const database = getDatabase();
+
+    const result = await database.transaction(async (tx) => {
+      const memberships = await tx
+        .select({
+          membershipId: familyMembers.id,
+          familyId: familyMembers.familyId,
+          role: familyMembers.role,
+        })
+        .from(familyMembers)
+        .where(eq(familyMembers.userId, user.id));
+
+      const adminFamilies = memberships
+        .filter((membership) => membership.role === 'admin')
+        .map((membership) => membership.familyId);
+
+      let familiesDeleted = 0;
+      for (const familyId of adminFamilies) {
+        await tx.delete(families).where(eq(families.id, familyId));
+        familiesDeleted += 1;
+      }
+
+      const removedMemberships = await tx
+        .delete(familyMembers)
+        .where(eq(familyMembers.userId, user.id))
+        .returning({ familyId: familyMembers.familyId });
+
+      return {
+        familiesDeleted,
+        membershipsRemoved: removedMemberships.length,
+      };
+    });
+
+    let supabaseUserDeleted = false;
+    const supabaseServiceClient = getSupabaseServiceClient();
+    if (supabaseServiceClient) {
+      const { error } = await supabaseServiceClient.auth.admin.deleteUser(user.id);
+      if (error) {
+        console.error('Failed to delete Supabase user during account deletion:', error);
+      } else {
+        supabaseUserDeleted = true;
+      }
+    } else {
+      console.warn('Supabase service role key not configured; skipped deleting user from Supabase.');
+    }
+
+    return res.status(200).json({
+      message: 'Account deleted successfully',
+      familiesDeleted: result.familiesDeleted,
+      membershipsRemoved: result.membershipsRemoved,
+      supabaseUserDeleted,
+    });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    if (error.status === 401) {
+      return res.status(401).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
