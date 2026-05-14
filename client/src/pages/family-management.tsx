@@ -73,7 +73,7 @@ export default function FamilyManagement() {
   // Remove member mutation - MUST be before any conditional returns
   const removeMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      const response = await apiRequest("DELETE", `/api/family/members/${memberId}`);
+      const response = await apiRequest("DELETE", `/api/family/members/${memberId}?familyId=${encodeURIComponent(familyId || "")}`);
       return response.json();
     },
     onSuccess: () => {
@@ -92,7 +92,7 @@ export default function FamilyManagement() {
   // Delete family mutation
   const deleteFamilyMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/family");
+      const response = await apiRequest("DELETE", `/api/family/details/${familyId}`);
       return response.json();
     },
     onSuccess: () => {
