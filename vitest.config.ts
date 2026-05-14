@@ -4,6 +4,11 @@ import path from 'path'
 export default defineConfig({
   test: {
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost/',
+      },
+    },
     globals: true,
     setupFiles: './tests/setup.ts',
   },
@@ -14,4 +19,3 @@ export default defineConfig({
     },
   },
 })
-
