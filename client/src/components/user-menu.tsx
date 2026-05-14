@@ -45,7 +45,7 @@ export function UserMenu() {
   // Leave family mutation
   const leaveFamilyMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/family/leave");
+      const response = await apiRequest("POST", "/api/family/leave", { familyId: currentFamilyId });
       return response.json();
     },
     onSuccess: () => {

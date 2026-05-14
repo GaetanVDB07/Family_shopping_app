@@ -189,7 +189,16 @@ async function handler(req, res) {
       },
       {
         match: (path, mthd) => (path === '/family/details' && mthd === 'DELETE' ? {} : null),
-        handler: handleDeleteFamily,
+        handler: (req, res) => handleDeleteFamily(req, res, req.body?.familyId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/family/details/') && mthd === 'DELETE') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleDeleteFamily(req, res, params.familyId),
       },
       {
         match: (path, mthd) => (path === '/family/leave' && mthd === 'POST' ? {} : null),
@@ -601,10 +610,14 @@ async function handleGetFamilyDetailsByID(req, res, familyId) {
   }
 }
 
-async function handleDeleteFamily(req, res) {
+async function handleDeleteFamily(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
+
+    if (!familyId) {
+      return res.status(400).json({ message: 'Family ID is required' });
+    }
 
     const [userFamily] = await database
       .select({
@@ -615,6 +628,7 @@ async function handleDeleteFamily(req, res) {
       .innerJoin(families, eq(familyMembers.familyId, families.id))
       .where(and(
         eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, familyId),
         eq(familyMembers.role, 'admin')
       ))
       .limit(1);
@@ -641,11 +655,16 @@ async function handleLeaveFamily(req, res) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
+    const { familyId } = req.body;
+
+    if (!familyId) {
+      return res.status(400).json({ message: 'Family ID is required' });
+    }
 
     const [membership] = await database
       .select()
       .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)))
       .limit(1);
 
     if (!membership) {
@@ -654,7 +673,7 @@ async function handleLeaveFamily(req, res) {
 
     await database
       .delete(familyMembers)
-      .where(eq(familyMembers.userId, user.id));
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
 
     return res.status(200).json({ message: 'Left family successfully' });
   } catch (error) {
@@ -670,6 +689,12 @@ async function handleRemoveFamilyMember(req, res, memberId) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
+    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+    const familyId = requestUrl.searchParams.get('familyId') || req.body?.familyId;
+
+    if (!familyId) {
+      return res.status(400).json({ message: 'Family ID is required' });
+    }
 
     const [userFamily] = await database
       .select({
@@ -680,6 +705,7 @@ async function handleRemoveFamilyMember(req, res, memberId) {
       .innerJoin(families, eq(familyMembers.familyId, families.id))
       .where(and(
         eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, familyId),
         eq(familyMembers.role, 'admin')
       ))
       .limit(1);
@@ -690,7 +716,7 @@ async function handleRemoveFamilyMember(req, res, memberId) {
 
     await database
       .delete(familyMembers)
-      .where(eq(familyMembers.id, memberId));
+      .where(and(eq(familyMembers.id, memberId), eq(familyMembers.familyId, familyId)));
 
     return res.status(200).json({ message: 'Member removed successfully' });
   } catch (error) {
