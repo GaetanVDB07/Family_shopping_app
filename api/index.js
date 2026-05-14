@@ -794,22 +794,35 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
   }
 }
 
+async function getUserFamilyMembership(database, userId, familyId) {
+  const whereCondition = familyId
+    ? and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, familyId))
+    : eq(familyMembers.userId, userId);
+
+  const [membership] = await database
+    .select()
+    .from(familyMembers)
+    .where(whereCondition)
+    .limit(1);
+
+  if (!membership && familyId) {
+    throw new HttpError(403, 'Access denied: Not a member of this family');
+  }
+
+  return membership;
+}
+
 async function handleCreateGroceryItem(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { name } = req.body;
+    const { name, familyId } = req.body;
     
     if (!name) {
       return res.status(400).json({ message: 'Item name is required' });
     }
 
     const database = getDatabase();
-
-    const [userFamily] = await database
-      .select()
-      .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
       return res.status(404).json({ message: 'No family found' });
@@ -843,14 +856,9 @@ async function handleCreateGroceryItem(req, res) {
 async function handleUpdateGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const { completed } = req.body;
+    const { completed, familyId } = req.body;
     const database = getDatabase();
-
-    const [userFamily] = await database
-      .select()
-      .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
       return res.status(404).json({ message: 'No family found' });
@@ -880,8 +888,11 @@ async function handleUpdateGroceryItem(req, res, itemId) {
         createdAt: groceryItems.createdAt,
       })
       .from(groceryItems)
-      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
-  .where(eq(groceryItems.id, Number.parseInt(itemId, 10)));
+      .leftJoin(familyMembers, and(
+        eq(groceryItems.addedBy, familyMembers.userId),
+        eq(familyMembers.familyId, userFamily.familyId)
+      ))
+      .where(eq(groceryItems.id, Number.parseInt(itemId, 10)));
 
     return res.status(200).json(itemWithUserName || item);
   } catch (error) {
@@ -897,12 +908,9 @@ async function handleDeleteGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
-
-    const [userFamily] = await database
-      .select()
-      .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+    const familyId = requestUrl.searchParams.get('familyId') || req.body?.familyId;
+    const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
       return res.status(404).json({ message: 'No family found' });

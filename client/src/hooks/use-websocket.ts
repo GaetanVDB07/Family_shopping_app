@@ -5,13 +5,14 @@ import supabase from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseWebSocketProps {
+  familyId?: string | null;
   onItemAdded: (item: GroceryItem) => void;
   onItemUpdated: (item: GroceryItem) => void;
   onItemDeleted: (id: number) => void;
   onSync: (items: GroceryItem[]) => void;
 }
 
-export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync }: UseWebSocketProps) {
+export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDeleted, onSync }: UseWebSocketProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const { session, user } = useAuth();
 
@@ -23,6 +24,11 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
         return;
       }
 
+      if (!familyId) {
+        console.log('No selected family, skipping realtime connection');
+        return;
+      }
+
       // Close existing channel first to prevent duplicates (important for development)
       if (channelRef.current) {
         console.log('Closing existing WebSocket channel to prevent duplicates');
@@ -30,35 +36,16 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
         channelRef.current = null;
       }
 
-      // First, get the user's family ID to know which changes to listen for
-      const response = await fetch('/api/user/family', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        console.log('No family found, skipping realtime connection');
-        return;
-      }
-
-      const { family } = await response.json();
-      if (!family) {
-        console.log('User not in a family, skipping realtime connection');
-        return;
-      }
-
       // Create a new channel for grocery items changes
       const channel = supabase
-        .channel(`grocery-items-${family.id}`)
+        .channel(`grocery-items-${familyId}`)
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
             table: 'grocery_items',
-            filter: `family_id=eq.${family.id}`
+            filter: `family_id=eq.${familyId}`
           },
           (payload) => {
             console.log('Item added:', payload.new);
@@ -71,7 +58,7 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
             event: 'UPDATE',
             schema: 'public',
             table: 'grocery_items',
-            filter: `family_id=eq.${family.id}`
+            filter: `family_id=eq.${familyId}`
           },
           (payload) => {
             console.log('Item updated:', payload.new);
@@ -84,7 +71,7 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
             event: 'DELETE',
             schema: 'public',
             table: 'grocery_items',
-            filter: `family_id=eq.${family.id}`
+            filter: `family_id=eq.${familyId}`
           },
           (payload) => {
             console.log('Item deleted:', payload.old);
@@ -100,7 +87,7 @@ export function useWebSocket({ onItemAdded, onItemUpdated, onItemDeleted, onSync
     } catch (error) {
       console.error('Error connecting to Supabase Realtime:', error);
     }
-  }, [onItemAdded, onItemUpdated, onItemDeleted, onSync, session, user]);
+  }, [familyId, onItemAdded, onItemUpdated, onItemDeleted, onSync, session, user]);
 
   useEffect(() => {
     connect();

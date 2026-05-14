@@ -115,6 +115,7 @@ export default function GroceryList() {
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected } = useWebSocket({
+    familyId,
     onItemAdded: (item) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemAdded:`, item);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
@@ -195,7 +196,7 @@ export default function GroceryList() {
   // Toggle item mutation
   const toggleItemMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed });
+      const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { completed, familyId });
       return response.json();
     },
     onMutate: async ({ id, completed }) => {
@@ -235,7 +236,8 @@ export default function GroceryList() {
   // Delete item mutation
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/grocery-items/${id}`);
+      const familyQuery = familyId ? `?familyId=${encodeURIComponent(familyId)}` : "";
+      await apiRequest("DELETE", `/api/grocery-items/${id}${familyQuery}`);
       return id;
     },
     onMutate: async (id: number) => {
