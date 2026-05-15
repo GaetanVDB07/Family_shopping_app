@@ -7,6 +7,7 @@ dotenv.config({ path: envFile });
 import express, { type Request, type Response, type NextFunction } from "express";
 import { setupVite, serveStatic, log } from "./vite";
 import { createServer } from "http";
+import { createListenOptions } from "./listen-options";
 // Use the same API logic as production
 // @ts-ignore - API handler is in JavaScript
 import { expressMiddleware } from "../api/index.js";
@@ -72,11 +73,7 @@ app.use('/api', expressMiddleware);
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = process.env.PORT || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(createListenOptions(port), () => {
     log(`serving on port ${port}`);
   });
 })();
