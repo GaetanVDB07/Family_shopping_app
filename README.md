@@ -1,136 +1,48 @@
-# Family Grocery Shopping App 🛒
+# Family Grocery Shopping App
 
-A modern, collaborative grocery list application built for families to manage their shopping lists together with real-time updates.
+A collaborative grocery list application for families, with shared family spaces and real-time list updates.
 
-## ✨ Features
-
-- 🏠 **Family Collaboration**: Multiple family members can add and manage items
-- ⚡ **Real-time Updates**: Live synchronization via WebSockets
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile
-- ✅ **Smart Lists**: Mark items as completed while shopping
-- 🎨 **Modern UI**: Beautiful interface built with shadcn/ui components
-
-## 🛠️ Technology Stack
+## Tech Stack
 
 ### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **shadcn/ui** & **Radix UI** for components
-- **TanStack Query** for state management
-- **Wouter** for routing
+- React 18 with TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui and Radix UI
+- TanStack Query
+- Wouter
 
 ### Backend
-- **Express.js** with TypeScript
-- **WebSockets** for real-time communication
-- **Drizzle ORM** for database operations
-- **Zod** for validation
+- Express with TypeScript
+- WebSockets
+- Drizzle ORM
+- Zod validation
 
 ### Database
-- **PostgreSQL** with **Neon** serverless hosting
+- PostgreSQL, with Neon/Supabase-oriented configuration
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- PostgreSQL database (or Neon account)
+- Node.js 18+
+- npm
+- PostgreSQL database credentials for persistent environments
 
-### Installation
+### Install
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/family-shopping-app.git
-   cd family-shopping-app
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Environment Setup**
-
-   ```bash
-   # For development environment
-   ./setup-env.sh dev
-   
-   # For production environment  
-   ./setup-env.sh prod
-   
-   # Or manually copy and edit:
-   cp .env.example .env
-   # Edit .env with your database and Supabase configuration
-   ```
-
-4. **Database Setup (Optional)**
-
-   ```bash
-   # If using PostgreSQL, push the schema to your database
-   npm run db:push
-   
-   # Note: Currently using in-memory storage for development
-   # Database setup is only needed for production deployment
-   ```
-
-5. **Start the development server**
-
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   Navigate to `http://localhost:5000`
-
-## 📝 Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run check` - Type check TypeScript
-- `npm run db:push` - Push database schema changes
-
-## 🏗️ Project Structure
-
-```text
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── pages/          # Page components
-│   │   └── lib/            # Utilities
-├── server/                 # Express backend
-│   ├── index.ts           # Server entry point
-│   ├── routes.ts          # API routes
-│   └── storage.ts         # Database layer
-├── shared/                 # Shared types & schemas
-│   └── schema.ts          # Database schema & types
-├── scripts/               # Utility scripts
-│   └── README.md          # Scripts documentation
-└── docs/                  # Documentation
-    ├── ARCHITECTURE.md    # System architecture
-    ├── DATABASE_SETUP.md  # Database setup guide
-    └── DEPLOYMENT.md      # Deployment instructions
+```bash
+npm install
 ```
 
-## 🤝 Contributing
+### Environment
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Create a `.env` file from `.env.example`, or use the environment helpers when available:
 
-## 📱 Usage
+```bash
+cp .env.example .env
+```
 
-1. **Add Items**: Type grocery items and press Enter or click Add
-2. **Mark Complete**: Check off items as you shop
-3. **Family Sync**: All family members see updates instantly
-4. **Delete Items**: Remove items you no longer need
-
-## 🔧 Environment Variables
-
-Create a `.env` file with:
+Required values:
 
 ```env
 DATABASE_URL=your_postgresql_connection_string
@@ -141,14 +53,106 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## 📄 License
+### Run Locally
 
-This project is distributed under a custom license that forbids copying or selling without permission. See the [LICENSE](LICENSE) file for details.
+```bash
+npm run dev
+```
 
-## 👨‍👩‍👧‍👦 Built for Families
+Open `http://localhost:5000`.
 
-This app was created to help families coordinate their grocery shopping more effectively. No more duplicate purchases or forgotten items!
+## Scripts
 
----
+- `npm run dev` - start the development server
+- `npm run build` - build the client for production
+- `npm run build:prod` - build with production environment values
+- `npm run start` - start the production server
+- `npm run start:prod` - start with production environment values
+- `npm run check` - run TypeScript checks
+- `npm test` - run tests
+- `npm run db:push` - push database schema changes
+- `npm run db:push:dev` - push schema using development environment values
+- `npm run db:push:prod` - push schema using production environment values
 
-**Happy Shopping!** 🛍️
+## Repository Flow
+
+This repository uses a three-level branch flow:
+
+1. `main` is the production branch.
+   - Only production-ready releases are merged into `main`.
+   - Deployments to production should come from `main`.
+
+2. `develop` is the development release branch.
+   - Completed feature work is merged into `develop` first.
+   - `develop` is where development releases are tested before production.
+   - If someone says `dev`, treat that as this `develop` branch unless a separate `dev` branch is created later.
+
+3. Feature branches are created from `develop`.
+   - Branch from the latest `develop`.
+   - Use a clear name, for example `feature/add-family-invites` or `fix/family-code-copy`.
+   - Merge feature branches back into `develop`, not directly into `main`.
+
+Recommended flow:
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feature/your-change
+
+# make changes, test, commit
+
+git checkout develop
+git pull origin develop
+git merge feature/your-change
+git push origin develop
+```
+
+When a development release is ready for production:
+
+```bash
+git checkout develop
+git pull origin develop
+
+# update the version before merging to main
+npm version minor --no-git-tag-version
+
+git add package.json package-lock.json
+git commit -m "Bump version to 1.1.0"
+
+git checkout main
+git pull origin main
+git merge develop
+git push origin main
+```
+
+## Versioning Rules
+
+The app version is stored in the root `package.json`.
+
+Every merge from `develop` to `main` must include a version bump. Use semantic versioning:
+
+- Patch release: `1.0.0` to `1.0.1` for small fixes
+- Minor release: `1.0.0` to `1.1.0` for new features
+- Major release: `1.0.0` to `2.0.0` for breaking changes
+
+The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Because the UI reads the version from `package.json` during the build, updating the package version updates the displayed app version.
+
+## Project Structure
+
+```text
+client/                 React frontend
+  src/
+    components/         React components
+    hooks/              Custom hooks
+    pages/              Page components
+    lib/                Frontend utilities
+server/                 Express backend
+shared/                 Shared types and schemas
+scripts/                Utility scripts
+docs/                   Additional documentation
+tests/                  Automated tests
+```
+
+## License
+
+This project is distributed under a custom license that forbids copying or selling without permission. See [LICENSE](LICENSE) for details.
