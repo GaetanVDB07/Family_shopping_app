@@ -114,10 +114,10 @@ git checkout develop
 git pull origin develop
 
 # update the version before merging to main
-npm version minor --no-git-tag-version
+npm version patch --no-git-tag-version
 
 git add package.json package-lock.json
-git commit -m "Bump version to 1.1.0"
+git commit -m "Bump version to 1.1.1"
 
 git checkout main
 git pull origin main
@@ -129,11 +129,18 @@ git push origin main
 
 The app version is stored in the root `package.json`.
 
-Every merge from `develop` to `main` must include a version bump. Use semantic versioning:
+Every merge from `develop` to `main` must include a version bump. This project uses a custom `MAJOR.RELEASE.UPDATE` versioning rule:
 
-- Patch release: `1.0.0` to `1.0.1` for small fixes
-- Minor release: `1.0.0` to `1.1.0` for new features
-- Major release: `1.0.0` to `2.0.0` for breaking changes
+- Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`.
+- Second number: breaking releases, or when the third number would go past `9`, for example `1.1.9` to `1.2.0`.
+- First number: reserved for a very large product milestone or full generation change, for example `1.9.9` to `2.0.0`.
+
+Examples:
+
+- Bugfix release: `1.1.0` to `1.1.1`
+- New feature release: `1.1.1` to `1.1.2`
+- Third-number rollover: `1.1.9` to `1.2.0`
+- Breaking release: `1.1.4` to `1.2.0`
 
 The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Because the UI reads the version from `package.json` during the build, updating the package version updates the displayed app version.
 
