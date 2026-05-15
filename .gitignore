@@ -58,6 +58,7 @@ coverage/
 tmp/
 temp/
 *.tar.gz
+.worktrees/
 
 # Debug and test scripts in root (keep organized scripts in scripts/ directory)
 /check-*.mjs
