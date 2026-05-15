@@ -119,7 +119,10 @@ export default function FamiliesOverview() {
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-semibold">Mijn Families</h1>
+            <div>
+              <h1 className="text-lg font-semibold leading-tight">Mijn Families</h1>
+              <span className="text-xs opacity-75">V{__APP_VERSION__}</span>
+            </div>
           </div>
           <span className="text-sm opacity-75">{families?.length || 0}</span>
         </div>
