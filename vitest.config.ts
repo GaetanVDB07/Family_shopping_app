@@ -1,7 +1,18 @@
 import { defineConfig } from 'vitest/config'
+import { readFileSync } from 'fs'
 import path from 'path'
 
+const packageJson = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')
+) as { version: string }
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version),
+  },
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     environment: 'jsdom',
     environmentOptions: {
