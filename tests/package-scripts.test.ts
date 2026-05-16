@@ -10,4 +10,8 @@ describe('package scripts', () => {
   it('starts through the production launcher instead of a missing direct entrypoint', () => {
     expect(packageJson.scripts.start).toBe('node scripts/start-production.mjs');
   });
+
+  it('provides a local version bump check command', () => {
+    expect(packageJson.scripts['check:version-bump']).toBe('node scripts/check-main-version-bump.mjs');
+  });
 });
