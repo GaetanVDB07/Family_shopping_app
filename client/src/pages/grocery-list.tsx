@@ -59,18 +59,7 @@ export default function GroceryList() {
     queryFn: async () => {
       if (!familyId) return [];
       const response = await apiRequest("GET", `/api/grocery-items/${familyId}`);
-      const result = await response.json();
-      
-      // AGGRESSIVE: Always deduplicate data from server before caching
-      const uniqueItems = result.filter((item: GroceryItem, index: number, self: GroceryItem[]) => 
-        self.findIndex((i: GroceryItem) => i.id === item.id) === index
-      );
-      
-      if (uniqueItems.length !== result.length) {
-        console.warn(`🔧 Server returned ${result.length} items but ${uniqueItems.length} unique - deduplicating`);
-      }
-      
-      return uniqueItems;
+      return response.json();
     },
     enabled: !!familyId,
   });
@@ -82,36 +71,6 @@ export default function GroceryList() {
     },
     threshold: 80,
   });
-
-  // Debug: Log items to see duplicates (Enhanced for development)
-  useEffect(() => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] Items in cache:`, items.length, 'Family ID:', familyId);
-    
-    if (items.length > 0) {
-      const itemCounts: Record<number, number> = {};
-      items.forEach(item => {
-        itemCounts[item.id] = (itemCounts[item.id] || 0) + 1;
-      });
-      
-      const duplicates = Object.entries(itemCounts).filter(([_, count]) => (count as number) > 1);
-      if (duplicates.length > 0) {
-        console.warn(`[${timestamp}] 🚨 DUPLICATE ITEMS DETECTED:`, duplicates.map(([id, count]) => ({ id, count })));
-        console.warn(`[${timestamp}] 🚨 All items:`, items.map(item => ({ id: item.id, name: item.name })));
-        
-        // ALWAYS deduplicate immediately when duplicates are found
-        console.log(`[${timestamp}] 🔧 IMMEDIATELY deduplicating cache`);
-        const uniqueItems = items.filter((item, index, self) => 
-          self.findIndex(i => i.id === item.id) === index
-        );
-        if (uniqueItems.length !== items.length) {
-          console.log(`[${timestamp}] 🔧 Removed ${items.length - uniqueItems.length} duplicates`);
-          // Force immediate update
-          queryClient.setQueryData(["/api/grocery-items", familyId], uniqueItems);
-        }
-      }
-    }
-  }, [items, familyId, queryClient]);
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected } = useWebSocket({

@@ -1,0 +1,62 @@
+name: Sync main into develop
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-main-to-develop
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Merge main back into develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync main into develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main develop
+
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main. Nothing to sync."
+            exit 0
+          fi
+
+          SYNC_BRANCH="automation/sync-main-${GITHUB_RUN_ID}"
+          git checkout -B "$SYNC_BRANCH" origin/develop
+          git merge origin/main --no-edit
+
+          git push -u origin "$SYNC_BRANCH"
+
+          EXISTING_PR=$(gh pr list --base develop --head "$SYNC_BRANCH" --json number --jq '.[0].number // empty')
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --base develop \
+              --head "$SYNC_BRANCH" \
+              --title "Sync main into develop" \
+              --body "Automated sync after a push to \`main\`. This keeps hotfixes and production releases on \`develop\`."
+          fi
+
+          PR_NUMBER=$(gh pr list --base develop --head "$SYNC_BRANCH" --json number --jq '.[0].number')
+          gh pr merge "$PR_NUMBER" --merge --admin --delete-branch
+          echo "Synced main into develop via PR #${PR_NUMBER}."
