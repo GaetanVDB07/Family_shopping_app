@@ -99,7 +99,7 @@ git checkout develop
 git pull origin develop
 git checkout -b feature/your-change
 
-# make changes, test, commit
+# make changes, bump version in package.json + package-lock.json, test, commit
 
 git checkout develop
 git pull origin develop
@@ -110,26 +110,35 @@ git push origin develop
 When a development release is ready for production:
 
 ```bash
-git checkout develop
-git pull origin develop
-
-# update the version before merging to main
-npm version patch --no-git-tag-version
-
-git add package.json package-lock.json
-git commit -m "Bump version to 1.1.1"
-
 git checkout main
 git pull origin main
 git merge develop
 git push origin main
 ```
 
+For a hotfix that must go straight to production:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b hotfix/your-fix
+
+# fix, bump version in package.json + package-lock.json, commit
+
+git checkout main
+git merge hotfix/your-fix
+git push origin main
+
+git checkout develop
+git merge main
+git push origin develop
+```
+
 ## Versioning Rules
 
 The app version is stored in the root `package.json`.
 
-Every merge from `develop` to `main` must include a version bump. This project uses a custom `MAJOR.RELEASE.UPDATE` versioning rule:
+Every merge into `develop` must include a version bump. Merges into `main` promote the version already on `develop` and must be greater than the current production version. This project uses a custom `MAJOR.RELEASE.UPDATE` versioning rule:
 
 - Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`.
 - Second number: breaking releases, or when the third number would go past `9`, for example `1.1.9` to `1.2.0`.
@@ -143,6 +152,12 @@ Examples:
 - Breaking release: `1.1.4` to `1.2.0`
 
 The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Because the UI reads the version from `package.json` during the build, updating the package version updates the displayed app version.
+
+Pull request checks enforce this flow:
+
+- PRs into `develop`: version must bump according to the rules below.
+- PRs into `main`: version must already be greater than `main` (no extra bump at release time).
+- Hotfixes merged directly into `main` must still include a version bump, then merge `main` back into `develop`.
 
 ## Project Structure
 

@@ -28,6 +28,21 @@ export function formatAppVersion({ major, release, update }) {
   return `${major}.${release}.${update}`;
 }
 
+export function compareAppVersions(leftVersion, rightVersion) {
+  const left = parseAppVersion(leftVersion);
+  const right = parseAppVersion(rightVersion);
+
+  if (left.major !== right.major) {
+    return left.major - right.major;
+  }
+
+  if (left.release !== right.release) {
+    return left.release - right.release;
+  }
+
+  return left.update - right.update;
+}
+
 export function getAllowedVersionBumps(baseVersion) {
   const base = parseAppVersion(baseVersion);
   const allowed = [];
@@ -85,7 +100,7 @@ function readVersionSet(ref) {
   };
 }
 
-export function checkVersionBump(baseVersions, headVersions) {
+export function checkFeatureVersionBump(baseVersions, headVersions) {
   const errors = [
     ...validatePackageVersions(baseVersions).map((error) => `Base ${error}`),
     ...validatePackageVersions(headVersions).map((error) => `Head ${error}`),
@@ -115,19 +130,60 @@ export function checkVersionBump(baseVersions, headVersions) {
   return { valid: true, errors: [] };
 }
 
+export function checkReleaseVersion(baseVersions, headVersions) {
+  const errors = [
+    ...validatePackageVersions(headVersions).map((error) => `Head ${error}`),
+  ];
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  try {
+    parseAppVersion(headVersions.packageVersion);
+    parseAppVersion(baseVersions.packageVersion);
+  } catch (error) {
+    return { valid: false, errors: [error.message] };
+  }
+
+  if (compareAppVersions(headVersions.packageVersion, baseVersions.packageVersion) <= 0) {
+    return {
+      valid: false,
+      errors: [
+        `Release version ${headVersions.packageVersion} must be greater than production version ${baseVersions.packageVersion}.`,
+      ],
+    };
+  }
+
+  return { valid: true, errors: [] };
+}
+
 function runCli() {
-  const [baseRef = 'origin/main', headRef = 'HEAD'] = process.argv.slice(2);
-  const result = checkVersionBump(readVersionSet(baseRef), readVersionSet(headRef));
+  const [mode = 'bump', baseRefArg, headRefArg] = process.argv.slice(2);
+  const defaults = {
+    bump: { baseRef: 'origin/develop', headRef: 'HEAD', check: checkFeatureVersionBump },
+    release: { baseRef: 'origin/main', headRef: 'HEAD', check: checkReleaseVersion },
+  };
+
+  const config = defaults[mode];
+  if (!config) {
+    console.error(`Unknown mode "${mode}". Use "bump" or "release".`);
+    process.exit(1);
+  }
+
+  const baseRef = baseRefArg ?? config.baseRef;
+  const headRef = headRefArg ?? config.headRef;
+  const result = config.check(readVersionSet(baseRef), readVersionSet(headRef));
 
   if (!result.valid) {
-    console.error('Version bump check failed:');
+    console.error(`Version ${mode} check failed:`);
     for (const error of result.errors) {
       console.error(`- ${error}`);
     }
     process.exit(1);
   }
 
-  console.log('Version bump check passed.');
+  console.log(`Version ${mode} check passed.`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

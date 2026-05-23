@@ -1,6 +1,6 @@
 {
   "name": "family-shopping-app",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
@@ -13,7 +13,8 @@
     "start": "node scripts/start-production.mjs",
     "start:prod": "cp .env.production .env && npm start",
     "check": "tsc",
-    "check:version-bump": "node scripts/check-main-version-bump.mjs",
+    "check:version-bump": "node scripts/check-version-bump.mjs bump",
+    "check:release-version": "node scripts/check-version-bump.mjs release",
     "db:push": "drizzle-kit push",
     "db:push:dev": "cp .env.development .env && drizzle-kit push",
     "db:push:prod": "cp .env.production .env && drizzle-kit push",
