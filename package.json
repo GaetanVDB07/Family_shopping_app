@@ -1,18 +1,22 @@
 {
   "name": "family-shopping-app",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
     "dev:load-env": "cp .env.development .env && npm run dev",
+    "dev:cloud": "cp .env.production .env && npm run dev",
     "vercel:dev": "cp .env.development .env && vercel dev",
     "build": "npx vite build && node scripts/build-server.mjs",
     "build:prod": "cp .env.production .env && npm run build",
     "start": "node scripts/start-production.mjs",
     "start:prod": "cp .env.production .env && npm start",
     "check": "tsc",
-    "check:version-bump": "node scripts/check-main-version-bump.mjs",
+    "check:version-bump": "node scripts/check-version-bump.mjs bump",
+    "check:release-version": "node scripts/check-version-bump.mjs release",
+    "check:hotfix-version-bump": "node scripts/check-version-bump.mjs bump origin/main HEAD",
+    "hotfix:start": "node scripts/start-hotfix.mjs",
     "db:push": "drizzle-kit push",
     "db:push:dev": "cp .env.development .env && drizzle-kit push",
     "db:push:prod": "cp .env.production .env && drizzle-kit push",
@@ -92,6 +96,7 @@
     "@tailwindcss/vite": "^4.1.3",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.0",
@@ -113,8 +118,5 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.19",
     "vitest": "^1.0.0"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
   }
 }

@@ -1,13 +1,15 @@
-name: Version bump
+name: Version checks
 
 on:
   pull_request:
     branches:
+      - develop
       - main
 
 jobs:
-  check-version-bump:
-    name: Check main release version
+  check-feature-version-bump:
+    name: Check develop version bump
+    if: github.base_ref == 'develop'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,8 +22,50 @@ jobs:
         with:
           node-version: 20
 
-      - name: Fetch base branch
-        run: git fetch origin main
+      - name: Fetch develop branch
+        run: git fetch origin develop
 
       - name: Check package version bump
-        run: node scripts/check-main-version-bump.mjs origin/main HEAD
+        run: node scripts/check-version-bump.mjs bump origin/develop HEAD
+
+  check-release-version:
+    name: Check production release version
+    if: github.base_ref == 'main' && github.head_ref == 'develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Check release version
+        run: node scripts/check-version-bump.mjs release origin/main HEAD
+
+  check-hotfix-version-bump:
+    name: Check hotfix version bump
+    if: github.base_ref == 'main' && github.head_ref != 'develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Check hotfix version bump
+        run: node scripts/check-version-bump.mjs bump origin/main HEAD

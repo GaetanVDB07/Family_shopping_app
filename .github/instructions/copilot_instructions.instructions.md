@@ -10,9 +10,11 @@ Branch flow:
 - Do not merge feature branches directly into `main`.
 
 Release/version rule:
-- Every merge from `develop` into `main` must include a version bump in the root `package.json` and `package-lock.json`.
+- Every merge into `develop` must include a version bump in the root `package.json` and `package-lock.json`.
+- Merges into `main` promote the version already on `develop`; the release version must be greater than production.
+- Hotfixes merged directly into `main` must still bump the version; GitHub Actions then syncs `main` back into `develop`.
 - This project uses a custom `MAJOR.RELEASE.UPDATE` rule, not standard semantic versioning.
 - Bugfixes and new features both increment the third number, for example `1.1.0` to `1.1.1`.
 - Breaking releases increment the second number and reset the third number, for example `1.1.4` to `1.2.0`.
 - If the third number would go past `9`, increment the second number and reset the third number, for example `1.1.9` to `1.2.0`.
-- The app displays the root package version on the `Mijn Families` page as `Vx.y.z`, so the version bump must happen before production release.
+- The app displays the root package version on the `Mijn Families` page as `Vx.y.z`, so bump the version when merging features into `develop`.

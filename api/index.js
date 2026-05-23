@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, inArray } from "drizzle-orm";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -15,6 +15,93 @@ class HttpError extends Error {
 
 // Import schema from shared directory
 import { groceryItems, families, familyMembers } from "../shared/schema.js";
+
+const LOCAL_ORIGIN_PREFIXES = ['http://localhost:', 'http://127.0.0.1:'];
+
+function getAllowedOrigins() {
+  const configured = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (process.env.VERCEL_URL) {
+    configured.push(`https://${process.env.VERCEL_URL}`);
+  }
+
+  return [...new Set(configured)];
+}
+
+function applyCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  const isDev = process.env.NODE_ENV !== 'production';
+  const isLocalOrigin = origin && LOCAL_ORIGIN_PREFIXES.some((prefix) => origin.startsWith(prefix));
+  const isConfiguredOrigin = origin && getAllowedOrigins().includes(origin);
+
+  if (origin && (isLocalOrigin && isDev || isConfiguredOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+async function resolveAddedByDisplayName(database, familyId, userId) {
+  const [member] = await database
+    .select({ userName: familyMembers.userName })
+    .from(familyMembers)
+    .where(and(
+      eq(familyMembers.familyId, familyId),
+      eq(familyMembers.userId, userId),
+    ))
+    .limit(1);
+
+  return member?.userName ?? userId;
+}
+
+async function fetchGroceryItemsForFamily(database, familyId) {
+  const rows = await database
+    .select({
+      id: groceryItems.id,
+      name: groceryItems.name,
+      completed: groceryItems.completed,
+      addedByUserId: groceryItems.addedBy,
+      familyId: groceryItems.familyId,
+      createdAt: groceryItems.createdAt,
+    })
+    .from(groceryItems)
+    .where(eq(groceryItems.familyId, familyId))
+    .orderBy(groceryItems.createdAt);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const userIds = [...new Set(rows.map((row) => row.addedByUserId))];
+  const members = await database
+    .select({
+      userId: familyMembers.userId,
+      userName: familyMembers.userName,
+    })
+    .from(familyMembers)
+    .where(and(
+      eq(familyMembers.familyId, familyId),
+      inArray(familyMembers.userId, userIds),
+    ));
+
+  const nameByUserId = new Map(
+    members.map((member) => [member.userId, member.userName ?? member.userId]),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    completed: row.completed,
+    addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
+    familyId: row.familyId,
+    createdAt: row.createdAt,
+  }));
+}
 
 // Database setup for serverless environment
 let db = null;
@@ -127,10 +214,7 @@ async function generateUniqueFamilyCode() {
 // Main handler function
 async function handler(req, res) {
   try {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    applyCorsHeaders(req, res);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -743,20 +827,7 @@ async function handleGetGroceryItems(req, res) {
       return res.status(404).json({ message: 'No family found' });
     }
 
-    // Join grocery items with family members to get the user name
-    const items = await database
-      .select({
-        id: groceryItems.id,
-        name: groceryItems.name,
-        completed: groceryItems.completed,
-        addedBy: familyMembers.userName,
-        familyId: groceryItems.familyId,
-        createdAt: groceryItems.createdAt,
-      })
-      .from(groceryItems)
-      .leftJoin(familyMembers, eq(groceryItems.addedBy, familyMembers.userId))
-      .where(eq(groceryItems.familyId, userFamily.familyId))
-      .orderBy(groceryItems.createdAt);
+    const items = await fetchGroceryItemsForFamily(database, userFamily.familyId);
 
     return res.status(200).json(items);
   } catch (error) {
@@ -783,34 +854,9 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
       return res.status(403).json({ message: 'Access denied: Not a member of this family' });
     }
 
-    // Join grocery items with family members to get the user name
-    const items = await database
-      .select({
-        id: groceryItems.id,
-        name: groceryItems.name,
-        completed: groceryItems.completed,
-        addedBy: familyMembers.userName,
-        familyId: groceryItems.familyId,
-        createdAt: groceryItems.createdAt,
-      })
-      .from(groceryItems)
-      .leftJoin(familyMembers, and(
-        eq(groceryItems.addedBy, familyMembers.userId),
-        eq(familyMembers.familyId, familyId)
-      ))
-      .where(eq(groceryItems.familyId, familyId))
-      .orderBy(groceryItems.createdAt);
+    const items = await fetchGroceryItemsForFamily(database, familyId);
 
-    // Deduplicate results in case of JOIN issues
-    const uniqueItems = items.filter((item, index, self) => 
-      self.findIndex(i => i.id === item.id) === index
-    );
-
-    if (uniqueItems.length !== items.length) {
-      console.warn(`⚠️ JOIN produced ${items.length} rows, deduplicated to ${uniqueItems.length} unique items`);
-    }
-
-    return res.status(200).json(uniqueItems);
+    return res.status(200).json(items);
   } catch (error) {
     console.error('Error fetching grocery items by family:', error);
     if (error instanceof HttpError || error?.status) {
@@ -903,24 +949,9 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    // Get the user name for the addedBy field
-    const [itemWithUserName] = await database
-      .select({
-        id: groceryItems.id,
-        name: groceryItems.name,
-        completed: groceryItems.completed,
-        addedBy: familyMembers.userName,
-        familyId: groceryItems.familyId,
-        createdAt: groceryItems.createdAt,
-      })
-      .from(groceryItems)
-      .leftJoin(familyMembers, and(
-        eq(groceryItems.addedBy, familyMembers.userId),
-        eq(familyMembers.familyId, userFamily.familyId)
-      ))
-      .where(eq(groceryItems.id, Number.parseInt(itemId, 10)));
+    const addedBy = await resolveAddedByDisplayName(database, userFamily.familyId, item.addedBy);
 
-    return res.status(200).json(itemWithUserName || item);
+    return res.status(200).json({ ...item, addedBy });
   } catch (error) {
     console.error('Error updating grocery item:', error);
     if (error instanceof HttpError || error?.status) {
@@ -1104,6 +1135,7 @@ function expressMiddleware(req, res, next) {
 // Cleanup duplicate items handler
 async function handleCleanupDuplicates(req, res) {
   try {
+    await authenticateUser(req);
     const database = getDatabase();
     
     console.log('🧹 Starting duplicate cleanup...');
@@ -1159,6 +1191,9 @@ async function handleCleanupDuplicates(req, res) {
     
   } catch (error) {
     console.error('❌ Cleanup error:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to cleanup duplicates', 
