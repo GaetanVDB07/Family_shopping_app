@@ -11,7 +11,8 @@ describe('package scripts', () => {
     expect(packageJson.scripts.start).toBe('node scripts/start-production.mjs');
   });
 
-  it('provides a local version bump check command', () => {
-    expect(packageJson.scripts['check:version-bump']).toBe('node scripts/check-main-version-bump.mjs');
+  it('provides local version check commands', () => {
+    expect(packageJson.scripts['check:version-bump']).toBe('node scripts/check-version-bump.mjs bump');
+    expect(packageJson.scripts['check:release-version']).toBe('node scripts/check-version-bump.mjs release');
   });
 });

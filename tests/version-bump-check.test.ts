@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
+  checkFeatureVersionBump,
+  checkReleaseVersion,
+  compareAppVersions,
   getAllowedVersionBumps,
   parseAppVersion,
   validatePackageVersions,
   validateVersionBump,
-} from '../scripts/check-main-version-bump.mjs';
+} from '../scripts/check-version-bump.mjs';
 
-describe('main version bump check', () => {
+const syncedVersions = (version) => ({
+  packageVersion: version,
+  lockVersion: version,
+  lockRootVersion: version,
+});
+
+describe('version bump check', () => {
   it('allows bugfixes and features to increment the third number', () => {
     expect(validateVersionBump('1.1.1', '1.1.2')).toEqual({
       valid: true,
@@ -48,5 +57,31 @@ describe('main version bump check', () => {
         lockRootVersion: '1.1.2',
       })
     ).toContain('package-lock.json version must match package.json version.');
+  });
+
+  it('requires a feature merge into develop to bump the version', () => {
+    expect(
+      checkFeatureVersionBump(syncedVersions('1.1.2'), syncedVersions('1.1.3'))
+    ).toEqual({ valid: true, errors: [] });
+
+    expect(
+      checkFeatureVersionBump(syncedVersions('1.1.2'), syncedVersions('1.1.2')).valid
+    ).toBe(false);
+  });
+
+  it('requires a release merge into main to be ahead of production', () => {
+    expect(
+      checkReleaseVersion(syncedVersions('1.1.2'), syncedVersions('1.1.5'))
+    ).toEqual({ valid: true, errors: [] });
+
+    expect(
+      checkReleaseVersion(syncedVersions('1.1.5'), syncedVersions('1.1.5')).valid
+    ).toBe(false);
+  });
+
+  it('compares custom app versions in order', () => {
+    expect(compareAppVersions('1.1.3', '1.1.2')).toBe(1);
+    expect(compareAppVersions('1.2.0', '1.1.9')).toBe(1);
+    expect(compareAppVersions('1.1.2', '1.1.2')).toBe(0);
   });
 });
