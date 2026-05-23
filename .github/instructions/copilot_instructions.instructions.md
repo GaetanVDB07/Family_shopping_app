@@ -12,7 +12,7 @@ Branch flow:
 Release/version rule:
 - Every merge into `develop` must include a version bump in the root `package.json` and `package-lock.json`.
 - Merges into `main` promote the version already on `develop`; the release version must be greater than production.
-- Hotfixes merged directly into `main` must still bump the version, then merge `main` back into `develop`.
+- Hotfixes merged directly into `main` must still bump the version; GitHub Actions then syncs `main` back into `develop`.
 - This project uses a custom `MAJOR.RELEASE.UPDATE` rule, not standard semantic versioning.
 - Bugfixes and new features both increment the third number, for example `1.1.0` to `1.1.1`.
 - Breaking releases increment the second number and reset the third number, for example `1.1.4` to `1.2.0`.

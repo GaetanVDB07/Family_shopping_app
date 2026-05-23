@@ -119,18 +119,20 @@ git push origin main
 For a hotfix that must go straight to production:
 
 ```bash
-git checkout main
-git pull origin main
-git checkout -b hotfix/your-fix
+npm run hotfix:start -- login-error
 
-# fix, bump version in package.json + package-lock.json, commit
+# apply the fix, commit, push, and open a PR into main
+git add -A
+git commit -m "Fix login error on mobile"
+git push -u origin HEAD
+```
 
-git checkout main
-git merge hotfix/your-fix
-git push origin main
+Hotfix PRs into `main` must include a valid version bump from production. After the hotfix merges, GitHub Actions automatically syncs `main` back into `develop`. If that sync fails because of merge conflicts, resolve them locally:
 
+```bash
 git checkout develop
-git merge main
+git pull origin develop
+git merge origin/main
 git push origin develop
 ```
 
@@ -156,8 +158,9 @@ The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Becaus
 Pull request checks enforce this flow:
 
 - PRs into `develop`: version must bump according to the rules below.
-- PRs into `main`: version must already be greater than `main` (no extra bump at release time).
-- Hotfixes merged directly into `main` must still include a version bump, then merge `main` back into `develop`.
+- PRs into `main` from `develop`: version must already be greater than production.
+- PRs into `main` from hotfix branches: version must bump from production using the same rules.
+- After every push to `main`, GitHub Actions syncs `main` back into `develop`.
 
 ## Project Structure
 
