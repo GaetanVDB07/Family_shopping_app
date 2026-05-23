@@ -161,6 +161,7 @@ Pull request checks enforce this flow:
 - PRs into `main` from `develop`: version must already be greater than production.
 - PRs into `main` from hotfix branches: version must bump from production using the same rules.
 - After every push to `main`, GitHub Actions syncs `main` back into `develop`.
+- Optional: add a `SYNC_GITHUB_TOKEN` repository secret with a PAT that can bypass `develop` review rules if automated sync PRs cannot self-merge on personal repositories.
 
 ## Project Structure
 

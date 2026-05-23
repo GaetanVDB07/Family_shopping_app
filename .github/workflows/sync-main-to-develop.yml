@@ -31,7 +31,7 @@ jobs:
 
       - name: Sync main into develop
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN != '' && secrets.SYNC_GITHUB_TOKEN || github.token }}
         run: |
           set -euo pipefail
 
@@ -42,10 +42,18 @@ jobs:
             exit 0
           fi
 
-          SYNC_BRANCH="automation/sync-main-${GITHUB_RUN_ID}"
-          git checkout -B "$SYNC_BRANCH" origin/develop
+          git checkout develop
+          git pull --ff-only origin develop
           git merge origin/main --no-edit
 
+          if git push origin develop; then
+            echo "Synced main into develop with a direct push."
+            exit 0
+          fi
+
+          echo "Direct push blocked. Opening a sync PR instead."
+          SYNC_BRANCH="automation/sync-main-${GITHUB_RUN_ID}"
+          git checkout -B "$SYNC_BRANCH"
           git push -u origin "$SYNC_BRANCH"
 
           EXISTING_PR=$(gh pr list --base develop --head "$SYNC_BRANCH" --json number --jq '.[0].number // empty')
@@ -54,10 +62,13 @@ jobs:
               --base develop \
               --head "$SYNC_BRANCH" \
               --title "Sync main into develop" \
-              --body "Automated sync after a push to \`main\`. This keeps hotfixes and production releases on \`develop\`."
+              --body "Automated sync after a push to \`main\`. Merge this PR to keep hotfixes on \`develop\`."
           fi
 
           PR_NUMBER=$(gh pr list --base develop --head "$SYNC_BRANCH" --json number --jq '.[0].number')
-          gh pr review "$PR_NUMBER" --approve --body "Automated approval for main sync."
-          gh pr merge "$PR_NUMBER" --merge --admin --delete-branch
+          gh pr merge "$PR_NUMBER" --merge --admin --delete-branch || {
+            echo "::warning::Could not auto-merge sync PR #${PR_NUMBER}."
+            echo "::warning::Add a repo secret SYNC_GITHUB_TOKEN with a PAT that can bypass develop reviews, or merge PR #${PR_NUMBER} manually."
+            exit 1
+          }
           echo "Synced main into develop via PR #${PR_NUMBER}."
