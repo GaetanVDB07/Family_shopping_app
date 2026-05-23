@@ -24,10 +24,6 @@ export default function FamilySetup() {
   // Join family state
   const [familyCode, setFamilyCode] = useState('');
 
-  const generateFamilyCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  };
-
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -35,27 +31,21 @@ export default function FamilySetup() {
     setSuccess('');
 
     try {
-      const code = generateFamilyCode();
-      
       const response = await fetch('/api/families', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({
-          name: familyName,
-          code: code,
-          createdBy: user?.id,
-        }),
+        body: JSON.stringify({ name: familyName }),
       });
 
       if (!response.ok) {
         throw new Error('Kon familie niet aanmaken');
       }
 
-  await response.json();
-      setSuccess(`Familie "${familyName}" aangemaakt! Familie code: ${code}`);
+      const { family } = await response.json();
+      setSuccess(`Familie "${family.name}" aangemaakt! Familie code: ${family.code}`);
       
       // Invalidate family status query to trigger redirect
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
@@ -86,12 +76,7 @@ export default function FamilySetup() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({
-          code: familyCode.toUpperCase(),
-          userId: user?.id,
-          userEmail: user?.email,
-          userName: user?.user_metadata?.name || user?.email?.split('@')[0],
-        }),
+        body: JSON.stringify({ code: familyCode.trim() }),
       });
 
       if (!response.ok) {
@@ -99,8 +84,8 @@ export default function FamilySetup() {
         throw new Error(errorData.message || 'Kon niet bij familie voegen');
       }
 
-      const result = await response.json();
-      setSuccess(`Welkom bij familie "${result.familyName}"!`);
+      const { family } = await response.json();
+      setSuccess(`Welkom bij familie "${family.name}"!`);
       
       // Invalidate family status query to trigger redirect
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
@@ -188,14 +173,16 @@ export default function FamilySetup() {
                   <Input
                     id="familyCode"
                     type="text"
-                    placeholder="ABC123"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    placeholder="123456"
                     value={familyCode}
-                    onChange={(e) => setFamilyCode(e.target.value.toUpperCase())}
+                    onChange={(e) => setFamilyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
                     required
                   />
                   <p className="text-sm text-gray-500">
-                    Vraag de 6-letter code aan een familielid
+                    Vraag de 6-cijferige code aan een familielid
                   </p>
                 </div>
 

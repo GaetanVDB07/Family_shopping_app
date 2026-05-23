@@ -1104,6 +1104,7 @@ function expressMiddleware(req, res, next) {
 // Cleanup duplicate items handler
 async function handleCleanupDuplicates(req, res) {
   try {
+    await authenticateUser(req);
     const database = getDatabase();
     
     console.log('🧹 Starting duplicate cleanup...');
@@ -1159,6 +1160,9 @@ async function handleCleanupDuplicates(req, res) {
     
   } catch (error) {
     console.error('❌ Cleanup error:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to cleanup duplicates', 
