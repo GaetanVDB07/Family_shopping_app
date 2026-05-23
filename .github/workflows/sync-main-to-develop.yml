@@ -58,5 +58,6 @@ jobs:
           fi
 
           PR_NUMBER=$(gh pr list --base develop --head "$SYNC_BRANCH" --json number --jq '.[0].number')
+          gh pr review "$PR_NUMBER" --approve --body "Automated approval for main sync."
           gh pr merge "$PR_NUMBER" --merge --admin --delete-branch
           echo "Synced main into develop via PR #${PR_NUMBER}."
