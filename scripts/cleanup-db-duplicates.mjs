@@ -1,15 +1,22 @@
-// Clean up duplicate items in the database
-import { apiRequest } from '../client/src/lib/queryClient.js';
+// Clean up duplicate items via the API (requires a logged-in user's Bearer token).
+// Usage: CLEANUP_BEARER_TOKEN=your_jwt npm run ... or pass Authorization manually.
 
 async function cleanupDuplicates() {
+  const token = process.env.CLEANUP_BEARER_TOKEN;
+  if (!token) {
+    console.error('❌ Set CLEANUP_BEARER_TOKEN to a valid Supabase access token');
+    process.exit(1);
+  }
+
   try {
     console.log('🧹 Starting database cleanup...');
     
-    // Call the cleanup API endpoint
-    const response = await fetch('http://localhost:5000/api/cleanup-duplicates', {
+    const baseUrl = process.env.CLEANUP_BASE_URL || 'http://localhost:5000';
+    const response = await fetch(`${baseUrl}/api/cleanup-duplicates`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       }
     });
     
