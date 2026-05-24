@@ -185,4 +185,4 @@ tests/                  Automated tests
 
 ## License
 
-This project is distributed under a custom license that forbids copying or selling without permission. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
