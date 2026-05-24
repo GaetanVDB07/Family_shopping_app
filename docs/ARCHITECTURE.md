@@ -311,7 +311,7 @@ flowchart LR
   Keep --> ProdURL["PROD_BASE_URL"]
 ```
 
-`develop` is protected: direct pushes are blocked (including for admins), and PRs must come from `feature/*`, `fix/*`, or `automation/sync-main-*` branches.
+`develop` is protected: direct pushes are blocked (including for admins), PRs must come from `feature/*`, `fix/*`, or `automation/sync-main-*` branches, and no manual approval is required to merge.
 
 ### Workflows
 
