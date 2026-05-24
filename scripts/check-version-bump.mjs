@@ -17,10 +17,6 @@ export function parseAppVersion(version) {
     update: Number(update),
   };
 
-  if (parsed.update > 9) {
-    throw new Error(`Invalid app version "${version}". The third number cannot be greater than 9.`);
-  }
-
   return parsed;
 }
 
@@ -47,9 +43,7 @@ export function getAllowedVersionBumps(baseVersion) {
   const base = parseAppVersion(baseVersion);
   const allowed = [];
 
-  if (base.update < 9) {
-    allowed.push(formatAppVersion({ ...base, update: base.update + 1 }));
-  }
+  allowed.push(formatAppVersion({ ...base, update: base.update + 1 }));
 
   allowed.push(formatAppVersion({ major: base.major, release: base.release + 1, update: 0 }));
   allowed.push(formatAppVersion({ major: base.major + 1, release: 0, update: 0 }));
