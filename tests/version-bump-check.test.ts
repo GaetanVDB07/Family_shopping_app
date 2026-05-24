@@ -30,9 +30,13 @@ describe('version bump check', () => {
     });
   });
 
-  it('requires the second number to increment when the third number is already 9', () => {
-    expect(getAllowedVersionBumps('1.1.9')).toEqual(['1.2.0', '2.0.0']);
-    expect(validateVersionBump('1.1.9', '1.1.10').valid).toBe(false);
+  it('allows the third number to increment past 9', () => {
+    expect(getAllowedVersionBumps('1.1.9')).toEqual(['1.1.10', '1.2.0', '2.0.0']);
+    expect(validateVersionBump('1.1.9', '1.1.10')).toEqual({
+      valid: true,
+      allowed: ['1.1.10', '1.2.0', '2.0.0'],
+    });
+    expect(validateVersionBump('1.1.10', '1.1.11').valid).toBe(true);
   });
 
   it('rejects unchanged, skipped, or malformed versions', () => {
@@ -81,6 +85,7 @@ describe('version bump check', () => {
 
   it('compares custom app versions in order', () => {
     expect(compareAppVersions('1.1.3', '1.1.2')).toBe(1);
+    expect(compareAppVersions('1.1.10', '1.1.9')).toBe(1);
     expect(compareAppVersions('1.2.0', '1.1.9')).toBe(1);
     expect(compareAppVersions('1.1.2', '1.1.2')).toBe(0);
   });

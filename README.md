@@ -13,13 +13,14 @@ A collaborative grocery list application for families, with shared family spaces
 - Wouter
 
 ### Backend
-- Express with TypeScript
-- WebSockets
+- Express with TypeScript (local dev and self-host)
+- Vercel serverless (`api/index.js`) in production
 - Drizzle ORM
 - Zod validation
 
-### Database
-- PostgreSQL, with Neon/Supabase-oriented configuration
+### Database & Auth
+- PostgreSQL (Supabase-hosted)
+- Supabase Auth and Realtime
 
 ## Getting Started
 
@@ -73,6 +74,8 @@ Open `http://localhost:5000`.
 - `npm run db:push` - push database schema changes
 - `npm run db:push:dev` - push schema using development environment values
 - `npm run db:push:prod` - push schema using production environment values
+- `npm run fix:start` - start a fix branch from develop with a version bump
+- `npm run hotfix:start` - start a hotfix branch from main with a version bump
 
 ## Repository Flow
 
@@ -87,12 +90,13 @@ This repository uses a three-level branch flow:
    - `develop` is where development releases are tested before production.
    - If someone says `dev`, treat that as this `develop` branch unless a separate `dev` branch is created later.
 
-3. Feature branches are created from `develop`.
-   - Branch from the latest `develop`.
-   - Use a clear name, for example `feature/add-family-invites` or `fix/family-code-copy`.
-   - Merge feature branches back into `develop`, not directly into `main`.
+3. Work branches are created from `develop`.
+   - **Feature branches** (`feature/*`) for new functionality.
+   - **Fix branches** (`fix/*`) for non-production bugfixes on `develop`.
+   - Direct pushes to `develop` are blocked. All changes must go through a pull request.
+   - Merge work branches back into `develop`, not directly into `main`.
 
-Recommended flow:
+Recommended feature flow:
 
 ```bash
 git checkout develop
@@ -101,20 +105,22 @@ git checkout -b feature/your-change
 
 # make changes, bump version in package.json + package-lock.json, test, commit
 
-git checkout develop
-git pull origin develop
-git merge feature/your-change
-git push origin develop
+git push -u origin HEAD
+# open a PR into develop
 ```
 
-When a development release is ready for production:
+Recommended fix flow:
 
 ```bash
-git checkout main
-git pull origin main
-git merge develop
-git push origin main
+npm run fix:start -- family-code-copy
+
+# apply the fix, commit, push, and open a PR into develop
+git add -A
+git commit -m "Fix family code copy button"
+git push -u origin HEAD
 ```
+
+When a development release is ready for production, open a PR from `develop` into `main`.
 
 For a hotfix that must go straight to production:
 
@@ -127,14 +133,7 @@ git commit -m "Fix login error on mobile"
 git push -u origin HEAD
 ```
 
-Hotfix PRs into `main` must include a valid version bump from production. After the hotfix merges, GitHub Actions automatically syncs `main` back into `develop`. If that sync fails because of merge conflicts, resolve them locally:
-
-```bash
-git checkout develop
-git pull origin develop
-git merge origin/main
-git push origin develop
-```
+Hotfix PRs into `main` must include a valid version bump from production. After the hotfix merges, GitHub Actions automatically syncs `main` back into `develop`. If that sync fails because of merge conflicts, resolve them on an `automation/sync-main-*` PR or a manual `fix/*` branch and open a PR into `develop`.
 
 ## Versioning Rules
 
@@ -142,26 +141,26 @@ The app version is stored in the root `package.json`.
 
 Every merge into `develop` must include a version bump. Merges into `main` promote the version already on `develop` and must be greater than the current production version. This project uses a custom `MAJOR.RELEASE.UPDATE` versioning rule:
 
-- Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`.
-- Second number: breaking releases, or when the third number would go past `9`, for example `1.1.9` to `1.2.0`.
+- Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`, or `1.1.9` to `1.1.10`.
+- Second number: breaking releases, for example `1.1.4` to `1.2.0`.
 - First number: reserved for a very large product milestone or full generation change, for example `1.9.9` to `2.0.0`.
 
 Examples:
 
 - Bugfix release: `1.1.0` to `1.1.1`
 - New feature release: `1.1.1` to `1.1.2`
-- Third-number rollover: `1.1.9` to `1.2.0`
+- Third-number past nine: `1.1.9` to `1.1.10`, then `1.1.11`, and so on
 - Breaking release: `1.1.4` to `1.2.0`
 
 The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Because the UI reads the version from `package.json` during the build, updating the package version updates the displayed app version.
 
 Pull request checks enforce this flow:
 
-- PRs into `develop`: version must bump according to the rules below.
+- PRs into `develop`: must come from `feature/*`, `fix/*`, or automation sync branches, and include a version bump.
 - PRs into `main` from `develop`: version must already be greater than production.
 - PRs into `main` from hotfix branches: version must bump from production using the same rules.
-- After every push to `main`, GitHub Actions syncs `main` back into `develop`.
-- Optional: add a `SYNC_GITHUB_TOKEN` repository secret with a PAT that can bypass `develop` review rules if automated sync PRs cannot self-merge on personal repositories.
+- After every push to `main`, GitHub Actions syncs `main` back into `develop` automatically.
+- `develop` requires PRs from `feature/*`, `fix/*`, or automation sync branches, but no manual approval is required.
 
 ## Project Structure
 
@@ -172,13 +171,18 @@ client/                 React frontend
     hooks/              Custom hooks
     pages/              Page components
     lib/                Frontend utilities
-server/                 Express backend
+api/                    Shared API handler (Vercel + Express)
+server/                 Express dev/prod host
 shared/                 Shared types and schemas
 scripts/                Utility scripts
 docs/                   Additional documentation
 tests/                  Automated tests
 ```
 
+## Documentation
+
+- [Architecture](./docs/ARCHITECTURE.md) — system diagrams, data flow, tech stack, and repo layout
+
 ## License
 
-This project is distributed under a custom license that forbids copying or selling without permission. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
