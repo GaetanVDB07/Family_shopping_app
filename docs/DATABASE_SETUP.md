@@ -29,7 +29,7 @@ Set up separate development and production databases so you can:
 ### 3. Update .env.development
 Replace these placeholders in `.env.development`:
 ```bash
-# Replace YOUR_DEV_PROJECT_REF with your project reference (like nijqcrvdqhpkgitulycq)
+# Replace YOUR_DEV_PROJECT_REF with your project reference (like abcdefghijklmnop)
 # Replace YOUR_DEV_PASSWORD with your project password  
 # Replace YOUR_DEV_ANON_KEY_HERE with your anon key
 ```
