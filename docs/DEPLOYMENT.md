@@ -9,10 +9,12 @@
 - **Environment**: `.env.development`
 
 ### Production Environment  
-- **Database**: Production database (Neon production instance)
+- **Database**: Production database (Supabase Postgres)
 - **Supabase**: Production project
-- **Domain**: Your production URL
-- **Environment**: `.env.production`
+- **Domain**: https://family-shopping-app-eta.vercel.app
+- **Environment**: `.env.production` locally; Vercel env vars in production
+
+> **Note:** `family-shopping-app.vercel.app` is not linked to this project (API returns 404). Use **`family-shopping-app-eta.vercel.app`** as the production URL. Set GitHub secret `PROD_BASE_URL` to that URL for the keepalive workflow.
 
 ## Setup Steps
 
