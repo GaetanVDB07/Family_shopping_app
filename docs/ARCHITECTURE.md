@@ -289,6 +289,7 @@ Supabase free-tier projects can pause after inactivity. Two mechanisms prevent t
 ```mermaid
 flowchart LR
   Feature["feature/*"] -->|"PR + version bump"| Develop["develop<br/>(integration)"]
+  Fix["fix/*"] -->|"PR + version bump"| Develop
   Develop -->|"PR release"| Main["main<br/>(production)"]
   Hotfix["hotfix/*"] -->|"PR + version bump"| Main
   Main -->|"auto sync workflow"| Develop
@@ -296,17 +297,21 @@ flowchart LR
   subgraph GHA["GitHub Actions"]
     CI["ci.yml<br/>check + test"]
     Ver["version-bump.yml<br/>version rules"]
+    Branch["branch-policy.yml<br/>source branch names"]
     Sync["sync-main-to-develop.yml"]
     Keep["keepalive.yml<br/>daily prod ping"]
   end
 
   Develop --> CI
   Develop --> Ver
+  Develop --> Branch
   Main --> CI
   Main --> Ver
   Main --> Sync
   Keep --> ProdURL["PROD_BASE_URL"]
 ```
+
+`develop` is protected: direct pushes are blocked (including for admins), and PRs must come from `feature/*`, `fix/*`, or `automation/sync-main-*` branches.
 
 ### Workflows
 
@@ -314,6 +319,7 @@ flowchart LR
 |----------|---------|--------------|
 | `ci.yml` | PRs to `develop`/`main`, push to `develop` | `npm run check` + `npm test` |
 | `version-bump.yml` | PRs to `develop`/`main` | Enforces version bump rules via `scripts/check-version-bump.mjs` |
+| `branch-policy.yml` | PRs to `develop` | Requires source branch `feature/*`, `fix/*`, or `automation/sync-main-*` |
 | `sync-main-to-develop.yml` | Push to `main` | Merges `main` back into `develop` (direct push or auto-PR) |
 | `keepalive.yml` | Daily cron | Pings production keepalive endpoint |
 
