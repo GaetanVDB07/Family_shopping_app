@@ -13,13 +13,14 @@ A collaborative grocery list application for families, with shared family spaces
 - Wouter
 
 ### Backend
-- Express with TypeScript
-- WebSockets
+- Express with TypeScript (local dev and self-host)
+- Vercel serverless (`api/index.js`) in production
 - Drizzle ORM
 - Zod validation
 
-### Database
-- PostgreSQL, with Neon/Supabase-oriented configuration
+### Database & Auth
+- PostgreSQL (Supabase-hosted)
+- Supabase Auth and Realtime
 
 ## Getting Started
 
@@ -172,12 +173,17 @@ client/                 React frontend
     hooks/              Custom hooks
     pages/              Page components
     lib/                Frontend utilities
-server/                 Express backend
+api/                    Shared API handler (Vercel + Express)
+server/                 Express dev/prod host
 shared/                 Shared types and schemas
 scripts/                Utility scripts
 docs/                   Additional documentation
 tests/                  Automated tests
 ```
+
+## Documentation
+
+- [Architecture](./docs/ARCHITECTURE.md) — system diagrams, data flow, tech stack, and repo layout
 
 ## License
 
