@@ -59,11 +59,21 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
   return member?.userName ?? userId;
 }
 
+function normalizeNotes(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 async function fetchGroceryItemsForFamily(database, familyId) {
   const rows = await database
     .select({
       id: groceryItems.id,
       name: groceryItems.name,
+      notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedByUserId: groceryItems.addedBy,
       familyId: groceryItems.familyId,
@@ -96,6 +106,7 @@ async function fetchGroceryItemsForFamily(database, familyId) {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
+    notes: row.notes,
     completed: row.completed,
     addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
     familyId: row.familyId,
@@ -887,7 +898,7 @@ async function getUserFamilyMembership(database, userId, familyId) {
 async function handleCreateGroceryItem(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { name, familyId } = req.body;
+    const { name, notes, familyId } = req.body;
     
     if (!name) {
       return res.status(400).json({ message: 'Item name is required' });
@@ -904,6 +915,7 @@ async function handleCreateGroceryItem(req, res) {
       .insert(groceryItems)
       .values({
         name,
+        notes: normalizeNotes(notes),
         addedBy: user.id,
         familyId: userFamily.familyId,
       })
@@ -928,7 +940,7 @@ async function handleCreateGroceryItem(req, res) {
 async function handleUpdateGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const { completed, familyId } = req.body;
+    const { completed, notes, familyId } = req.body;
     const database = getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
@@ -936,9 +948,21 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'No family found' });
     }
 
+    const updates = {};
+    if (completed !== undefined) {
+      updates.completed = completed;
+    }
+    if (notes !== undefined) {
+      updates.notes = normalizeNotes(notes);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+
     const [item] = await database
       .update(groceryItems)
-      .set({ completed })
+      .set(updates)
       .where(and(
   eq(groceryItems.id, Number.parseInt(itemId, 10)),
         eq(groceryItems.familyId, userFamily.familyId)

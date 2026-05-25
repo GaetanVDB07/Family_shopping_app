@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { GroceryItem } from "@shared/schema";
 
 interface AddItemFormProps {
-  onAddItem: (name: string, addedBy: string) => Promise<void>;
+  onAddItem: (name: string, addedBy: string, notes?: string) => Promise<void>;
   onReactivateItem: (itemId: number) => void;
   isLoading: boolean;
   existingItems: GroceryItem[];
@@ -19,6 +19,7 @@ interface MatchingExistingItem {
 
 export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
+  const [notes, setNotes] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -96,8 +97,9 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     console.log(`[${new Date().toISOString()}] Form: Starting submission for "${name.trim()}"`);
 
     try {
-      await onAddItem(name.trim(), addedBy);
+      await onAddItem(name.trim(), addedBy, notes.trim() || undefined);
       setName("");
+      setNotes("");
       console.log(`[${new Date().toISOString()}] Form: Submission completed successfully`);
       
       // Re-focus input for quick successive additions
@@ -141,42 +143,61 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       }}
     >
       <div className="p-4">
-        <form onSubmit={handleSubmit} className="flex space-x-3">
-          <div className="flex-1">
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="Voeg een item toe..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex space-x-3">
+            <div className="flex-1">
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder="Voeg een item toe..."
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className={`
+                  px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
+                  focus:ring-2 focus:ring-primary focus:border-primary
+                  ${isFocused ? 'border-primary/40' : 'border-gray-200'}
+                `}
+                disabled={isLoading}
+                autoComplete="off"
+                autoCapitalize="words"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={isLoading || isSubmitting || !name.trim()}
               className={`
-                px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
-                focus:ring-2 focus:ring-primary focus:border-primary
-                ${isFocused ? 'border-primary/40' : 'border-gray-200'}
+                bg-primary hover:bg-green-700 text-white px-5 py-4 font-medium 
+                rounded-xl transition-all duration-200 min-w-[64px] text-base
+                active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                ${(isLoading || isSubmitting) ? 'animate-pulse' : ''}
               `}
-              disabled={isLoading}
-              autoComplete="off"
-              autoCapitalize="words"
-            />
+            >
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+            </Button>
           </div>
-          <Button
-            type="submit"
-            disabled={isLoading || isSubmitting || !name.trim()}
+          <Input
+            type="text"
+            placeholder="Notitie (optioneel), bijv. halfvolle melk"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             className={`
-              bg-primary hover:bg-green-700 text-white px-5 py-4 font-medium 
-              rounded-xl transition-all duration-200 min-w-[64px] text-base
-              active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-              ${(isLoading || isSubmitting) ? 'animate-pulse' : ''}
+              px-4 py-3 text-sm border rounded-xl transition-all duration-200
+              focus:ring-2 focus:ring-primary focus:border-primary
+              ${isFocused ? 'border-primary/30' : 'border-gray-200'}
             `}
-          >
-            {isSubmitting ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Plus className="w-5 h-5" />
-            )}
-          </Button>
+            disabled={isLoading || isSubmitting}
+            autoComplete="off"
+            autoCapitalize="sentences"
+            maxLength={200}
+          />
         </form>
         
         {matchingExistingItems.length > 0 ? (
