@@ -117,6 +117,14 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
               )}>
                 {item.name}
               </span>
+              {item.notes ? (
+                <span className={cn(
+                  "text-sm mt-1 block",
+                  item.completed ? "text-gray-400" : "text-gray-600"
+                )}>
+                  {item.notes}
+                </span>
+              ) : null}
               {/* Added by info */}
               <span className={cn(
                 "text-sm mt-1 inline-block px-2 py-0.5 rounded-full",

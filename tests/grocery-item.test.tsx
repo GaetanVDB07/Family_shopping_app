@@ -7,6 +7,7 @@ import type { GroceryItem } from '../shared/schema'
 const sampleItem: GroceryItem = {
   id: 1,
   name: 'Milk',
+  notes: null,
   completed: false,
   addedBy: 'tester',
   familyId: 'fam1',
@@ -21,5 +22,18 @@ describe('GroceryItemComponent', () => {
     expect(screen.getByText('Milk')).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button')[0])
     expect(onToggle).toHaveBeenCalledWith(1)
+  })
+
+  it('renders item notes when provided', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(
+      <GroceryItemComponent
+        item={{ ...sampleItem, notes: 'Halfvolle melk' }}
+        onToggle={onToggle}
+        onDelete={onDelete}
+      />
+    )
+    expect(screen.getByText('Halfvolle melk')).toBeInTheDocument()
   })
 })

@@ -140,7 +140,8 @@ function createFakeDb() {
             returning: vi.fn(async () => [{
               id: 10,
               name: 'Milk',
-              completed: updates.completed,
+              notes: updates.notes ?? null,
+              completed: updates.completed ?? false,
               addedBy: 'user-1',
               familyId: fakeDb.updateWhereParams.includes('family-2') ? 'family-2' : 'family-1',
               createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -211,6 +212,27 @@ describe('grocery item family scoping', () => {
 
     expect(res.statusCode).toBe(201);
     expect(fakeDb.insertedValues.familyId).toBe('family-2');
+  });
+
+  it('stores optional notes when creating an item', async () => {
+    const res = await request('POST', '/api/grocery-items', {
+      name: 'Melk',
+      notes: '  Halfvolle melk  ',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(fakeDb.insertedValues.notes).toBe('Halfvolle melk');
+  });
+
+  it('updates notes without changing completion state', async () => {
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      notes: 'Geen lactose',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.notes).toBe('Geen lactose');
   });
 
   it('updates items using the requested family scope', async () => {

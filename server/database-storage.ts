@@ -49,6 +49,7 @@ export class DatabaseStorage implements IStorage {
       const items = await db.select({
         id: groceryItems.id,
         name: groceryItems.name,
+        notes: groceryItems.notes,
         completed: groceryItems.completed,
         addedBy: familyMembers.userName, // Get user name instead of UUID
         familyId: groceryItems.familyId,
@@ -77,6 +78,7 @@ export class DatabaseStorage implements IStorage {
       const items = await db.select({
         id: groceryItems.id,
         name: groceryItems.name,
+        notes: groceryItems.notes,
         completed: groceryItems.completed,
         addedBy: familyMembers.userName, // Get user name instead of UUID
         familyId: groceryItems.familyId,
@@ -113,6 +115,7 @@ export class DatabaseStorage implements IStorage {
     const [itemWithUserName] = await db.select({
       id: groceryItems.id,
       name: groceryItems.name,
+      notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedBy: familyMembers.userName,
       familyId: groceryItems.familyId,
@@ -151,6 +154,7 @@ export class DatabaseStorage implements IStorage {
     const [itemWithUserName] = await db.select({
       id: groceryItems.id,
       name: groceryItems.name,
+      notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedBy: familyMembers.userName,
       familyId: groceryItems.familyId,
