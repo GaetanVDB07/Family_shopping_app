@@ -538,24 +538,28 @@ async function handleCreateFamily(req, res) {
     const database = getDatabase();
     const code = await generateUniqueFamilyCode();
 
-    const [family] = await database
-      .insert(families)
-      .values({
-        name,
-        code,
-        createdBy: user.id,
-      })
-      .returning();
+    const family = await database.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(families)
+        .values({
+          name,
+          code,
+          createdBy: user.id,
+        })
+        .returning();
 
-    await database
-      .insert(familyMembers)
-      .values({
-        familyId: family.id,
-        userId: user.id,
-        userEmail: user.email,
-        userName: user.name,
-        role: 'admin',
-      });
+      await tx
+        .insert(familyMembers)
+        .values({
+          familyId: created.id,
+          userId: user.id,
+          userEmail: user.email,
+          userName: user.name,
+          role: 'admin',
+        });
+
+      return created;
+    });
 
     return res.status(201).json({ family });
   } catch (error) {
