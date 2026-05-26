@@ -143,6 +143,18 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     }
   };
 
+  const showOptionalFields =
+    name.trim().length > 0 ||
+    quantity.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    notes.trim().length > 0;
+
+  const optionalFieldClassName = `
+    px-4 py-3 text-sm border rounded-xl transition-all duration-200
+    focus:ring-2 focus:ring-primary focus:border-primary
+    ${isFocused ? 'border-primary/30' : 'border-gray-200'}
+  `;
+
   const handleSelectExisting = (match: MatchingExistingItem) => {
     if (match.reactivateId) {
       setName("");
@@ -160,7 +172,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       className={`
         fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 
         max-w-md mx-auto transition-all duration-300 ease-in-out
-        ${isFocused ? 'shadow-2xl border-primary/20' : 'shadow-lg'}
+        ${isFocused || showOptionalFields ? 'shadow-2xl border-primary/20' : 'shadow-lg'}
       `}
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)', // Handle iPhone home indicator
@@ -206,57 +218,49 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
               )}
             </Button>
           </div>
-          <div className="flex space-x-3">
-            <Input
-              type="text"
-              placeholder="Aantal (optioneel), bijv. 2"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              className={`
-                flex-1 px-4 py-3 text-sm border rounded-xl transition-all duration-200
-                focus:ring-2 focus:ring-primary focus:border-primary
-                ${isFocused ? 'border-primary/30' : 'border-gray-200'}
-              `}
-              disabled={isLoading || isSubmitting}
-              autoComplete="off"
-              maxLength={20}
-            />
-            <Input
-              type="text"
-              placeholder="Eenheid (optioneel), bijv. L, stuks"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              className={`
-                flex-1 px-4 py-3 text-sm border rounded-xl transition-all duration-200
-                focus:ring-2 focus:ring-primary focus:border-primary
-                ${isFocused ? 'border-primary/30' : 'border-gray-200'}
-              `}
-              disabled={isLoading || isSubmitting}
-              autoComplete="off"
-              maxLength={20}
-            />
-          </div>
-          <Input
-            type="text"
-            placeholder="Notitie (optioneel), bijv. halfvolle melk"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className={`
-              px-4 py-3 text-sm border rounded-xl transition-all duration-200
-              focus:ring-2 focus:ring-primary focus:border-primary
-              ${isFocused ? 'border-primary/30' : 'border-gray-200'}
-            `}
-            disabled={isLoading || isSubmitting}
-            autoComplete="off"
-            autoCapitalize="sentences"
-            maxLength={200}
-          />
+          {showOptionalFields ? (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex space-x-3">
+                <Input
+                  type="text"
+                  placeholder="Aantal (optioneel), bijv. 2"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  className={`flex-1 ${optionalFieldClassName}`}
+                  disabled={isLoading || isSubmitting}
+                  autoComplete="off"
+                  maxLength={20}
+                />
+                <Input
+                  type="text"
+                  placeholder="Eenheid (optioneel), bijv. L, stuks"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  className={`flex-1 ${optionalFieldClassName}`}
+                  disabled={isLoading || isSubmitting}
+                  autoComplete="off"
+                  maxLength={20}
+                />
+              </div>
+              <Input
+                type="text"
+                placeholder="Notitie (optioneel), bijv. halfvolle melk"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className={optionalFieldClassName}
+                disabled={isLoading || isSubmitting}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                maxLength={200}
+              />
+            </div>
+          ) : null}
         </form>
         
         {matchingExistingItems.length > 0 ? (

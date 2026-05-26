@@ -28,6 +28,27 @@ describe('AddItemForm', () => {
     toastSpy.mockReset();
   });
 
+  it('hides optional fields until the user starts typing a product name', () => {
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    expect(screen.queryByPlaceholderText('Aantal (optioneel), bijv. 2')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+
+    expect(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk')).toBeInTheDocument();
+  });
+
   it('reactivates a completed item when selecting a suggestion', async () => {
     const onAddItem = vi.fn().mockResolvedValue(undefined);
     const onReactivateItem = vi.fn();
