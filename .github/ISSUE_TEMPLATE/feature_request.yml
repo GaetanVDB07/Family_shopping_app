@@ -1,0 +1,62 @@
+name: Feature request
+description: New product feature for the roadmap
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **new product features** and UX improvements.
+        These issues are tracked on the [Family Shopping Roadmap](https://github.com/users/GaetanVDB07/projects/1).
+
+        After opening, add a priority label if you know it: `tier-1`, `tier-2`, `tier-3`, `quick-win`, or `delight`.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature summary
+      description: What should this feature do for families using the app?
+      placeholder: e.g. Let members assign grocery items to a specific family member
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User story
+      description: Who benefits and why?
+      placeholder: As a family admin, I want ... so that ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Suggested scope
+      description: API, schema, UI, or other areas you expect to change
+      placeholder: shared/schema.ts, api/index.js, client/src/pages/...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Roadmap priority (for triage — add matching label after opening if needed)
+      options:
+        - Not sure yet
+        - tier-1
+        - tier-2
+        - tier-3
+        - quick-win
+        - delight
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: This is a product feature, not a bug/security/testing task
+          required: true

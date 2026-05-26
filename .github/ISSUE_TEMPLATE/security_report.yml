@@ -1,0 +1,65 @@
+name: Security report
+description: Vulnerability, auth issue, or security hardening task
+title: "[Security] "
+labels:
+  - bug
+  - security
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **security vulnerabilities and hardening work**.
+        These issues are tracked on the [Bugs & Security board](https://github.com/users/GaetanVDB07/projects/2).
+
+        Please do **not** paste live secrets, tokens, or production credentials.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is the security concern?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Estimated severity
+      options:
+        - Critical (data loss, auth bypass, cross-tenant access)
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Affected files / endpoints
+      placeholder: api/index.js, /api/..., client/src/...
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who or what could be affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction or proof of concept
+      description: Steps to reproduce, if applicable. Redact sensitive values.
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+    validations:
+      required: false
