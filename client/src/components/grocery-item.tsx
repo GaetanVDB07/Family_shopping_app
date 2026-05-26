@@ -4,6 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function formatQuantityLine(quantity: string | null, unit: string | null): string | null {
+  if (quantity && unit) {
+    return `${quantity} ${unit}`;
+  }
+  if (quantity) {
+    return quantity;
+  }
+  if (unit) {
+    return unit;
+  }
+  return null;
+}
+
 interface GroceryItemProps {
   item: GroceryItem;
   onToggle: (id: number) => void;
@@ -11,6 +24,7 @@ interface GroceryItemProps {
 }
 
 export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemProps) {
+  const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const [isPressed, setIsPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -117,6 +131,14 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
               )}>
                 {item.name}
               </span>
+              {quantityLine ? (
+                <span className={cn(
+                  "text-sm mt-1 block",
+                  item.completed ? "text-gray-400" : "text-gray-600"
+                )}>
+                  {quantityLine}
+                </span>
+              ) : null}
               {item.notes ? (
                 <span className={cn(
                   "text-sm mt-1 block",
