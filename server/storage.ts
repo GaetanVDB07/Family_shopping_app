@@ -71,6 +71,9 @@ export class MemStorage implements IStorage {
     const item: GroceryItem = {
       id,
       name: insertItem.name,
+      quantity: insertItem.quantity ?? null,
+      unit: insertItem.unit ?? null,
+      notes: insertItem.notes ?? null,
       completed: insertItem.completed !== undefined ? insertItem.completed : false,
       addedBy: insertItem.addedBy || "demo-user",
       familyId: insertItem.familyId || "demo-family-123",

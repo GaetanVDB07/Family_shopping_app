@@ -5,8 +5,14 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GroceryItem } from "@shared/schema";
 
+interface AddItemOptions {
+  notes?: string;
+  quantity?: string;
+  unit?: string;
+}
+
 interface AddItemFormProps {
-  onAddItem: (name: string, addedBy: string) => Promise<void>;
+  onAddItem: (name: string, addedBy: string, options?: AddItemOptions) => Promise<void>;
   onReactivateItem: (itemId: number) => void;
   isLoading: boolean;
   existingItems: GroceryItem[];
@@ -19,6 +25,9 @@ interface MatchingExistingItem {
 
 export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [notes, setNotes] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -96,8 +105,26 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     console.log(`[${new Date().toISOString()}] Form: Starting submission for "${name.trim()}"`);
 
     try {
-      await onAddItem(name.trim(), addedBy);
+      const options: AddItemOptions = {};
+      const trimmedQuantity = quantity.trim();
+      const trimmedUnit = unit.trim();
+      const trimmedNotes = notes.trim();
+
+      if (trimmedQuantity) {
+        options.quantity = trimmedQuantity;
+      }
+      if (trimmedUnit) {
+        options.unit = trimmedUnit;
+      }
+      if (trimmedNotes) {
+        options.notes = trimmedNotes;
+      }
+
+      await onAddItem(name.trim(), addedBy, Object.keys(options).length > 0 ? options : undefined);
       setName("");
+      setQuantity("");
+      setUnit("");
+      setNotes("");
       console.log(`[${new Date().toISOString()}] Form: Submission completed successfully`);
       
       // Re-focus input for quick successive additions
@@ -116,6 +143,18 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     }
   };
 
+  const showOptionalFields =
+    name.trim().length > 0 ||
+    quantity.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    notes.trim().length > 0;
+
+  const optionalFieldClassName = `
+    px-4 py-3 text-sm border rounded-xl transition-all duration-200
+    focus:ring-2 focus:ring-primary focus:border-primary
+    ${isFocused ? 'border-primary/30' : 'border-gray-200'}
+  `;
+
   const handleSelectExisting = (match: MatchingExistingItem) => {
     if (match.reactivateId) {
       setName("");
@@ -133,7 +172,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       className={`
         fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 
         max-w-md mx-auto transition-all duration-300 ease-in-out
-        ${isFocused ? 'shadow-2xl border-primary/20' : 'shadow-lg'}
+        ${isFocused || showOptionalFields ? 'shadow-2xl border-primary/20' : 'shadow-lg'}
       `}
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)', // Handle iPhone home indicator
@@ -141,42 +180,87 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       }}
     >
       <div className="p-4">
-        <form onSubmit={handleSubmit} className="flex space-x-3">
-          <div className="flex-1">
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="Voeg een item toe..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex space-x-3">
+            <div className="flex-1">
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder="Voeg een item toe..."
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className={`
+                  px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
+                  focus:ring-2 focus:ring-primary focus:border-primary
+                  ${isFocused ? 'border-primary/40' : 'border-gray-200'}
+                `}
+                disabled={isLoading}
+                autoComplete="off"
+                autoCapitalize="words"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={isLoading || isSubmitting || !name.trim()}
               className={`
-                px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
-                focus:ring-2 focus:ring-primary focus:border-primary
-                ${isFocused ? 'border-primary/40' : 'border-gray-200'}
+                bg-primary hover:bg-green-700 text-white px-5 py-4 font-medium 
+                rounded-xl transition-all duration-200 min-w-[64px] text-base
+                active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+                ${(isLoading || isSubmitting) ? 'animate-pulse' : ''}
               `}
-              disabled={isLoading}
-              autoComplete="off"
-              autoCapitalize="words"
-            />
+            >
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+            </Button>
           </div>
-          <Button
-            type="submit"
-            disabled={isLoading || isSubmitting || !name.trim()}
-            className={`
-              bg-primary hover:bg-green-700 text-white px-5 py-4 font-medium 
-              rounded-xl transition-all duration-200 min-w-[64px] text-base
-              active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-              ${(isLoading || isSubmitting) ? 'animate-pulse' : ''}
-            `}
-          >
-            {isSubmitting ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Plus className="w-5 h-5" />
-            )}
-          </Button>
+          {showOptionalFields ? (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex space-x-3">
+                <Input
+                  type="text"
+                  placeholder="Aantal (optioneel), bijv. 2"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  className={`flex-1 ${optionalFieldClassName}`}
+                  disabled={isLoading || isSubmitting}
+                  autoComplete="off"
+                  maxLength={20}
+                />
+                <Input
+                  type="text"
+                  placeholder="Eenheid (optioneel), bijv. L, stuks"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  className={`flex-1 ${optionalFieldClassName}`}
+                  disabled={isLoading || isSubmitting}
+                  autoComplete="off"
+                  maxLength={20}
+                />
+              </div>
+              <Input
+                type="text"
+                placeholder="Notitie (optioneel), bijv. halfvolle melk"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className={optionalFieldClassName}
+                disabled={isLoading || isSubmitting}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                maxLength={200}
+              />
+            </div>
+          ) : null}
         </form>
         
         {matchingExistingItems.length > 0 ? (

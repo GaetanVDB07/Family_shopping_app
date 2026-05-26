@@ -110,7 +110,11 @@ function createSelectBuilder() {
       return this;
     },
     where(condition: any) {
-      this.rows = selectRowsFor(condition);
+      const params = conditionParams(condition);
+      const isFamilyCodeLookup = params.some(
+        (param) => typeof param === 'string' && /^\d{6}$/.test(param),
+      );
+      this.rows = isFamilyCodeLookup ? [] : selectRowsFor(condition);
       return this;
     },
     limit() {
@@ -123,9 +127,33 @@ function createSelectBuilder() {
 }
 
 function createFakeDb() {
+  const insertCalls: any[] = [];
+
   return {
     deleteCalls: [] as unknown[][],
+    insertCalls,
+    get familyInsertValues() {
+      return insertCalls[0] ?? null;
+    },
+    get memberInsertValues() {
+      return insertCalls[1] ?? null;
+    },
     select: vi.fn(() => createSelectBuilder()),
+    insert: vi.fn(() => ({
+      values: (values: any) => {
+        insertCalls.push(values);
+        return {
+          returning: vi.fn(async () => [{
+            id: 'family-new',
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+            ...values,
+          }]),
+        };
+      },
+    })),
+    transaction: vi.fn(async (callback: (tx: ReturnType<typeof createFakeDb>) => Promise<unknown>) =>
+      callback(fakeDb),
+    ),
     delete: vi.fn(() => ({
       where: (condition: any) => {
         fakeDb.deleteCalls.push(conditionParams(condition));
@@ -185,6 +213,25 @@ describe('family management scoping', () => {
 
     expect(res.statusCode).toBe(200);
     expect(fakeDb.deleteCalls.at(-1)).toContain('family-2');
+  });
+
+  it('creates a family and adds the creator as admin member', async () => {
+    const res = await request('POST', '/api/families', {
+      name: 'Test Family',
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(fakeDb.familyInsertValues).toMatchObject({
+      name: 'Test Family',
+      createdBy: 'user-1',
+    });
+    expect(fakeDb.memberInsertValues).toMatchObject({
+      familyId: 'family-new',
+      userId: 'user-1',
+      userEmail: 'user1@test.dev',
+      userName: 'User One',
+      role: 'admin',
+    });
   });
 
   it('leaves only the requested family membership', async () => {

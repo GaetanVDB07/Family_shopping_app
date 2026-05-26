@@ -14,6 +14,9 @@ describe('AddItemForm', () => {
   const baseItem = (overrides: Partial<GroceryItem> = {}): GroceryItem => ({
     id: 1,
     name: 'Sample',
+    quantity: null,
+    unit: null,
+    notes: null,
     completed: false,
     addedBy: 'user-1',
     familyId: 'family-1',
@@ -23,6 +26,27 @@ describe('AddItemForm', () => {
 
   beforeEach(() => {
     toastSpy.mockReset();
+  });
+
+  it('hides optional fields until the user starts typing a product name', () => {
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    expect(screen.queryByPlaceholderText('Aantal (optioneel), bijv. 2')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+
+    expect(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk')).toBeInTheDocument();
   });
 
   it('reactivates a completed item when selecting a suggestion', async () => {
@@ -98,8 +122,72 @@ describe('AddItemForm', () => {
       await Promise.resolve();
     });
 
-    expect(onAddItem).toHaveBeenCalledWith('Bread', 'Familie');
+    expect(onAddItem).toHaveBeenCalledWith('Bread', 'Familie', undefined);
     expect(input.value).toBe('');
     expect(onReactivateItem).not.toHaveBeenCalled();
+  });
+
+  it('submits notes when provided', async () => {
+    const onAddItem = vi.fn().mockResolvedValue(undefined);
+    const onReactivateItem = vi.fn();
+
+    render(
+      <AddItemForm
+        onAddItem={onAddItem}
+        onReactivateItem={onReactivateItem}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk'), {
+      target: { value: '  Halfvolle melk  ' },
+    });
+
+    const form = screen.getByPlaceholderText('Voeg een item toe...').closest('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
+
+    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', { notes: 'Halfvolle melk' });
+  });
+
+  it('submits quantity and unit when provided', async () => {
+    const onAddItem = vi.fn().mockResolvedValue(undefined);
+    const onReactivateItem = vi.fn();
+
+    render(
+      <AddItemForm
+        onAddItem={onAddItem}
+        onReactivateItem={onReactivateItem}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2'), {
+      target: { value: ' 2 ' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Eenheid (optioneel), bijv. L, stuks'), {
+      target: { value: ' L ' },
+    });
+
+    const form = screen.getByPlaceholderText('Voeg een item toe...').closest('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
+
+    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', {
+      quantity: '2',
+      unit: 'L',
+    });
   });
 });

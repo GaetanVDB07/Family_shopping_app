@@ -67,6 +67,10 @@ temp/
 /cleanup-*.mjs
 /quick-fix.mjs
 
+# Local-only dev demo helpers (not part of the app)
+scripts/ensure-dev-test-user.mjs
+.env.test.local
+
 # Backup files
 *.backup
 *.bak

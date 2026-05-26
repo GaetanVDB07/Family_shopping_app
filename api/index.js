@@ -59,11 +59,39 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
   return member?.userName ?? userId;
 }
 
+function normalizeNotes(value) {
+  return normalizeOptionalText(value, 200);
+}
+
+function normalizeQuantity(value) {
+  return normalizeOptionalText(value, 20);
+}
+
+function normalizeUnit(value) {
+  return normalizeOptionalText(value, 20);
+}
+
+function normalizeOptionalText(value, maxLength) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return trimmed.slice(0, maxLength);
+}
+
 async function fetchGroceryItemsForFamily(database, familyId) {
   const rows = await database
     .select({
       id: groceryItems.id,
       name: groceryItems.name,
+      quantity: groceryItems.quantity,
+      unit: groceryItems.unit,
+      notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedByUserId: groceryItems.addedBy,
       familyId: groceryItems.familyId,
@@ -96,6 +124,9 @@ async function fetchGroceryItemsForFamily(database, familyId) {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
+    quantity: row.quantity,
+    unit: row.unit,
+    notes: row.notes,
     completed: row.completed,
     addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
     familyId: row.familyId,
@@ -527,24 +558,28 @@ async function handleCreateFamily(req, res) {
     const database = getDatabase();
     const code = await generateUniqueFamilyCode();
 
-    const [family] = await database
-      .insert(families)
-      .values({
-        name,
-        code,
-        createdBy: user.id,
-      })
-      .returning();
+    const family = await database.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(families)
+        .values({
+          name,
+          code,
+          createdBy: user.id,
+        })
+        .returning();
 
-    await database
-      .insert(familyMembers)
-      .values({
-        familyId: family.id,
-        userId: user.id,
-        userEmail: user.email,
-        userName: user.name,
-        role: 'admin',
-      });
+      await tx
+        .insert(familyMembers)
+        .values({
+          familyId: created.id,
+          userId: user.id,
+          userEmail: user.email,
+          userName: user.name,
+          role: 'admin',
+        });
+
+      return created;
+    });
 
     return res.status(201).json({ family });
   } catch (error) {
@@ -887,7 +922,7 @@ async function getUserFamilyMembership(database, userId, familyId) {
 async function handleCreateGroceryItem(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { name, familyId } = req.body;
+    const { name, quantity, unit, notes, familyId } = req.body;
     
     if (!name) {
       return res.status(400).json({ message: 'Item name is required' });
@@ -904,6 +939,9 @@ async function handleCreateGroceryItem(req, res) {
       .insert(groceryItems)
       .values({
         name,
+        quantity: normalizeQuantity(quantity),
+        unit: normalizeUnit(unit),
+        notes: normalizeNotes(notes),
         addedBy: user.id,
         familyId: userFamily.familyId,
       })
@@ -928,7 +966,7 @@ async function handleCreateGroceryItem(req, res) {
 async function handleUpdateGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const { completed, familyId } = req.body;
+    const { completed, quantity, unit, notes, familyId } = req.body;
     const database = getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
@@ -936,9 +974,27 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'No family found' });
     }
 
+    const updates = {};
+    if (completed !== undefined) {
+      updates.completed = completed;
+    }
+    if (notes !== undefined) {
+      updates.notes = normalizeNotes(notes);
+    }
+    if (quantity !== undefined) {
+      updates.quantity = normalizeQuantity(quantity);
+    }
+    if (unit !== undefined) {
+      updates.unit = normalizeUnit(unit);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+
     const [item] = await database
       .update(groceryItems)
-      .set({ completed })
+      .set(updates)
       .where(and(
   eq(groceryItems.id, Number.parseInt(itemId, 10)),
         eq(groceryItems.familyId, userFamily.familyId)
