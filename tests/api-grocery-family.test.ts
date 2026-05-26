@@ -140,6 +140,8 @@ function createFakeDb() {
             returning: vi.fn(async () => [{
               id: 10,
               name: 'Milk',
+              quantity: updates.quantity ?? null,
+              unit: updates.unit ?? null,
               notes: updates.notes ?? null,
               completed: updates.completed ?? false,
               addedBy: 'user-1',
@@ -223,6 +225,31 @@ describe('grocery item family scoping', () => {
 
     expect(res.statusCode).toBe(201);
     expect(fakeDb.insertedValues.notes).toBe('Halfvolle melk');
+  });
+
+  it('stores optional quantity and unit when creating an item', async () => {
+    const res = await request('POST', '/api/grocery-items', {
+      name: 'Melk',
+      quantity: ' 2 ',
+      unit: ' L ',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(fakeDb.insertedValues.quantity).toBe('2');
+    expect(fakeDb.insertedValues.unit).toBe('L');
+  });
+
+  it('updates quantity and unit without changing completion state', async () => {
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      quantity: '6',
+      unit: 'stuks',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.quantity).toBe('6');
+    expect(res.body.unit).toBe('stuks');
   });
 
   it('updates notes without changing completion state', async () => {

@@ -26,6 +26,8 @@ export const familyMembers = pgTable("family_members", {
 export const groceryItems = pgTable("grocery_items", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  quantity: text("quantity"),
+  unit: text("unit"),
   notes: text("notes"),
   completed: boolean("completed").notNull().default(false),
   addedBy: uuid("added_by").notNull(), // user id from auth.users

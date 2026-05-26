@@ -14,6 +14,8 @@ describe('AddItemForm', () => {
   const baseItem = (overrides: Partial<GroceryItem> = {}): GroceryItem => ({
     id: 1,
     name: 'Sample',
+    quantity: null,
+    unit: null,
     notes: null,
     completed: false,
     addedBy: 'user-1',
@@ -130,6 +132,41 @@ describe('AddItemForm', () => {
       await Promise.resolve();
     });
 
-    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', 'Halfvolle melk');
+    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', { notes: 'Halfvolle melk' });
+  });
+
+  it('submits quantity and unit when provided', async () => {
+    const onAddItem = vi.fn().mockResolvedValue(undefined);
+    const onReactivateItem = vi.fn();
+
+    render(
+      <AddItemForm
+        onAddItem={onAddItem}
+        onReactivateItem={onReactivateItem}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2'), {
+      target: { value: ' 2 ' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Eenheid (optioneel), bijv. L, stuks'), {
+      target: { value: ' L ' },
+    });
+
+    const form = screen.getByPlaceholderText('Voeg een item toe...').closest('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
+
+    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', {
+      quantity: '2',
+      unit: 'L',
+    });
   });
 });

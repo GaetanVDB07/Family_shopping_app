@@ -5,8 +5,14 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GroceryItem } from "@shared/schema";
 
+interface AddItemOptions {
+  notes?: string;
+  quantity?: string;
+  unit?: string;
+}
+
 interface AddItemFormProps {
-  onAddItem: (name: string, addedBy: string, notes?: string) => Promise<void>;
+  onAddItem: (name: string, addedBy: string, options?: AddItemOptions) => Promise<void>;
   onReactivateItem: (itemId: number) => void;
   isLoading: boolean;
   existingItems: GroceryItem[];
@@ -19,6 +25,8 @@ interface MatchingExistingItem {
 
 export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
   const [notes, setNotes] = useState("");
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,8 +105,25 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     console.log(`[${new Date().toISOString()}] Form: Starting submission for "${name.trim()}"`);
 
     try {
-      await onAddItem(name.trim(), addedBy, notes.trim() || undefined);
+      const options: AddItemOptions = {};
+      const trimmedQuantity = quantity.trim();
+      const trimmedUnit = unit.trim();
+      const trimmedNotes = notes.trim();
+
+      if (trimmedQuantity) {
+        options.quantity = trimmedQuantity;
+      }
+      if (trimmedUnit) {
+        options.unit = trimmedUnit;
+      }
+      if (trimmedNotes) {
+        options.notes = trimmedNotes;
+      }
+
+      await onAddItem(name.trim(), addedBy, Object.keys(options).length > 0 ? options : undefined);
       setName("");
+      setQuantity("");
+      setUnit("");
       setNotes("");
       console.log(`[${new Date().toISOString()}] Form: Submission completed successfully`);
       
@@ -180,6 +205,40 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 <Plus className="w-5 h-5" />
               )}
             </Button>
+          </div>
+          <div className="flex space-x-3">
+            <Input
+              type="text"
+              placeholder="Aantal (optioneel), bijv. 2"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className={`
+                flex-1 px-4 py-3 text-sm border rounded-xl transition-all duration-200
+                focus:ring-2 focus:ring-primary focus:border-primary
+                ${isFocused ? 'border-primary/30' : 'border-gray-200'}
+              `}
+              disabled={isLoading || isSubmitting}
+              autoComplete="off"
+              maxLength={20}
+            />
+            <Input
+              type="text"
+              placeholder="Eenheid (optioneel), bijv. L, stuks"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className={`
+                flex-1 px-4 py-3 text-sm border rounded-xl transition-all duration-200
+                focus:ring-2 focus:ring-primary focus:border-primary
+                ${isFocused ? 'border-primary/30' : 'border-gray-200'}
+              `}
+              disabled={isLoading || isSubmitting}
+              autoComplete="off"
+              maxLength={20}
+            />
           </div>
           <Input
             type="text"

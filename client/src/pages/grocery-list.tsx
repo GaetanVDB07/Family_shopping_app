@@ -363,11 +363,17 @@ export default function GroceryList() {
     return { total, completed, remaining };
   }, [items]);
 
-  const handleAddItem = useCallback(async (name: string, addedBy: string, notes?: string) => {
+  const handleAddItem = useCallback(async (
+    name: string,
+    addedBy: string,
+    options?: { notes?: string; quantity?: string; unit?: string },
+  ) => {
     console.log(`[${new Date().toISOString()}] Client: handleAddItem called with name: "${name}"`);
     await addItemMutation.mutateAsync({ 
       name, 
-      notes: notes ?? null,
+      quantity: options?.quantity ?? null,
+      unit: options?.unit ?? null,
+      notes: options?.notes ?? null,
       completed: false,
       addedBy: user?.id || "" // Use current user's ID
     });
