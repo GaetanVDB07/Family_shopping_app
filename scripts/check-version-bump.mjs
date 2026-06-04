@@ -17,7 +17,41 @@ export function parseAppVersion(version) {
     update: Number(update),
   };
 
+  if (parsed.update > 9) {
+    throw new Error(`Invalid app version "${version}". The third number cannot be greater than 9.`);
+  }
+
   return parsed;
+}
+
+function parseLegacyAppVersion(version) {
+  const match = VERSION_PATTERN.exec(version);
+
+  if (!match) {
+    throw new Error(`Invalid app version "${version}". Expected MAJOR.RELEASE.UPDATE.`);
+  }
+
+  const [, major, release, update] = match;
+  return {
+    major: Number(major),
+    release: Number(release),
+    update: Number(update),
+  };
+}
+
+export function normalizeLegacyAppVersion(version) {
+  const parsed = parseLegacyAppVersion(version);
+
+  if (parsed.update <= 9) {
+    return formatAppVersion(parsed);
+  }
+
+  const overflowSteps = parsed.update - 9;
+  return formatAppVersion({
+    major: parsed.major,
+    release: parsed.release + Math.ceil(overflowSteps / 10),
+    update: (overflowSteps - 1) % 10,
+  });
 }
 
 export function formatAppVersion({ major, release, update }) {
@@ -25,8 +59,8 @@ export function formatAppVersion({ major, release, update }) {
 }
 
 export function compareAppVersions(leftVersion, rightVersion) {
-  const left = parseAppVersion(leftVersion);
-  const right = parseAppVersion(rightVersion);
+  const left = parseLegacyAppVersion(normalizeLegacyAppVersion(leftVersion));
+  const right = parseLegacyAppVersion(normalizeLegacyAppVersion(rightVersion));
 
   if (left.major !== right.major) {
     return left.major - right.major;
@@ -40,10 +74,17 @@ export function compareAppVersions(leftVersion, rightVersion) {
 }
 
 export function getAllowedVersionBumps(baseVersion) {
-  const base = parseAppVersion(baseVersion);
+  const normalizedBaseVersion = normalizeLegacyAppVersion(baseVersion);
+  const base = parseAppVersion(normalizedBaseVersion);
   const allowed = [];
 
-  allowed.push(formatAppVersion({ ...base, update: base.update + 1 }));
+  if (baseVersion !== normalizedBaseVersion) {
+    allowed.push(normalizedBaseVersion);
+  }
+
+  if (base.update < 9) {
+    allowed.push(formatAppVersion({ ...base, update: base.update + 1 }));
+  }
 
   allowed.push(formatAppVersion({ major: base.major, release: base.release + 1, update: 0 }));
   allowed.push(formatAppVersion({ major: base.major + 1, release: 0, update: 0 }));
@@ -135,12 +176,17 @@ export function checkReleaseVersion(baseVersions, headVersions) {
 
   try {
     parseAppVersion(headVersions.packageVersion);
-    parseAppVersion(baseVersions.packageVersion);
+    normalizeLegacyAppVersion(baseVersions.packageVersion);
   } catch (error) {
     return { valid: false, errors: [error.message] };
   }
 
-  if (compareAppVersions(headVersions.packageVersion, baseVersions.packageVersion) <= 0) {
+  const normalizedBaseVersion = normalizeLegacyAppVersion(baseVersions.packageVersion);
+  const correctsLegacyBaseVersion =
+    baseVersions.packageVersion !== normalizedBaseVersion &&
+    headVersions.packageVersion === normalizedBaseVersion;
+
+  if (!correctsLegacyBaseVersion && compareAppVersions(headVersions.packageVersion, baseVersions.packageVersion) <= 0) {
     return {
       valid: false,
       errors: [
