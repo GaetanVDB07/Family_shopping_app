@@ -4,6 +4,7 @@ import {
   checkReleaseVersion,
   compareAppVersions,
   getAllowedVersionBumps,
+  normalizeLegacyAppVersion,
   parseAppVersion,
   validatePackageVersions,
   validateVersionBump,
@@ -30,13 +31,21 @@ describe('version bump check', () => {
     });
   });
 
-  it('allows the third number to increment past 9', () => {
-    expect(getAllowedVersionBumps('1.1.9')).toEqual(['1.1.10', '1.2.0', '2.0.0']);
-    expect(validateVersionBump('1.1.9', '1.1.10')).toEqual({
+  it('requires the second number to increment when the third number is already 9', () => {
+    expect(getAllowedVersionBumps('1.1.9')).toEqual(['1.2.0', '2.0.0']);
+    expect(validateVersionBump('1.1.9', '1.2.0')).toEqual({
       valid: true,
-      allowed: ['1.1.10', '1.2.0', '2.0.0'],
+      allowed: ['1.2.0', '2.0.0'],
     });
-    expect(validateVersionBump('1.1.10', '1.1.11').valid).toBe(true);
+    expect(validateVersionBump('1.1.9', '1.1.10').valid).toBe(false);
+    expect(() => parseAppVersion('1.1.10')).toThrow('The third number cannot be greater than 9');
+  });
+
+  it('allows one corrective bump from legacy overflow versions to their canonical version', () => {
+    expect(normalizeLegacyAppVersion('1.1.10')).toBe('1.2.0');
+    expect(normalizeLegacyAppVersion('1.1.14')).toBe('1.2.4');
+    expect(getAllowedVersionBumps('1.1.14')).toEqual(['1.2.4', '1.2.5', '1.3.0', '2.0.0']);
+    expect(validateVersionBump('1.1.14', '1.2.4').valid).toBe(true);
   });
 
   it('rejects unchanged, skipped, or malformed versions', () => {
@@ -79,13 +88,18 @@ describe('version bump check', () => {
     ).toEqual({ valid: true, errors: [] });
 
     expect(
+      checkReleaseVersion(syncedVersions('1.1.14'), syncedVersions('1.2.4'))
+    ).toEqual({ valid: true, errors: [] });
+
+    expect(
       checkReleaseVersion(syncedVersions('1.1.5'), syncedVersions('1.1.5')).valid
     ).toBe(false);
   });
 
   it('compares custom app versions in order', () => {
     expect(compareAppVersions('1.1.3', '1.1.2')).toBe(1);
-    expect(compareAppVersions('1.1.10', '1.1.9')).toBe(1);
+    expect(compareAppVersions('1.2.0', '1.1.9')).toBe(1);
+    expect(compareAppVersions('1.1.10', '1.2.0')).toBe(0);
     expect(compareAppVersions('1.2.0', '1.1.9')).toBe(1);
     expect(compareAppVersions('1.1.2', '1.1.2')).toBe(0);
   });

@@ -141,15 +141,15 @@ The app version is stored in the root `package.json`.
 
 Every merge into `develop` must include a version bump. Merges into `main` promote the version already on `develop` and must be greater than the current production version. This project uses a custom `MAJOR.RELEASE.UPDATE` versioning rule:
 
-- Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`, or `1.1.9` to `1.1.10`.
-- Second number: breaking releases, for example `1.1.4` to `1.2.0`.
+- Third number: bugfixes and new features, for example `1.1.0` to `1.1.1`.
+- Second number: breaking releases, or when the third number would go past `9`, for example `1.1.9` to `1.2.0`.
 - First number: reserved for a very large product milestone or full generation change, for example `1.9.9` to `2.0.0`.
 
 Examples:
 
 - Bugfix release: `1.1.0` to `1.1.1`
 - New feature release: `1.1.1` to `1.1.2`
-- Third-number past nine: `1.1.9` to `1.1.10`, then `1.1.11`, and so on
+- Third-number rollover: `1.1.9` to `1.2.0`, then `1.2.1`, and so on
 - Breaking release: `1.1.4` to `1.2.0`
 
 The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Because the UI reads the version from `package.json` during the build, updating the package version updates the displayed app version.
