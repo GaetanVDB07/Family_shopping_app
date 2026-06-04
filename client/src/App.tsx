@@ -8,7 +8,7 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useEffect } from "react";
 import GroceryList from "@/pages/grocery-list";
-import AuthPage from "@/pages/auth";
+import AuthPage, { ResetPasswordPage } from "@/pages/auth";
 import FamilySetup from "@/pages/family-setup";
 import FamilyManagement from "@/pages/family-management";
 import FamiliesOverview from "@/pages/families-overview";
@@ -43,7 +43,7 @@ function DefaultRedirect() {
 }
 
 function AuthenticatedApp() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isPasswordRecovery } = useAuth();
   const { hasFamilies, familiesLoading } = useFamilyStatus();
   const { isLoading: currentFamilyLoading } = useCurrentFamily();
 
@@ -60,6 +60,10 @@ function AuthenticatedApp() {
 
   if (!user) {
     return <AuthPage />;
+  }
+
+  if (isPasswordRecovery) {
+    return <ResetPasswordPage />;
   }
 
   // If user is authenticated but doesn't belong to any family, show family setup

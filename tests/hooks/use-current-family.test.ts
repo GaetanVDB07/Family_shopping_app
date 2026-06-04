@@ -33,9 +33,12 @@ describe('useCurrentFamily', () => {
       user: { id: 'user-1', email: 'user1@test.dev' } as any,
       session: null,
       loading: false,
+      isPasswordRecovery: false,
       signUp: vi.fn(),
       signIn: vi.fn(),
       signOut: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      updatePassword: vi.fn(),
     });
   });
 

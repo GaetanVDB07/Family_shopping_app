@@ -7,9 +7,12 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isPasswordRecovery: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<any>;
   signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
+  resetPasswordForEmail: (email: string) => Promise<any>;
+  updatePassword: (password: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     // Set up the token getter for the query client
@@ -35,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordRecovery(true);
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -67,16 +75,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
+    if (!error) {
+      setIsPasswordRecovery(false);
+    }
     return { error };
+  };
+
+  const resetPasswordForEmail = async (email: string) => {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    return { data, error };
+  };
+
+  const updatePassword = async (password: string) => {
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (!error) {
+      setIsPasswordRecovery(false);
+    }
+    return { data, error };
   };
 
   const value = {
     user,
     session,
     loading,
+    isPasswordRecovery,
     signUp,
     signIn,
     signOut,
+    resetPasswordForEmail,
+    updatePassword,
   };
 
   return (
