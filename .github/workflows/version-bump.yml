@@ -9,7 +9,7 @@ on:
 jobs:
   check-feature-version-bump:
     name: Check develop version bump
-    if: github.base_ref == 'develop'
+    if: github.base_ref == 'develop' && !startsWith(github.head_ref, 'automation/sync-main-')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

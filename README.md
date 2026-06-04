@@ -156,7 +156,9 @@ The current app version is shown on the `Mijn Families` page as `Vx.y.z`. Becaus
 
 Pull request checks enforce this flow:
 
-- PRs into `develop`: must come from `feature/*`, `fix/*`, or automation sync branches, and include a version bump.
+- PRs into `develop`: must come from `feature/*`, `fix/*`, or automation sync branches.
+- Feature and fix PRs into `develop` must include a version bump.
+- Automation sync PRs from `main` back into `develop` do not require a new version bump because they only mirror the production version back to development.
 - PRs into `main` from `develop`: version must already be greater than production.
 - PRs into `main` from hotfix branches: version must bump from production using the same rules.
 - After every push to `main`, GitHub Actions syncs `main` back into `develop` automatically.
