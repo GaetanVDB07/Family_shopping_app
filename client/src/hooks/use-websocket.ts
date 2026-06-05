@@ -1,5 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { type GroceryItem } from '@shared/schema';
+import { mapRealtimeGroceryRow } from '@shared/realtime-grocery';
 import { useAuth } from './use-auth';
 import supabase from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -14,29 +15,31 @@ interface UseWebSocketProps {
 
 export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDeleted, onSync }: UseWebSocketProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const { session, user } = useAuth();
 
   const connect = useCallback(async () => {
     try {
-      // Don't connect if no user is authenticated
       if (!user || !session) {
         console.log('No authenticated user, skipping realtime connection');
+        setIsConnected(false);
         return;
       }
 
       if (!familyId) {
         console.log('No selected family, skipping realtime connection');
+        setIsConnected(false);
         return;
       }
 
-      // Close existing channel first to prevent duplicates (important for development)
       if (channelRef.current) {
         console.log('Closing existing WebSocket channel to prevent duplicates');
         await channelRef.current.unsubscribe();
         channelRef.current = null;
       }
 
-      // Create a new channel for grocery items changes
+      setIsConnected(false);
+
       const channel = supabase
         .channel(`grocery-items-${familyId}`)
         .on(
@@ -49,7 +52,7 @@ export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDelet
           },
           (payload) => {
             console.log('Item added:', payload.new);
-            onItemAdded(payload.new as GroceryItem);
+            onItemAdded(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           }
         )
         .on(
@@ -62,7 +65,7 @@ export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDelet
           },
           (payload) => {
             console.log('Item updated:', payload.new);
-            onItemUpdated(payload.new as GroceryItem);
+            onItemUpdated(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           }
         )
         .on(
@@ -75,26 +78,29 @@ export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDelet
           },
           (payload) => {
             console.log('Item deleted:', payload.old);
-            onItemDeleted((payload.old as GroceryItem).id);
+            const mapped = mapRealtimeGroceryRow(payload.old as Record<string, unknown>);
+            onItemDeleted(mapped.id);
           }
         )
         .subscribe((status) => {
           console.log('Realtime subscription status:', status);
+          setIsConnected(status === 'SUBSCRIBED');
         });
 
       channelRef.current = channel;
 
     } catch (error) {
       console.error('Error connecting to Supabase Realtime:', error);
+      setIsConnected(false);
     }
   }, [familyId, onItemAdded, onItemUpdated, onItemDeleted, onSync, session, user]);
 
   useEffect(() => {
     connect();
 
-    // Cleanup function that's called when component unmounts or dependencies change
     return () => {
       console.log('Cleaning up WebSocket connection');
+      setIsConnected(false);
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         channelRef.current = null;
@@ -102,5 +108,5 @@ export function useWebSocket({ familyId, onItemAdded, onItemUpdated, onItemDelet
     };
   }, [connect]);
 
-  return { isConnected: channelRef.current?.state === 'joined' };
+  return { isConnected };
 }

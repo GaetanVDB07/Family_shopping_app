@@ -2,7 +2,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and, count, inArray } from "drizzle-orm";
+import { eq, and, count, inArray, asc } from "drizzle-orm";
+import {
+  generateFamilyCode,
+  checkJoinRateLimit,
+  normalizeFamilyCode,
+} from "../shared/join-security.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -238,11 +243,6 @@ async function authenticateUser(req) {
   };
 }
 
-// Helper function to generate family codes
-function generateFamilyCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 // Helper function to generate unique family codes
 async function generateUniqueFamilyCode() {
   const database = getDatabase();
@@ -452,20 +452,36 @@ async function handler(req, res) {
 }
 
 // Route handlers
+async function selectPrimaryFamilyMembership(database, userId) {
+  const [familyMembership] = await database
+    .select({
+      family: families,
+      member: familyMembers,
+    })
+    .from(familyMembers)
+    .innerJoin(families, eq(familyMembers.familyId, families.id))
+    .where(eq(familyMembers.userId, userId))
+    .orderBy(asc(families.name), asc(familyMembers.joinedAt))
+    .limit(1);
+
+  return familyMembership ?? null;
+}
+
+async function countUserFamilyMemberships(database, userId) {
+  const [result] = await database
+    .select({ count: count(familyMembers.id) })
+    .from(familyMembers)
+    .where(eq(familyMembers.userId, userId));
+
+  return Number(result?.count ?? 0);
+}
+
 async function handleGetUserFamily(req, res) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
 
-    const [familyMembership] = await database
-      .select({
-        family: families,
-        member: familyMembers,
-      })
-      .from(familyMembers)
-      .innerJoin(families, eq(familyMembers.familyId, families.id))
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const familyMembership = await selectPrimaryFamilyMembership(database, user.id);
 
     if (!familyMembership) {
       return res.status(200).json({ family: null });
@@ -629,12 +645,25 @@ async function handleJoinFamily(req, res) {
       return res.status(400).json({ message: 'Family code is required' });
     }
 
+    const normalizedCode = normalizeFamilyCode(code);
+    if (!normalizedCode) {
+      return res.status(400).json({ message: 'Invalid family code format' });
+    }
+
+    const rateLimit = checkJoinRateLimit(user.id);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        message: 'Too many join attempts. Please try again later.',
+        retryAfterMs: rateLimit.retryAfterMs,
+      });
+    }
+
     const database = getDatabase();
 
     const [family] = await database
       .select()
       .from(families)
-      .where(eq(families.code, code))
+      .where(eq(families.code, normalizedCode))
       .limit(1);
 
     if (!family) {
@@ -679,15 +708,7 @@ async function handleGetFamilyDetails(req, res) {
     const user = await authenticateUser(req);
     const database = getDatabase();
 
-    const [userFamily] = await database
-      .select({
-        family: families,
-        member: familyMembers,
-      })
-      .from(familyMembers)
-      .innerJoin(families, eq(familyMembers.familyId, families.id))
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const userFamily = await selectPrimaryFamilyMembership(database, user.id);
 
     if (!userFamily) {
       return res.status(404).json({ message: 'No family found' });
@@ -880,12 +901,10 @@ async function handleGetGroceryItems(req, res) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
+    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+    const familyId = requestUrl.searchParams.get('familyId');
 
-    const [userFamily] = await database
-      .select()
-      .from(familyMembers)
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
+    const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
       return res.status(404).json({ message: 'No family found' });
@@ -931,6 +950,13 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
 }
 
 async function getUserFamilyMembership(database, userId, familyId) {
+  if (!familyId) {
+    const membershipCount = await countUserFamilyMemberships(database, userId);
+    if (membershipCount > 1) {
+      throw new HttpError(400, 'familyId is required when you belong to multiple families');
+    }
+  }
+
   const whereCondition = familyId
     ? and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, familyId))
     : eq(familyMembers.userId, userId);
@@ -939,6 +965,7 @@ async function getUserFamilyMembership(database, userId, familyId) {
     .select()
     .from(familyMembers)
     .where(whereCondition)
+    .orderBy(asc(familyMembers.joinedAt))
     .limit(1);
 
   if (!membership && familyId) {
@@ -1224,13 +1251,34 @@ async function handleCleanupDuplicates(req, res) {
       return res.status(404).json({ message: 'API route not found' });
     }
 
-    await authenticateUser(req);
+    const user = await authenticateUser(req);
+    const { familyId } = req.body ?? {};
+
+    if (!familyId) {
+      return res.status(400).json({ message: 'familyId is required' });
+    }
+
     const database = getDatabase();
+
+    const [membership] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(
+        eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, familyId),
+      ))
+      .limit(1);
+
+    if (!membership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
     
-    console.log('🧹 Starting duplicate cleanup...');
+    console.log(`🧹 Starting duplicate cleanup for family ${familyId}...`);
     
-    // Get all grocery items grouped by family
-    const allItems = await database.select().from(groceryItems);
+    const allItems = await database
+      .select()
+      .from(groceryItems)
+      .where(eq(groceryItems.familyId, familyId));
     
     console.log(`Found ${allItems.length} total items`);
     

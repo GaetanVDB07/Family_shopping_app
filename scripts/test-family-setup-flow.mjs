@@ -170,7 +170,11 @@ async function main() {
       await cleanup(secondUserId, null, null);
     }
 
-    const authCleanup = await api('/api/cleanup-duplicates', { method: 'POST', token });
+    const authCleanup = await api('/api/cleanup-duplicates', {
+      method: 'POST',
+      token,
+      body: { familyId },
+    });
     assert(authCleanup.status === 200, `Authenticated cleanup failed: ${authCleanup.status}`);
 
     console.log('All integration checks passed.');
