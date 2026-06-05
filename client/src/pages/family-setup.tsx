@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Plus, Key, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
+import { normalizeJoinCodeInput } from '@/lib/family-code';
 
 export default function FamilySetup() {
   const [, setLocation] = useLocation();
@@ -177,7 +178,7 @@ export default function FamilySetup() {
                     pattern="[0-9]{6}"
                     placeholder="123456"
                     value={familyCode}
-                    onChange={(e) => setFamilyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) => setFamilyCode(normalizeJoinCodeInput(e.target.value))}
                     maxLength={6}
                     required
                   />

@@ -1,10 +1,10 @@
 {
   "name": "family-shopping-app",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "dev:load-env": "cp .env.development .env && npm run dev",
     "dev:cloud": "cp .env.production .env && npm run dev",
     "vercel:dev": "cp .env.development .env && vercel dev",
@@ -109,6 +109,7 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
     "jsdom": "^24.0.0",
