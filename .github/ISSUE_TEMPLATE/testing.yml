@@ -1,0 +1,58 @@
+name: Testing improvement
+description: Missing tests, flaky tests, or test infrastructure work
+title: "[Testing] "
+labels:
+  - bug
+  - testing
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **test coverage, flaky tests, and QA infrastructure**.
+        These issues are tracked on the [Bugs & Security board](https://github.com/users/GaetanVDB07/projects/2).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What needs better test coverage?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test-type
+    attributes:
+      label: Test type
+      options:
+        - API integration (api/index.js)
+        - Client component
+        - Hook / Realtime
+        - CI / workflow
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: gap
+    attributes:
+      label: Current gap
+      description: What is untested or failing today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-tests
+    attributes:
+      label: Suggested test cases
+      placeholder: |
+        - should reject ...
+        - should scope updates to familyId ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Relevant files
+      placeholder: tests/, api/index.js, client/src/hooks/use-websocket.ts
+    validations:
+      required: false

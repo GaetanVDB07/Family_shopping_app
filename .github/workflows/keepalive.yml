@@ -10,5 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Hit production keepalive
+        env:
+          PROD_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -sS -f "${{ secrets.PROD_BASE_URL }}/api/cron/keepalive" -o /dev/null || exit 1
+          if [ -z "$PROD_BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "PROD_BASE_URL and CRON_SECRET must be configured as GitHub secrets."
+            exit 1
+          fi
+          curl -sS -f -H "Authorization: Bearer ${CRON_SECRET}" "${PROD_BASE_URL}/api/cron/keepalive" -o /dev/null || exit 1

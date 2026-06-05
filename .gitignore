@@ -13,11 +13,14 @@ server/public
 .env
 .env.*
 !.env.example
-# Allow committing workflows while ignoring other GitHub configs by default
-.github*
-!.github/
+# Allow committing selected GitHub config while ignoring other GitHub files by default
+.github/*
 !.github/workflows/
-!.github/workflows/*.yml
+!.github/workflows/**
+!.github/ISSUE_TEMPLATE/
+!.github/ISSUE_TEMPLATE/**
+!.github/instructions/
+!.github/instructions/**
 
 # Database / Local services
 *.db
@@ -70,6 +73,7 @@ temp/
 # Local-only dev demo helpers (not part of the app)
 scripts/ensure-dev-test-user.mjs
 .env.test.local
+.cron-secret.local
 
 # Backup files
 *.backup

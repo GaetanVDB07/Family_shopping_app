@@ -13,6 +13,34 @@ class HttpError extends Error {
   }
 }
 
+function isProduction() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function assertCronAuthorized(req) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    if (isProduction()) {
+      throw new HttpError(503, 'Keepalive not configured');
+    }
+    return;
+  }
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  if (token !== secret) {
+    throw new HttpError(401, 'Unauthorized');
+  }
+}
+
+function sanitizeHeadersForLog(headers = {}) {
+  const sanitized = { ...headers };
+  if (sanitized.authorization) {
+    sanitized.authorization = '[REDACTED]';
+  }
+  return sanitized;
+}
+
 // Import schema from shared directory
 import { groceryItems, families, familyMembers } from "../shared/schema.js";
 
@@ -270,10 +298,6 @@ async function handler(req, res) {
         handler: handleKeepalive,
       },
       {
-        match: (path, mthd) => (path === '/test' ? { url, method: mthd } : null),
-        handler: async (_req, res, params) => res.status(200).json({ message: 'API is working!', method: params.method, url: params.url }),
-      },
-      {
         match: (path, mthd) => (path === '/user/family' && mthd === 'GET' ? {} : null),
         handler: handleGetUserFamily,
       },
@@ -414,8 +438,8 @@ async function handler(req, res) {
     console.error('Request details:', {
       method: req.method,
       url: req.url,
-      headers: req.headers,
-      body: req.body
+      headers: sanitizeHeadersForLog(req.headers),
+      body: isProduction() ? '[REDACTED]' : req.body,
     });
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
@@ -466,8 +490,10 @@ async function handleGetUserFamily(req, res) {
 }
 
 // Keepalive handler: runs a trivial DB query and a tiny Supabase request
-async function handleKeepalive(_req, res) {
+async function handleKeepalive(req, res) {
   try {
+    assertCronAuthorized(req);
+
     // Ensure DB client is initialized and touch Postgres
     getDatabase();
     if (client) {
@@ -487,6 +513,9 @@ async function handleKeepalive(_req, res) {
     return res.status(200).json({ ok: true, message: 'keepalive ok' });
   } catch (error) {
     console.error('Keepalive error:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ ok: false, message: error.message });
+    }
     return res.status(500).json({ ok: false, message: 'keepalive failed' });
   }
 }
@@ -1191,6 +1220,10 @@ function expressMiddleware(req, res, next) {
 // Cleanup duplicate items handler
 async function handleCleanupDuplicates(req, res) {
   try {
+    if (isProduction()) {
+      return res.status(404).json({ message: 'API route not found' });
+    }
+
     await authenticateUser(req);
     const database = getDatabase();
     
