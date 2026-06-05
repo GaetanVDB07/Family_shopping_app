@@ -1,0 +1,22 @@
+import type { GroceryItem } from "./schema";
+
+/** Map Supabase Realtime row (snake_case) to app GroceryItem (camelCase). */
+export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem {
+  const createdAtRaw = row.created_at ?? row.createdAt;
+  const createdAt =
+    createdAtRaw instanceof Date
+      ? createdAtRaw
+      : new Date(String(createdAtRaw ?? Date.now()));
+
+  return {
+    id: Number(row.id),
+    name: String(row.name ?? ""),
+    quantity: row.quantity == null ? null : String(row.quantity),
+    unit: row.unit == null ? null : String(row.unit),
+    notes: row.notes == null ? null : String(row.notes),
+    completed: Boolean(row.completed),
+    addedBy: String(row.added_by ?? row.addedBy ?? ""),
+    familyId: String(row.family_id ?? row.familyId ?? ""),
+    createdAt,
+  };
+}

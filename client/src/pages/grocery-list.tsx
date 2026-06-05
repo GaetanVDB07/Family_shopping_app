@@ -21,7 +21,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [, setLocation] = useLocation();
   const params = useParams();
   const queryClient = useQueryClient();
@@ -87,7 +86,6 @@ export default function GroceryList() {
         }
         return [...old, item];
       });
-      setIsConnected(true);
     },
     onItemUpdated: (updatedItem) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemUpdated:`, updatedItem);
@@ -96,7 +94,6 @@ export default function GroceryList() {
         console.log(`[${new Date().toISOString()}] Client: WebSocket updated ${old.length} items`);
         return updated;
       });
-      setIsConnected(true);
     },
     onItemDeleted: (id) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemDeleted:`, id);
@@ -105,7 +102,6 @@ export default function GroceryList() {
         console.log(`[${new Date().toISOString()}] Client: WebSocket deleted item ${id}, ${old.length} -> ${filtered.length} items`);
         return filtered;
       });
-      setIsConnected(true);
     },
     onSync: (syncedItems) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket sync with ${syncedItems.length} items`);
@@ -114,7 +110,6 @@ export default function GroceryList() {
         console.log(`[${new Date().toISOString()}] Client: WebSocket replacing ${old.length} items with ${syncedItems.length} synced items`);
         return syncedItems;
       });
-      setIsConnected(true);
     },
   });
 

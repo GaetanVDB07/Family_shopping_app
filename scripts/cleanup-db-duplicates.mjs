@@ -17,7 +17,8 @@ async function cleanupDuplicates() {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-      }
+      },
+      body: JSON.stringify({ familyId }),
     });
     
     if (response.ok) {
