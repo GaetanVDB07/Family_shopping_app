@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useFamilyStatus } from "@/hooks/use-family-status";
+import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,14 +44,14 @@ export default function FamilyManagement() {
   const [, setLocation] = useLocation();
   const params = useParams();
   const { allFamilies, familiesLoading } = useFamilyStatus();
+  const { currentFamilyId } = useCurrentFamily();
   const { user } = useAuth();
   const { toast } = useToast();
   const [copiedCode, setCopiedCode] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
 
-  // Get family ID from URL params or localStorage
-  const familyId = params.familyId || localStorage.getItem('currentFamilyId');
+  const familyId = params.familyId || currentFamilyId;
   
   // Find user's role in this family
   const userFamily = allFamilies.find(f => f.familyId === familyId);
