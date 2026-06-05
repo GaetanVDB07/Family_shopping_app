@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature roadmap (Project #1)
+    url: https://github.com/users/GaetanVDB07/projects/1
+    about: Planned product features and enhancements
+  - name: Bugs & Security board (Project #2)
+    url: https://github.com/users/GaetanVDB07/projects/2
+    about: Open bugs, security hardening, and testing work

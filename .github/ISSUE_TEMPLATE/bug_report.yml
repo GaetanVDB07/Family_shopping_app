@@ -1,0 +1,68 @@
+name: Bug report
+description: Something is broken or behaving incorrectly
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for **functionality bugs** (not security vulnerabilities — use the Security report template for those).
+        These issues are tracked on the [Bugs & Security board](https://github.com/users/GaetanVDB07/projects/2).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the incorrect behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Log in as ...
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Grocery list
+        - Families / membership
+        - Auth / account
+        - Realtime sync
+        - API / server
+        - Build / deploy
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version (if known)
+      placeholder: e.g. 1.1.11
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Browser/device, local vs production URL, logged-in user role
+    validations:
+      required: false
