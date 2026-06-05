@@ -1,0 +1,46 @@
+name: Apply database policies
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/enable-rls.sql
+      - scripts/enable-realtime.sql
+      - .github/workflows/apply-db-policies.yml
+
+jobs:
+  apply:
+    name: Apply RLS and Realtime policies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply RLS policies
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning::DATABASE_URL secret is not configured. Skipping RLS apply."
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/enable-rls.sql
+          echo "RLS policies applied."
+
+      - name: Apply Realtime publication
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning::DATABASE_URL secret is not configured. Skipping Realtime apply."
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/enable-realtime.sql
+          echo "Realtime policies applied."
