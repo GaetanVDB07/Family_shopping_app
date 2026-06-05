@@ -73,6 +73,7 @@ temp/
 # Local-only dev demo helpers (not part of the app)
 scripts/ensure-dev-test-user.mjs
 .env.test.local
+.cron-secret.local
 
 # Backup files
 *.backup
