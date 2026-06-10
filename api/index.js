@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and, count, inArray, asc } from "drizzle-orm";
+import { eq, and, count, inArray, asc, ne } from "drizzle-orm";
 import {
   generateFamilyCode,
   checkJoinRateLimit,
@@ -77,6 +77,39 @@ function applyCorsHeaders(req, res) {
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+async function countFamilyAdmins(database, familyId, { excludeUserId } = {}) {
+  const conditions = [
+    eq(familyMembers.familyId, familyId),
+    eq(familyMembers.role, 'admin'),
+  ];
+
+  if (excludeUserId) {
+    conditions.push(ne(familyMembers.userId, excludeUserId));
+  }
+
+  const [result] = await database
+    .select({ value: count() })
+    .from(familyMembers)
+    .where(and(...conditions));
+
+  return Number(result?.value ?? 0);
+}
+
+async function countFamilyMembers(database, familyId, { excludeUserId } = {}) {
+  const conditions = [eq(familyMembers.familyId, familyId)];
+
+  if (excludeUserId) {
+    conditions.push(ne(familyMembers.userId, excludeUserId));
+  }
+
+  const [result] = await database
+    .select({ value: count() })
+    .from(familyMembers)
+    .where(and(...conditions));
+
+  return Number(result?.value ?? 0);
 }
 
 async function resolveAddedByDisplayName(database, familyId, userId) {
@@ -840,6 +873,15 @@ async function handleLeaveFamily(req, res) {
       return res.status(404).json({ message: 'No family membership found' });
     }
 
+    if (membership.role === 'admin') {
+      const otherAdmins = await countFamilyAdmins(database, familyId, { excludeUserId: user.id });
+      if (otherAdmins === 0) {
+        return res.status(403).json({
+          message: 'Cannot leave family as the only admin. Transfer admin role or delete the family first.',
+        });
+      }
+    }
+
     await database
       .delete(familyMembers)
       .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
@@ -881,6 +923,25 @@ async function handleRemoveFamilyMember(req, res, memberId) {
 
     if (!userFamily) {
       return res.status(404).json({ message: 'Family not found or not authorized' });
+    }
+
+    const [targetMember] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.id, memberId), eq(familyMembers.familyId, familyId)))
+      .limit(1);
+
+    if (!targetMember) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    if (targetMember.role === 'admin') {
+      const adminCount = await countFamilyAdmins(database, familyId);
+      if (adminCount <= 1) {
+        return res.status(403).json({
+          message: 'Cannot remove the last admin from the family.',
+        });
+      }
     }
 
     await database
@@ -1344,24 +1405,50 @@ async function handleDeleteAccount(req, res) {
     const user = await authenticateUser(req);
     const database = getDatabase();
 
+    const memberships = await database
+      .select({
+        membershipId: familyMembers.id,
+        familyId: familyMembers.familyId,
+        role: familyMembers.role,
+      })
+      .from(familyMembers)
+      .where(eq(familyMembers.userId, user.id));
+
+    for (const membership of memberships) {
+      if (membership.role !== 'admin') {
+        continue;
+      }
+
+      const otherAdmins = await countFamilyAdmins(database, membership.familyId, {
+        excludeUserId: user.id,
+      });
+      const otherMembers = await countFamilyMembers(database, membership.familyId, {
+        excludeUserId: user.id,
+      });
+
+      if (otherMembers > 0 && otherAdmins === 0) {
+        return res.status(409).json({
+          message: 'Cannot delete account while you are the only admin of a family with other members. Transfer admin role or remove other members first.',
+        });
+      }
+    }
+
     const result = await database.transaction(async (tx) => {
-      const memberships = await tx
-        .select({
-          membershipId: familyMembers.id,
-          familyId: familyMembers.familyId,
-          role: familyMembers.role,
-        })
-        .from(familyMembers)
-        .where(eq(familyMembers.userId, user.id));
-
-      const adminFamilies = memberships
-        .filter((membership) => membership.role === 'admin')
-        .map((membership) => membership.familyId);
-
       let familiesDeleted = 0;
-      for (const familyId of adminFamilies) {
-        await tx.delete(families).where(eq(families.id, familyId));
-        familiesDeleted += 1;
+
+      for (const membership of memberships) {
+        if (membership.role !== 'admin') {
+          continue;
+        }
+
+        const otherMembers = await countFamilyMembers(tx, membership.familyId, {
+          excludeUserId: user.id,
+        });
+
+        if (otherMembers === 0) {
+          await tx.delete(families).where(eq(families.id, membership.familyId));
+          familiesDeleted += 1;
+        }
       }
 
       const removedMemberships = await tx
