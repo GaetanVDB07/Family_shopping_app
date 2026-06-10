@@ -18,11 +18,12 @@ jobs:
 
           if [[ "$HEAD_REF" =~ ^feature/ ]] \
             || [[ "$HEAD_REF" =~ ^fix/ ]] \
+            || [[ "$HEAD_REF" =~ ^cursor/ ]] \
             || [[ "$HEAD_REF" =~ ^automation/sync-main- ]]; then
             echo "Allowed source branch for develop: $HEAD_REF"
             exit 0
           fi
 
-          echo "::error::PRs into develop must come from feature/*, fix/*, or automation/sync-main-* branches."
+          echo "::error::PRs into develop must come from feature/*, fix/*, cursor/*, or automation/sync-main-* branches."
           echo "Create a branch with: git checkout -b feature/your-change  or  npm run fix:start -- your-change"
           exit 1

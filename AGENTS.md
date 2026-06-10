@@ -27,16 +27,17 @@ The dev server reads **`.env.development`** (not `.env`). That file is gitignore
    npx supabase@latest start
    ```
 3. Create `.env.development` from `npx supabase@latest status -o env` (use `API_URL`, `DB_URL`, `ANON_KEY`, `SERVICE_ROLE_KEY` for the `SUPABASE_*` / `VITE_*` vars — see `.env.example`).
-4. Push schema and enable realtime:
+4. Push schema, enable RLS, and enable realtime:
    ```bash
    cp .env.development .env && npm run db:push
+   sudo docker exec -i supabase_db_workspace psql -U postgres -d postgres < scripts/enable-rls.sql
    sudo docker exec -i supabase_db_workspace psql -U postgres -d postgres < scripts/enable-realtime.sql
    ```
 5. Start the app: `npm run dev` → http://localhost:5000
 
 **Option B — Hosted Supabase**
 
-Copy `.env.example` to `.env.development`, fill in your dev project credentials, then `npm run db:push:dev` and run `scripts/enable-realtime.sql` in the Supabase SQL editor.
+Copy `.env.example` to `.env.development`, fill in your dev project credentials, then `npm run db:push:dev` and run `scripts/enable-rls.sql` and `scripts/enable-realtime.sql` in the Supabase SQL editor.
 
 ### Verify without external services
 
@@ -59,5 +60,5 @@ These do not require Supabase or Docker:
 
 - `server/index.ts` loads `.env.development` when `NODE_ENV=development`.
 - Port **5000** is the only non-firewalled port in Cloud Agent VMs.
-- Realtime grocery sync requires `scripts/enable-realtime.sql` after schema push.
+- RLS policies (`scripts/enable-rls.sql`) and Realtime (`scripts/enable-realtime.sql`) must be applied after schema push.
 - `supabase/` is gitignored; run `npx supabase init` locally if missing.

@@ -13,6 +13,7 @@ import { Users, Plus, UserPlus, Crown, Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { FamilyWithRole } from "@shared/schema";
+import { isValidJoinCode, normalizeJoinCodeInput } from "@/lib/family-code";
 
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
@@ -74,8 +75,8 @@ export default function FamiliesOverview() {
   });
 
   const handleJoinFamily = () => {
-    if (joinCode.trim()) {
-      joinFamilyMutation.mutate(joinCode.trim());
+    if (isValidJoinCode(joinCode)) {
+      joinFamilyMutation.mutate(joinCode);
     }
   };
 
@@ -189,9 +190,12 @@ export default function FamiliesOverview() {
                   <Label htmlFor="join-code">Familie Code</Label>
                   <Input
                     id="join-code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
                     value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="ABCD12"
+                    onChange={(e) => setJoinCode(normalizeJoinCodeInput(e.target.value))}
+                    placeholder="123456"
                     maxLength={6}
                     className="font-mono text-center tracking-wider"
                   />
@@ -203,7 +207,7 @@ export default function FamiliesOverview() {
                 </Button>
                 <Button 
                   onClick={handleJoinFamily}
-                  disabled={!joinCode.trim() || joinFamilyMutation.isPending}
+                  disabled={!isValidJoinCode(joinCode) || joinFamilyMutation.isPending}
                 >
                   {joinFamilyMutation.isPending ? "Joinen..." : "Familie Joinen"}
                 </Button>
