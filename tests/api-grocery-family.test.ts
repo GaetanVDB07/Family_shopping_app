@@ -27,6 +27,10 @@ vi.mock('pg', () => ({
 }));
 
 let fakeDb: ReturnType<typeof createFakeDb>;
+let fakeDbConfig: {
+  memberFamilyIds: string[];
+  groceryItems: Record<string, Array<Record<string, unknown>>>;
+};
 
 vi.mock('drizzle-orm/node-postgres', () => ({
   drizzle: () => fakeDb,
@@ -66,9 +70,21 @@ function conditionParams(condition: any): unknown[] {
   return params;
 }
 
-function selectRowsFor(condition: any) {
+function selectRowsFor(condition: any, selectedFields?: Record<string, unknown>) {
   const params = conditionParams(condition);
   const familyId = params.includes('family-2') ? 'family-2' : 'family-1';
+
+  if (selectedFields && 'count' in selectedFields) {
+    return [{ count: fakeDbConfig.memberFamilyIds.length }];
+  }
+
+  if (selectedFields && 'addedByUserId' in selectedFields) {
+    return fakeDbConfig.groceryItems[familyId] ?? [];
+  }
+
+  if (selectedFields && 'userName' in selectedFields && 'userId' in selectedFields) {
+    return [{ userId: 'user-1', userName: 'User One' }];
+  }
 
   if (params.includes(10)) {
     return [{
@@ -81,6 +97,10 @@ function selectRowsFor(condition: any) {
     }];
   }
 
+  if (!fakeDbConfig.memberFamilyIds.includes(familyId)) {
+    return [];
+  }
+
   return [{
     familyId,
     userId: 'user-1',
@@ -90,7 +110,7 @@ function selectRowsFor(condition: any) {
   }];
 }
 
-function createSelectBuilder() {
+function createSelectBuilder(selectedFields?: Record<string, unknown>) {
   return {
     rows: [] as any[],
     from() {
@@ -99,8 +119,11 @@ function createSelectBuilder() {
     leftJoin() {
       return this;
     },
+    innerJoin() {
+      return this;
+    },
     where(condition: any) {
-      this.rows = selectRowsFor(condition);
+      this.rows = selectRowsFor(condition, selectedFields);
       return this;
     },
     orderBy() {
@@ -120,7 +143,7 @@ function createFakeDb() {
     insertedValues: null as any,
     updateWhereParams: [] as unknown[],
     deleteWhereParams: [] as unknown[],
-    select: vi.fn(() => createSelectBuilder()),
+    select: vi.fn((fields?: Record<string, unknown>) => createSelectBuilder(fields)),
     insert: vi.fn(() => ({
       values: (values: any) => {
         fakeDb.insertedValues = values;
@@ -205,7 +228,69 @@ describe('grocery item family scoping', () => {
     process.env.DATABASE_URL = 'postgres://test';
     process.env.SUPABASE_URL = 'http://supabase.test';
     process.env.SUPABASE_ANON_KEY = 'anon-test-key';
+    fakeDbConfig = {
+      memberFamilyIds: ['family-1', 'family-2'],
+      groceryItems: {
+        'family-1': [{
+          id: 1,
+          name: 'Brood',
+          quantity: null,
+          unit: null,
+          notes: null,
+          completed: false,
+          addedByUserId: 'user-1',
+          familyId: 'family-1',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        }],
+        'family-2': [{
+          id: 2,
+          name: 'Melk',
+          quantity: '2',
+          unit: 'L',
+          notes: null,
+          completed: false,
+          addedByUserId: 'user-1',
+          familyId: 'family-2',
+          createdAt: new Date('2026-01-02T00:00:00.000Z'),
+        }],
+      },
+    };
     fakeDb = createFakeDb();
+  });
+
+  it('returns grocery items for a family the user belongs to', async () => {
+    const res = await request('GET', '/api/grocery-items/family-2');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual([{
+      id: 2,
+      name: 'Melk',
+      quantity: '2',
+      unit: 'L',
+      notes: null,
+      completed: false,
+      addedBy: 'User One',
+      familyId: 'family-2',
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    }]);
+  });
+
+  it('rejects grocery list requests for families the user does not belong to', async () => {
+    fakeDbConfig.memberFamilyIds = ['family-1'];
+
+    const res = await request('GET', '/api/grocery-items/family-2');
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toMatchObject({ message: 'Access denied: Not a member of this family' });
+  });
+
+  it('rejects grocery queries scoped to a non-member familyId', async () => {
+    fakeDbConfig.memberFamilyIds = ['family-1'];
+
+    const res = await request('GET', '/api/grocery-items?familyId=family-2');
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toMatchObject({ message: 'Access denied: Not a member of this family' });
   });
 
   it('creates items in the requested family instead of the first membership', async () => {
