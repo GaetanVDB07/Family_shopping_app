@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { GroceryItem } from "@shared/schema";
 
 interface AddItemOptions {
@@ -135,7 +136,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       console.log(`[${new Date().toISOString()}] Form: Submission failed:`, error);
       toast({
         title: "Fout",
-        description: "Er is iets misgegaan. Probeer het opnieuw.",
+        description: getApiErrorMessage(error, "Er is iets misgegaan. Probeer het opnieuw."),
         variant: "destructive",
       });
     } finally {
@@ -199,6 +200,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 disabled={isLoading}
                 autoComplete="off"
                 autoCapitalize="words"
+                maxLength={200}
               />
             </div>
             <Button

@@ -102,7 +102,7 @@ describe('API payload validation (#84)', () => {
     const res = await request('POST', '/api/families', { name: '   ' });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toMatchObject({ message: 'Family name is required' });
+    expect(res.body).toMatchObject({ message: 'Familienaam is verplicht' });
   });
 
   it('rejects whitespace-only grocery item names on create', async () => {
@@ -112,7 +112,7 @@ describe('API payload validation (#84)', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toMatchObject({ message: 'Item name is required' });
+    expect(res.body).toMatchObject({ message: 'Itemnaam is verplicht' });
   });
 
   it('rejects grocery updates with no mutable fields', async () => {
@@ -121,6 +121,17 @@ describe('API payload validation (#84)', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toMatchObject({ message: 'No valid fields to update' });
+    expect(res.body).toMatchObject({ message: 'Geen geldige velden om bij te werken' });
+  });
+
+  it('rejects grocery notes over 200 characters', async () => {
+    const res = await request('POST', '/api/grocery-items', {
+      name: 'Melk',
+      notes: 'n'.repeat(201),
+      familyId: 'family-1',
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({ message: 'Maximaal 200 tekens toegestaan' });
   });
 });

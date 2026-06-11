@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,10 +54,10 @@ export function UserMenu() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       setLocation("/families");
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Fout",
-        description: "Kon familie niet verlaten. Probeer het opnieuw.",
+        description: getApiErrorMessage(error, "Kon familie niet verlaten. Probeer het opnieuw."),
         variant: "destructive",
       });
     },

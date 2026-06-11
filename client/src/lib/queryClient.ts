@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { parseApiErrorBody } from "./api-error";
 
 // We'll need to get the session token dynamically
 let getSessionToken: (() => string | null) | null = null;
@@ -10,7 +11,8 @@ export function setAuthTokenGetter(tokenGetter: () => string | null) {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const message = parseApiErrorBody(text) ?? text;
+    throw new Error(message);
   }
 }
 

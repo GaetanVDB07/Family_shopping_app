@@ -42,7 +42,8 @@ export default function FamilySetup() {
       });
 
       if (!response.ok) {
-        throw new Error('Kon familie niet aanmaken');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Kon familie niet aanmaken");
       }
 
       const { family } = await response.json();
@@ -155,6 +156,7 @@ export default function FamilySetup() {
                     value={familyName}
                     onChange={(e) => setFamilyName(e.target.value)}
                     required
+                    maxLength={100}
                   />
                   <p className="text-sm text-gray-500">
                     Deze naam zien andere familieleden

@@ -1,9 +1,13 @@
 import { z } from "zod";
 
-const FAMILY_ID = z.string().trim().min(1, "Family ID is required").max(64);
+const FAMILY_ID = z.string().trim().min(1, "Familie-ID is verplicht").max(64);
+
+function maxLengthMessage(maxLength) {
+  return `Maximaal ${maxLength} tekens toegestaan`;
+}
 
 function requiredTrimmedString(maxLength, message) {
-  return z.string().trim().min(1, message).max(maxLength);
+  return z.string().trim().min(1, message).max(maxLength, maxLengthMessage(maxLength));
 }
 
 function optionalTrimmedString(maxLength) {
@@ -21,18 +25,23 @@ function optionalTrimmedString(maxLength) {
 
       return trimmed;
     })
-    .pipe(z.union([z.string().max(maxLength), z.null()]).optional());
+    .pipe(
+      z.union([
+        z.string().max(maxLength, maxLengthMessage(maxLength)),
+        z.null(),
+      ]).optional(),
+    );
 }
 
 export const createFamilyRequestSchema = z.object({
-  name: requiredTrimmedString(100, "Family name is required"),
+  name: requiredTrimmedString(100, "Familienaam is verplicht"),
 });
 
 export const joinFamilyRequestSchema = z.object({
   code: z
-    .string({ required_error: "Family code is required" })
+    .string({ required_error: "Familiecode is verplicht" })
     .trim()
-    .regex(/^\d{6}$/, "Invalid family code format"),
+    .regex(/^\d{6}$/, "Ongeldige familiecode"),
 });
 
 export const familyIdRequestSchema = z.object({
@@ -40,7 +49,7 @@ export const familyIdRequestSchema = z.object({
 });
 
 export const createGroceryItemRequestSchema = z.object({
-  name: requiredTrimmedString(200, "Item name is required"),
+  name: requiredTrimmedString(200, "Itemnaam is verplicht"),
   quantity: optionalTrimmedString(20).optional(),
   unit: optionalTrimmedString(20).optional(),
   notes: optionalTrimmedString(200).optional(),
@@ -61,17 +70,17 @@ export const updateGroceryItemRequestSchema = z
       data.quantity !== undefined ||
       data.unit !== undefined ||
       data.notes !== undefined,
-    { message: "No valid fields to update" },
+    { message: "Geen geldige velden om bij te werken" },
   );
 
 export const cleanupDuplicatesRequestSchema = z.object({
   familyId: z
-    .string({ required_error: "familyId is required" })
+    .string({ required_error: "familyId is verplicht" })
     .trim()
-    .min(1, "familyId is required")
+    .min(1, "familyId is verplicht")
     .max(64),
 });
 
 export function formatValidationError(error) {
-  return error.issues[0]?.message ?? "Invalid request body";
+  return error.issues[0]?.message ?? "Ongeldige invoer";
 }
