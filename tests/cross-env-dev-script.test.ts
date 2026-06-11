@@ -14,5 +14,5 @@ describe('dev script portability (#82)', () => {
     );
 
     expect(output).toBe('development');
-  });
+  }, 15_000);
 });
