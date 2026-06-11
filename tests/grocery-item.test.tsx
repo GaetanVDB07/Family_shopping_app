@@ -13,7 +13,8 @@ const sampleItem: GroceryItem = {
   completed: false,
   addedBy: 'tester',
   familyId: 'fam1',
-  createdAt: new Date()
+  addedAt: new Date('2026-06-11T12:00:00.000Z'),
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
 }
 
 describe('GroceryItemComponent', () => {
@@ -37,6 +38,13 @@ describe('GroceryItemComponent', () => {
       />
     )
     expect(screen.getByText('Halfvolle melk')).toBeInTheDocument()
+  })
+
+  it('shows who added the item and when', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(<GroceryItemComponent item={sampleItem} onToggle={onToggle} onDelete={onDelete} />)
+    expect(screen.getByText(/door tester · vandaag/i)).toBeInTheDocument()
   })
 
   it('renders quantity and unit when provided', () => {

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { GroceryItem } from "@shared/schema";
+import { formatAddedAt } from "@shared/format-added-at";
 import { Button } from "@/components/ui/button";
 import { Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -154,7 +155,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
                   ? "text-gray-400 bg-gray-200"
                   : "text-gray-500 bg-gray-100"
               )}>
-                door {item.addedBy}
+                door {item.addedBy} · {formatAddedAt(item.addedAt)}
               </span>
             </div>
           </div>

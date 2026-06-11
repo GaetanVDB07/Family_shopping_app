@@ -31,6 +31,7 @@ let fakeDbConfig: {
   memberFamilyIds: string[];
   groceryItems: Record<string, Array<Record<string, unknown>>>;
   deleteReturning?: Array<Record<string, unknown>>;
+  existingItemCompleted?: boolean;
 };
 
 vi.mock('drizzle-orm/node-postgres', () => ({
@@ -83,6 +84,10 @@ function selectRowsFor(condition: any, selectedFields?: Record<string, unknown>)
     return fakeDbConfig.groceryItems[familyId] ?? [];
   }
 
+  if (selectedFields && 'completed' in selectedFields && !('addedByUserId' in selectedFields)) {
+    return [{ completed: fakeDbConfig.existingItemCompleted ?? true }];
+  }
+
   if (selectedFields && 'userName' in selectedFields && 'userId' in selectedFields) {
     return [{ userId: 'user-1', userName: 'User One' }];
   }
@@ -94,6 +99,7 @@ function selectRowsFor(condition: any, selectedFields?: Record<string, unknown>)
       completed: true,
       addedBy: 'User One',
       familyId,
+      addedAt: new Date('2026-01-01T00:00:00.000Z'),
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     }];
   }
@@ -142,6 +148,7 @@ function createSelectBuilder(selectedFields?: Record<string, unknown>) {
 function createFakeDb() {
   return {
     insertedValues: null as any,
+    lastUpdates: null as any,
     updateWhereParams: [] as unknown[],
     deleteWhereParams: [] as unknown[],
     select: vi.fn((fields?: Record<string, unknown>) => createSelectBuilder(fields)),
@@ -152,6 +159,7 @@ function createFakeDb() {
           returning: vi.fn(async () => [{
             id: 10,
             completed: false,
+            addedAt: new Date('2026-01-01T00:00:00.000Z'),
             createdAt: new Date('2026-01-01T00:00:00.000Z'),
             ...values,
           }]),
@@ -159,7 +167,9 @@ function createFakeDb() {
       },
     })),
     update: vi.fn(() => ({
-      set: (updates: any) => ({
+      set: (updates: any) => {
+        fakeDb.lastUpdates = updates;
+        return {
         where: (condition: any) => {
           fakeDb.updateWhereParams = conditionParams(condition);
           return {
@@ -170,13 +180,15 @@ function createFakeDb() {
               unit: updates.unit ?? null,
               notes: updates.notes ?? null,
               completed: updates.completed ?? false,
-              addedBy: 'user-1',
+              addedBy: updates.addedBy ?? 'user-1',
               familyId: fakeDb.updateWhereParams.includes('family-2') ? 'family-2' : 'family-1',
+              addedAt: updates.addedAt ?? new Date('2026-01-01T00:00:00.000Z'),
               createdAt: new Date('2026-01-01T00:00:00.000Z'),
             }]),
           };
         },
-      }),
+      };
+      },
     })),
     delete: vi.fn(() => ({
       where: (condition: any) => {
@@ -244,6 +256,7 @@ describe('grocery item family scoping', () => {
           completed: false,
           addedByUserId: 'user-1',
           familyId: 'family-1',
+          addedAt: new Date('2026-01-01T00:00:00.000Z'),
           createdAt: new Date('2026-01-01T00:00:00.000Z'),
         }],
         'family-2': [{
@@ -255,9 +268,11 @@ describe('grocery item family scoping', () => {
           completed: false,
           addedByUserId: 'user-1',
           familyId: 'family-2',
+          addedAt: new Date('2026-01-02T00:00:00.000Z'),
           createdAt: new Date('2026-01-02T00:00:00.000Z'),
         }],
       },
+      existingItemCompleted: true,
     };
     fakeDb = createFakeDb();
   });
@@ -275,8 +290,39 @@ describe('grocery item family scoping', () => {
       completed: false,
       addedBy: 'User One',
       familyId: 'family-2',
+      addedAt: new Date('2026-01-02T00:00:00.000Z'),
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     }]);
+  });
+
+  it('updates addedAt and addedBy when a completed item is put back on the list', async () => {
+    fakeDbConfig.existingItemCompleted = true;
+
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      completed: false,
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(fakeDb.lastUpdates).toMatchObject({
+      completed: false,
+      addedBy: 'user-1',
+    });
+    expect(fakeDb.lastUpdates.addedAt).toBeInstanceOf(Date);
+    expect(res.body.addedBy).toBe('User One');
+    expect(res.body.addedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not refresh addedAt when updating notes on an already pending item', async () => {
+    fakeDbConfig.existingItemCompleted = false;
+
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      notes: 'Vers',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(fakeDb.lastUpdates).toEqual({ notes: 'Vers' });
   });
 
   it('rejects grocery list requests for families the user does not belong to', async () => {

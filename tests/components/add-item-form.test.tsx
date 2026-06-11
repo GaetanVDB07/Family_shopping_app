@@ -20,6 +20,7 @@ describe('AddItemForm', () => {
     completed: false,
     addedBy: 'user-1',
     familyId: 'family-1',
+    addedAt: new Date(),
     createdAt: new Date(),
     ...overrides,
   });

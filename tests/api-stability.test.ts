@@ -114,6 +114,7 @@ function createSelectBuilder(selectedFields?: Record<string, unknown>) {
           familyId: 'family-1',
           completed: false,
           addedBy: 'user-1',
+          addedAt: new Date('2026-01-01T00:00:00.000Z'),
           createdAt: new Date('2026-01-01T00:00:00.000Z'),
         }];
         return this;
