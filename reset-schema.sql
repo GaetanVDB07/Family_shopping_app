@@ -20,7 +20,8 @@ CREATE TABLE family_members (
     user_email TEXT NOT NULL,
     user_name TEXT,
     joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    role TEXT NOT NULL DEFAULT 'member'
+    role TEXT NOT NULL DEFAULT 'member',
+    UNIQUE (family_id, user_id)
 );
 
 -- Create grocery_items table with new schema

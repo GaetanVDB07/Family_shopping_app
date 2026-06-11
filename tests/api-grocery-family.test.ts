@@ -30,6 +30,7 @@ let fakeDb: ReturnType<typeof createFakeDb>;
 let fakeDbConfig: {
   memberFamilyIds: string[];
   groceryItems: Record<string, Array<Record<string, unknown>>>;
+  deleteReturning?: Array<Record<string, unknown>>;
 };
 
 vi.mock('drizzle-orm/node-postgres', () => ({
@@ -180,7 +181,9 @@ function createFakeDb() {
     delete: vi.fn(() => ({
       where: (condition: any) => {
         fakeDb.deleteWhereParams = conditionParams(condition);
-        return Promise.resolve({ rowCount: 1 });
+        return {
+          returning: vi.fn(async () => fakeDbConfig.deleteReturning ?? [{ id: 10 }]),
+        };
       },
     })),
   };
@@ -230,6 +233,7 @@ describe('grocery item family scoping', () => {
     process.env.SUPABASE_ANON_KEY = 'anon-test-key';
     fakeDbConfig = {
       memberFamilyIds: ['family-1', 'family-2'],
+      deleteReturning: undefined,
       groceryItems: {
         'family-1': [{
           id: 1,
@@ -364,5 +368,14 @@ describe('grocery item family scoping', () => {
 
     expect(res.statusCode).toBe(200);
     expect(fakeDb.deleteWhereParams).toContain('family-2');
+  });
+
+  it('returns 404 when deleting a missing grocery item', async () => {
+    fakeDbConfig.deleteReturning = [];
+
+    const res = await request('DELETE', '/api/grocery-items/999?familyId=family-1');
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ message: 'Item not found' });
   });
 });
