@@ -24,6 +24,9 @@ export default defineConfig({
     },
   },
   root: path.resolve(__dirname, "client"),
+  css: {
+    postcss: path.resolve(__dirname, "postcss.config.js"),
+  },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
