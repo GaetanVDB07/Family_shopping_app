@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { toastApiError } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -140,11 +140,7 @@ export default function GroceryList() {
     },
     onError: (error) => {
       console.log(`[${new Date().toISOString()}] Client: Mutation error`);
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Kon item niet toevoegen. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon item niet toevoegen. Probeer het opnieuw.");
     },
   });
 
@@ -180,11 +176,7 @@ export default function GroceryList() {
       if (context?.previousItems) {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(err, "Kon item niet bijwerken. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, err, "Kon item niet bijwerken. Probeer het opnieuw.");
     },
   });
 
@@ -217,11 +209,7 @@ export default function GroceryList() {
       if (context?.previousItems) {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(err, "Kon item niet verwijderen. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, err, "Kon item niet verwijderen. Probeer het opnieuw.");
     },
   });
 
@@ -257,11 +245,7 @@ export default function GroceryList() {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
       setShowDeleteAllDialog(false);
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(err, "Kon lijst niet wissen. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, err, "Kon lijst niet wissen. Probeer het opnieuw.");
     },
   });
 
@@ -289,11 +273,7 @@ export default function GroceryList() {
       if (context?.previousItems) {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(err, "Kon items niet markeren. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, err, "Kon items niet markeren. Probeer het opnieuw.");
     },
   });
 
@@ -321,11 +301,7 @@ export default function GroceryList() {
       if (context?.previousItems) {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(err, "Kon items niet markeren. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, err, "Kon items niet markeren. Probeer het opnieuw.");
     },
   });
 

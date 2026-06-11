@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { maxLengthInputProps, toastApiError } from "@/lib/api-error";
 import { Users, Plus, UserPlus, Crown, Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -45,11 +45,7 @@ export default function FamiliesOverview() {
       setShowJoinDialog(false);
     },
     onError: (error: unknown) => {
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Kon niet bij familie voegen."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon niet bij familie voegen.");
     },
   });
 
@@ -67,11 +63,7 @@ export default function FamiliesOverview() {
       setShowCreateDialog(false);
     },
     onError: (error: unknown) => {
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Kon familie niet aanmaken."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon familie niet aanmaken.");
     },
   });
 
@@ -155,7 +147,7 @@ export default function FamiliesOverview() {
                     value={newFamilyName}
                     onChange={(e) => setNewFamilyName(e.target.value)}
                     placeholder="Bijv. Familie van der Berg"
-                    maxLength={100}
+                    {...maxLengthInputProps(100, toast)}
                   />
                 </div>
               </div>
