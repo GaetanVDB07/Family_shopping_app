@@ -10,11 +10,14 @@ import { Users, Plus, Key, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeJoinCodeInput } from '@/lib/family-code';
+import { useToast } from '@/hooks/use-toast';
+import { maxLengthInputProps } from '@/lib/api-error';
 
 export default function FamilySetup() {
   const [, setLocation] = useLocation();
   const { user, session, signOut } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -156,7 +159,7 @@ export default function FamilySetup() {
                     value={familyName}
                     onChange={(e) => setFamilyName(e.target.value)}
                     required
-                    maxLength={100}
+                    {...maxLengthInputProps(100, toast)}
                   />
                   <p className="text-sm text-gray-500">
                     Deze naam zien andere familieleden

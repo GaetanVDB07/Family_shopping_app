@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { toastApiError } from "@/lib/api-error";
 import { ArrowLeft, Users, Copy, Check, UserX, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -83,11 +83,7 @@ export default function FamilyManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
     },
     onError: (error) => {
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Kon familielid niet verwijderen."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon familielid niet verwijderen.");
     },
   });
 
@@ -103,11 +99,7 @@ export default function FamilyManagement() {
       setLocation("/families");
     },
     onError: (error) => {
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Kon familie niet verwijderen."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon familie niet verwijderen.");
     },
   });
 

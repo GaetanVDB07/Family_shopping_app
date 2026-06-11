@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getApiErrorMessage } from "@/lib/api-error";
+import { maxLengthInputProps, toastApiError } from "@/lib/api-error";
 import { GroceryItem } from "@shared/schema";
 
 interface AddItemOptions {
@@ -134,11 +134,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       }
     } catch (error) {
       console.log(`[${new Date().toISOString()}] Form: Submission failed:`, error);
-      toast({
-        title: "Fout",
-        description: getApiErrorMessage(error, "Er is iets misgegaan. Probeer het opnieuw."),
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Er is iets misgegaan. Probeer het opnieuw.");
     } finally {
       setIsSubmitting(false);
     }
@@ -200,7 +196,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 disabled={isLoading}
                 autoComplete="off"
                 autoCapitalize="words"
-                maxLength={200}
+                {...maxLengthInputProps(200, toast)}
               />
             </div>
             <Button
@@ -233,7 +229,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                   className={`flex-1 ${optionalFieldClassName}`}
                   disabled={isLoading || isSubmitting}
                   autoComplete="off"
-                  maxLength={20}
+                  {...maxLengthInputProps(20, toast)}
                 />
                 <Input
                   type="text"
@@ -245,7 +241,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                   className={`flex-1 ${optionalFieldClassName}`}
                   disabled={isLoading || isSubmitting}
                   autoComplete="off"
-                  maxLength={20}
+                  {...maxLengthInputProps(20, toast)}
                 />
               </div>
               <Input
@@ -259,7 +255,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 disabled={isLoading || isSubmitting}
                 autoComplete="off"
                 autoCapitalize="sentences"
-                maxLength={200}
+                {...maxLengthInputProps(200, toast)}
               />
             </div>
           ) : null}
