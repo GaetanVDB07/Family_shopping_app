@@ -21,10 +21,12 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 vi.mock('pg', () => ({
-  Client: vi.fn(() => ({
-    connect: vi.fn(async () => undefined),
-    query: vi.fn(async () => undefined),
-  })),
+  Client: vi.fn(function Client() {
+    return {
+      connect: vi.fn(async () => undefined),
+      query: vi.fn(async () => undefined),
+    };
+  }),
 }));
 
 let fakeDb: ReturnType<typeof createFakeDb>;
