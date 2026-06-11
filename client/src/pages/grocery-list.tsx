@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -137,11 +138,11 @@ export default function GroceryList() {
         return [...old, newItem];
       });
     },
-    onError: () => {
+    onError: (error) => {
       console.log(`[${new Date().toISOString()}] Client: Mutation error`);
       toast({
         title: "Fout",
-        description: "Kon item niet toevoegen. Probeer het opnieuw.",
+        description: getApiErrorMessage(error, "Kon item niet toevoegen. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
@@ -181,7 +182,7 @@ export default function GroceryList() {
       }
       toast({
         title: "Fout",
-        description: "Kon item niet bijwerken. Probeer het opnieuw.",
+        description: getApiErrorMessage(err, "Kon item niet bijwerken. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
@@ -218,7 +219,7 @@ export default function GroceryList() {
       }
       toast({
         title: "Fout",
-        description: "Kon item niet verwijderen. Probeer het opnieuw.",
+        description: getApiErrorMessage(err, "Kon item niet verwijderen. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
@@ -258,7 +259,7 @@ export default function GroceryList() {
       setShowDeleteAllDialog(false);
       toast({
         title: "Fout",
-        description: "Kon lijst niet wissen. Probeer het opnieuw.",
+        description: getApiErrorMessage(err, "Kon lijst niet wissen. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
@@ -290,7 +291,7 @@ export default function GroceryList() {
       }
       toast({
         title: "Fout",
-        description: "Kon items niet markeren. Probeer het opnieuw.",
+        description: getApiErrorMessage(err, "Kon items niet markeren. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
@@ -322,7 +323,7 @@ export default function GroceryList() {
       }
       toast({
         title: "Fout",
-        description: "Kon items niet markeren. Probeer het opnieuw.",
+        description: getApiErrorMessage(err, "Kon items niet markeren. Probeer het opnieuw."),
         variant: "destructive",
       });
     },
