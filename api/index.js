@@ -1433,6 +1433,12 @@ async function handleDeleteAccount(req, res) {
       }
     }
 
+    if (isProduction() && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({
+        message: 'Account deletion is not available. Please contact support.',
+      });
+    }
+
     const result = await database.transaction(async (tx) => {
       let familiesDeleted = 0;
 
@@ -1468,9 +1474,11 @@ async function handleDeleteAccount(req, res) {
       const { error } = await supabaseServiceClient.auth.admin.deleteUser(user.id);
       if (error) {
         console.error('Failed to delete Supabase user during account deletion:', error);
-      } else {
-        supabaseUserDeleted = true;
+        return res.status(500).json({
+          message: 'Your account data was removed but sign-in could not be deleted. Please contact support.',
+        });
       }
+      supabaseUserDeleted = true;
     } else {
       console.warn('Supabase service role key not configured; skipped deleting user from Supabase.');
     }
