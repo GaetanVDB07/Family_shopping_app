@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -20,7 +20,9 @@ export const familyMembers = pgTable("family_members", {
   userName: text("user_name"), // display name
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
   role: text("role").notNull().default("member"), // 'admin' or 'member'
-});
+}, (table) => ({
+  familyUserUnique: unique("family_members_family_user_unique").on(table.familyId, table.userId),
+}));
 
 // Updated grocery items table
 export const groceryItems = pgTable("grocery_items", {
