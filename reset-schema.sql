@@ -31,5 +31,6 @@ CREATE TABLE grocery_items (
     completed BOOLEAN NOT NULL DEFAULT FALSE,
     added_by UUID NOT NULL,
     family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    added_at TIMESTAMP NOT NULL DEFAULT NOW(),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

@@ -12,6 +12,7 @@ describe("mapRealtimeGroceryRow", () => {
       completed: false,
       added_by: "user-abc",
       family_id: "family-xyz",
+      added_at: "2026-01-15T10:00:00.000Z",
       created_at: "2026-01-15T10:00:00.000Z",
     });
 
@@ -24,6 +25,7 @@ describe("mapRealtimeGroceryRow", () => {
       completed: false,
       addedBy: "user-abc",
       familyId: "family-xyz",
+      addedAt: new Date("2026-01-15T10:00:00.000Z"),
       createdAt: new Date("2026-01-15T10:00:00.000Z"),
     });
   });
@@ -35,6 +37,7 @@ describe("mapRealtimeGroceryRow", () => {
       completed: true,
       addedBy: "User One",
       familyId: "family-1",
+      addedAt: "2026-02-01T08:30:00.000Z",
       createdAt: "2026-02-01T08:30:00.000Z",
     });
 
@@ -52,6 +55,7 @@ describe("mapRealtimeGroceryRow", () => {
       completed: false,
       added_by: "user-abc",
       family_id: "family-1",
+      added_at: "2026-01-15T10:00:00.000Z",
       created_at: "2026-01-15T10:00:00.000Z",
     });
 
