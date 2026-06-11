@@ -41,4 +41,22 @@ describe("mapRealtimeGroceryRow", () => {
     expect(item.addedBy).toBe("User One");
     expect(item.familyId).toBe("family-1");
   });
+
+  it("maps nullable quantity, unit, and notes fields", () => {
+    const item = mapRealtimeGroceryRow({
+      id: 4,
+      name: "Kaas",
+      quantity: null,
+      unit: null,
+      notes: null,
+      completed: false,
+      added_by: "user-abc",
+      family_id: "family-1",
+      created_at: "2026-01-15T10:00:00.000Z",
+    });
+
+    expect(item.quantity).toBeNull();
+    expect(item.unit).toBeNull();
+    expect(item.notes).toBeNull();
+  });
 });
