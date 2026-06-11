@@ -17,6 +17,7 @@ import {
   cleanupDuplicatesRequestSchema,
   formatValidationError,
 } from "../shared/api-validation.js";
+import { sanitizeBodyForLog, sanitizeHeadersForLog } from "../shared/log-sanitize.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -59,12 +60,8 @@ function assertCronAuthorized(req) {
   }
 }
 
-function sanitizeHeadersForLog(headers = {}) {
-  const sanitized = { ...headers };
-  if (sanitized.authorization) {
-    sanitized.authorization = '[REDACTED]';
-  }
-  return sanitized;
+function isUniqueViolation(error) {
+  return error?.code === '23505';
 }
 
 // Import schema from shared directory
@@ -224,27 +221,32 @@ async function fetchGroceryItemsForFamily(database, familyId) {
 // Database setup for serverless environment
 let db = null;
 let client = null;
+let connectPromise = null;
 
-function initializeDatabase() {
+async function getDatabase() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required");
   }
 
-  if (!client) {
+  if (!connectPromise) {
     client = new Client({
       connectionString: process.env.DATABASE_URL,
     });
-    client.connect().catch(console.error);
-    db = drizzle(client);
-  }
-  return db;
-}
 
-function getDatabase() {
-  if (!db) {
-    initializeDatabase();
+    connectPromise = client.connect()
+      .catch((error) => {
+        connectPromise = null;
+        client = null;
+        db = null;
+        throw error;
+      })
+      .then(() => {
+        db = drizzle(client);
+        return db;
+      });
   }
-  return db;
+
+  return connectPromise;
 }
 
 // Supabase setup
@@ -299,7 +301,7 @@ async function authenticateUser(req) {
 
 // Helper function to generate unique family codes
 async function generateUniqueFamilyCode() {
-  const database = getDatabase();
+  const database = await getDatabase();
   let attempts = 0;
   const maxAttempts = 10;
 
@@ -493,7 +495,7 @@ async function handler(req, res) {
       method: req.method,
       url: req.url,
       headers: sanitizeHeadersForLog(req.headers),
-      body: isProduction() ? '[REDACTED]' : req.body,
+      body: sanitizeBodyForLog(req.body),
     });
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
@@ -533,7 +535,7 @@ async function countUserFamilyMemberships(database, userId) {
 async function handleGetUserFamily(req, res) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const familyMembership = await selectPrimaryFamilyMembership(database, user.id);
 
@@ -565,7 +567,7 @@ async function handleKeepalive(req, res) {
     assertCronAuthorized(req);
 
     // Ensure DB client is initialized and touch Postgres
-    getDatabase();
+    await getDatabase();
     if (client) {
       await client.query('select 1');
     }
@@ -593,7 +595,7 @@ async function handleKeepalive(req, res) {
 async function handleGetUserFamilies(req, res) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Get all families the user is a member of
     const result = await database
@@ -650,7 +652,7 @@ async function handleCreateFamily(req, res) {
     const user = await authenticateUser(req);
     const { name } = parseRequestBody(createFamilyRequestSchema, req.body);
 
-    const database = getDatabase();
+    const database = await getDatabase();
     const code = await generateUniqueFamilyCode();
 
     const family = await database.transaction(async (tx) => {
@@ -700,7 +702,7 @@ async function handleJoinFamily(req, res) {
       });
     }
 
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const [family] = await database
       .select()
@@ -738,6 +740,9 @@ async function handleJoinFamily(req, res) {
     return res.status(200).json({ family });
   } catch (error) {
     console.error('Error joining family:', error);
+    if (isUniqueViolation(error)) {
+      return res.status(400).json({ message: 'Already a member of this family' });
+    }
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
     }
@@ -748,7 +753,7 @@ async function handleJoinFamily(req, res) {
 async function handleGetFamilyDetails(req, res) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const userFamily = await selectPrimaryFamilyMembership(database, user.id);
 
@@ -780,7 +785,7 @@ async function handleGetFamilyDetails(req, res) {
 async function handleGetFamilyDetailsByID(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Check if user is a member of the requested family
     const [userFamily] = await database
@@ -824,7 +829,7 @@ async function handleGetFamilyDetailsByID(req, res, familyId) {
 async function handleDeleteFamily(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
     const validatedFamilyId = requireFamilyId(familyId);
 
     const [userFamily] = await database
@@ -863,7 +868,7 @@ async function handleLeaveFamily(req, res) {
   try {
     const user = await authenticateUser(req);
     const { familyId } = parseRequestBody(familyIdRequestSchema, req.body);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const [membership] = await database
       .select()
@@ -901,7 +906,7 @@ async function handleLeaveFamily(req, res) {
 async function handleRemoveFamilyMember(req, res, memberId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
     const familyId = requestUrl.searchParams.get('familyId') || req.body?.familyId;
 
@@ -963,7 +968,7 @@ async function handleRemoveFamilyMember(req, res, memberId) {
 async function handleGetGroceryItems(req, res) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
     const familyId = requestUrl.searchParams.get('familyId');
 
@@ -988,7 +993,7 @@ async function handleGetGroceryItems(req, res) {
 async function handleGetGroceryItemsByFamily(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Verify user is a member of the requested family
     const [userFamilyMembership] = await database
@@ -1046,7 +1051,7 @@ async function handleCreateGroceryItem(req, res) {
       req.body,
     );
 
-    const database = getDatabase();
+    const database = await getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
@@ -1088,7 +1093,7 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       updateGroceryItemRequestSchema,
       req.body,
     );
-    const database = getDatabase();
+    const database = await getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
     if (!userFamily) {
@@ -1137,7 +1142,7 @@ async function handleUpdateGroceryItem(req, res, itemId) {
 async function handleDeleteGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
     const familyId = requestUrl.searchParams.get('familyId') || req.body?.familyId;
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
@@ -1146,12 +1151,17 @@ async function handleDeleteGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'No family found' });
     }
 
-    await database
+    const deletedItems = await database
       .delete(groceryItems)
       .where(and(
   eq(groceryItems.id, Number.parseInt(itemId, 10)),
         eq(groceryItems.familyId, userFamily.familyId)
-      ));
+      ))
+      .returning();
+
+    if (deletedItems.length === 0) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
 
     return res.status(200).json({ message: 'Item deleted successfully' });
   } catch (error) {
@@ -1166,7 +1176,7 @@ async function handleDeleteGroceryItem(req, res, itemId) {
 async function handleDeleteAllGroceryItems(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Verify user is a member of the requested family
     const [userFamilyMembership] = await database
@@ -1200,7 +1210,7 @@ async function handleDeleteAllGroceryItems(req, res, familyId) {
 async function handleMarkAllItemsCompleted(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Verify user is a member of the requested family
     const [userFamilyMembership] = await database
@@ -1236,7 +1246,7 @@ async function handleMarkAllItemsCompleted(req, res, familyId) {
 async function handleMarkAllItemsPending(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     // Verify user is a member of the requested family
     const [userFamilyMembership] = await database
@@ -1315,7 +1325,7 @@ async function handleCleanupDuplicates(req, res) {
     const user = await authenticateUser(req);
     const { familyId } = parseRequestBody(cleanupDuplicatesRequestSchema, req.body);
 
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const [membership] = await database
       .select()
@@ -1399,7 +1409,7 @@ async function handleCleanupDuplicates(req, res) {
 async function handleDeleteAccount(req, res) {
   try {
     const user = await authenticateUser(req);
-    const database = getDatabase();
+    const database = await getDatabase();
 
     const memberships = await database
       .select({

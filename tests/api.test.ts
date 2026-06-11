@@ -90,6 +90,13 @@ describe('api/index.js integration', () => {
     expect(res.body).toEqual({ message: 'API route not found' });
   });
 
+  it('does not expose a public /api/test fingerprint route', async () => {
+    const res = await callHandler('GET', '/api/test');
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toEqual({ message: 'API route not found' });
+  });
+
   it('requires authentication on protected routes', async () => {
     const res = await callHandler('GET', '/api/user/family');
 
