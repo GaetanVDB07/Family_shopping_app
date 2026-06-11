@@ -77,6 +77,7 @@ export class MemStorage implements IStorage {
       completed: insertItem.completed !== undefined ? insertItem.completed : false,
       addedBy: insertItem.addedBy || "demo-user",
       familyId: insertItem.familyId || "demo-family-123",
+      addedAt: new Date(),
       createdAt: new Date(),
     };
     this.groceryItems.set(id, item);

@@ -8,6 +8,12 @@ export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem
       ? createdAtRaw
       : new Date(String(createdAtRaw ?? Date.now()));
 
+  const addedAtRaw = row.added_at ?? row.addedAt ?? createdAtRaw;
+  const addedAt =
+    addedAtRaw instanceof Date
+      ? addedAtRaw
+      : new Date(String(addedAtRaw ?? Date.now()));
+
   return {
     id: Number(row.id),
     name: String(row.name ?? ""),
@@ -17,6 +23,7 @@ export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem
     completed: Boolean(row.completed),
     addedBy: String(row.added_by ?? row.addedBy ?? ""),
     familyId: String(row.family_id ?? row.familyId ?? ""),
+    addedAt,
     createdAt,
   };
 }

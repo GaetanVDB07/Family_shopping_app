@@ -34,6 +34,7 @@ export const groceryItems = pgTable("grocery_items", {
   completed: boolean("completed").notNull().default(false),
   addedBy: uuid("added_by").notNull(), // user id from auth.users
   familyId: uuid("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at").notNull().defaultNow(), // last time item was put on the list
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -51,6 +52,7 @@ export const insertFamilyMemberSchema = createInsertSchema(familyMembers).omit({
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({
   id: true,
   createdAt: true,
+  addedAt: true,
 }).partial({
   addedBy: true,  // Server will provide this
   familyId: true, // Server will provide this
