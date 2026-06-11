@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { toastApiError } from "@/lib/api-error";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,12 +54,8 @@ export function UserMenu() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
       setLocation("/families");
     },
-    onError: () => {
-      toast({
-        title: "Fout",
-        description: "Kon familie niet verlaten. Probeer het opnieuw.",
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toastApiError(toast, error, "Kon familie niet verlaten. Probeer het opnieuw.");
     },
   });
 
@@ -113,11 +110,7 @@ export function UserMenu() {
       setLocation("/");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Fout",
-        description: error.message,
-        variant: "destructive",
-      });
+      toastApiError(toast, error, "Kon account niet verwijderen");
     },
   });
 

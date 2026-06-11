@@ -233,7 +233,7 @@ describe('API stability hardening', () => {
     const res = await request('POST', '/api/cleanup-duplicates', {});
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toMatchObject({ message: 'familyId is required' });
+    expect(res.body).toMatchObject({ message: 'familyId is verplicht' });
   });
 
   it('rejects cleanup-duplicates for families the user does not belong to (#72)', async () => {
@@ -260,7 +260,7 @@ describe('API stability hardening', () => {
     const res = await request('POST', '/api/families/join', { code: 'ABC123' });
 
     expect(res.statusCode).toBe(400);
-    expect(res.body).toMatchObject({ message: 'Invalid family code format' });
+    expect(res.body).toMatchObject({ message: 'Ongeldige familiecode' });
   });
 
   it('hides cleanup-duplicates in production (#72)', async () => {

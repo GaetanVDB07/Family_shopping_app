@@ -8,6 +8,15 @@ import {
   checkJoinRateLimit,
   normalizeFamilyCode,
 } from "../shared/join-security.js";
+import {
+  createFamilyRequestSchema,
+  joinFamilyRequestSchema,
+  familyIdRequestSchema,
+  createGroceryItemRequestSchema,
+  updateGroceryItemRequestSchema,
+  cleanupDuplicatesRequestSchema,
+  formatValidationError,
+} from "../shared/api-validation.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -16,6 +25,18 @@ class HttpError extends Error {
     this.status = status;
     this.isHttpError = true;
   }
+}
+
+function parseRequestBody(schema, body) {
+  const result = schema.safeParse(body ?? {});
+  if (!result.success) {
+    throw new HttpError(400, formatValidationError(result.error));
+  }
+  return result.data;
+}
+
+function requireFamilyId(familyId) {
+  return parseRequestBody(familyIdRequestSchema, { familyId }).familyId;
 }
 
 function isProduction() {
@@ -627,11 +648,7 @@ async function handleGetUserFamilies(req, res) {
 async function handleCreateFamily(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { name } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ message: 'Family name is required' });
-    }
+    const { name } = parseRequestBody(createFamilyRequestSchema, req.body);
 
     const database = getDatabase();
     const code = await generateUniqueFamilyCode();
@@ -672,16 +689,8 @@ async function handleCreateFamily(req, res) {
 async function handleJoinFamily(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { code } = req.body;
-    
-    if (!code) {
-      return res.status(400).json({ message: 'Family code is required' });
-    }
-
+    const { code } = parseRequestBody(joinFamilyRequestSchema, req.body);
     const normalizedCode = normalizeFamilyCode(code);
-    if (!normalizedCode) {
-      return res.status(400).json({ message: 'Invalid family code format' });
-    }
 
     const rateLimit = checkJoinRateLimit(user.id);
     if (!rateLimit.allowed) {
@@ -816,10 +825,7 @@ async function handleDeleteFamily(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
     const database = getDatabase();
-
-    if (!familyId) {
-      return res.status(400).json({ message: 'Family ID is required' });
-    }
+    const validatedFamilyId = requireFamilyId(familyId);
 
     const [userFamily] = await database
       .select({
@@ -830,7 +836,7 @@ async function handleDeleteFamily(req, res, familyId) {
       .innerJoin(families, eq(familyMembers.familyId, families.id))
       .where(and(
         eq(familyMembers.userId, user.id),
-        eq(familyMembers.familyId, familyId),
+        eq(familyMembers.familyId, validatedFamilyId),
         eq(familyMembers.role, 'admin')
       ))
       .limit(1);
@@ -856,12 +862,8 @@ async function handleDeleteFamily(req, res, familyId) {
 async function handleLeaveFamily(req, res) {
   try {
     const user = await authenticateUser(req);
+    const { familyId } = parseRequestBody(familyIdRequestSchema, req.body);
     const database = getDatabase();
-    const { familyId } = req.body;
-
-    if (!familyId) {
-      return res.status(400).json({ message: 'Family ID is required' });
-    }
 
     const [membership] = await database
       .select()
@@ -1039,11 +1041,10 @@ async function getUserFamilyMembership(database, userId, familyId) {
 async function handleCreateGroceryItem(req, res) {
   try {
     const user = await authenticateUser(req);
-    const { name, quantity, unit, notes, familyId } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({ message: 'Item name is required' });
-    }
+    const { name, quantity, unit, notes, familyId } = parseRequestBody(
+      createGroceryItemRequestSchema,
+      req.body,
+    );
 
     const database = getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
@@ -1056,9 +1057,9 @@ async function handleCreateGroceryItem(req, res) {
       .insert(groceryItems)
       .values({
         name,
-        quantity: normalizeQuantity(quantity),
-        unit: normalizeUnit(unit),
-        notes: normalizeNotes(notes),
+        quantity,
+        unit,
+        notes,
         addedBy: user.id,
         familyId: userFamily.familyId,
       })
@@ -1083,7 +1084,10 @@ async function handleCreateGroceryItem(req, res) {
 async function handleUpdateGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const { completed, quantity, unit, notes, familyId } = req.body;
+    const { completed, quantity, unit, notes, familyId } = parseRequestBody(
+      updateGroceryItemRequestSchema,
+      req.body,
+    );
     const database = getDatabase();
     const userFamily = await getUserFamilyMembership(database, user.id, familyId);
 
@@ -1096,17 +1100,13 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       updates.completed = completed;
     }
     if (notes !== undefined) {
-      updates.notes = normalizeNotes(notes);
+      updates.notes = notes;
     }
     if (quantity !== undefined) {
-      updates.quantity = normalizeQuantity(quantity);
+      updates.quantity = quantity;
     }
     if (unit !== undefined) {
-      updates.unit = normalizeUnit(unit);
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: 'No valid fields to update' });
+      updates.unit = unit;
     }
 
     const [item] = await database
@@ -1313,11 +1313,7 @@ async function handleCleanupDuplicates(req, res) {
     }
 
     const user = await authenticateUser(req);
-    const { familyId } = req.body ?? {};
-
-    if (!familyId) {
-      return res.status(400).json({ message: 'familyId is required' });
-    }
+    const { familyId } = parseRequestBody(cleanupDuplicatesRequestSchema, req.body);
 
     const database = getDatabase();
 
