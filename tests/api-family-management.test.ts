@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const supabaseAuthMocks = vi.hoisted(() => ({
+  deleteUser: vi.fn(async () => ({ error: null })),
+}));
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -14,7 +18,7 @@ vi.mock('@supabase/supabase-js', () => ({
         error: null,
       })),
       admin: {
-        deleteUser: vi.fn(async () => ({ error: null })),
+        deleteUser: supabaseAuthMocks.deleteUser,
       },
     },
   }),
@@ -445,14 +449,26 @@ describe('family management scoping', () => {
 });
 
 describe('account deletion safeguards', () => {
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
     vi.resetModules();
-    process.env.DATABASE_URL = 'postgres://test';
-    process.env.SUPABASE_URL = 'http://supabase.test';
-    process.env.SUPABASE_ANON_KEY = 'anon-test-key';
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+    supabaseAuthMocks.deleteUser.mockReset();
+    supabaseAuthMocks.deleteUser.mockResolvedValue({ error: null });
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgres://test',
+      SUPABASE_URL: 'http://supabase.test',
+      SUPABASE_ANON_KEY: 'anon-test-key',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+    };
     testScenario = defaultScenario();
     fakeDb = createFakeDb();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it('blocks account deletion when user is the only admin of a family with other members', async () => {
@@ -487,7 +503,50 @@ describe('account deletion safeguards', () => {
     const res = await request('DELETE', '/api/user/account');
 
     expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ supabaseUserDeleted: true });
     expect(fakeDb.deleteCalls.length).toBeGreaterThan(0);
+    expect(supabaseAuthMocks.deleteUser).toHaveBeenCalledWith('user-1');
+  });
+
+  it('returns 503 in production when the service role key is missing (#80)', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const res = await request('DELETE', '/api/user/account');
+
+    expect(res.statusCode).toBe(503);
+    expect(res.body).toMatchObject({
+      message: expect.stringContaining('not available'),
+    });
+    expect(fakeDb.deleteCalls).toHaveLength(0);
+    expect(supabaseAuthMocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 when Supabase auth user deletion fails (#80)', async () => {
+    process.env.NODE_ENV = 'production';
+    supabaseAuthMocks.deleteUser.mockResolvedValue({
+      error: { message: 'Auth delete failed' },
+    });
+
+    const res = await request('DELETE', '/api/user/account');
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body).toMatchObject({
+      message: expect.stringContaining('sign-in could not be deleted'),
+    });
+    expect(fakeDb.deleteCalls.length).toBeGreaterThan(0);
+  });
+
+  it('allows deletion without service role in development (#80)', async () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    const res = await request('DELETE', '/api/user/account');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ supabaseUserDeleted: false });
+    expect(fakeDb.deleteCalls.length).toBeGreaterThan(0);
+    expect(supabaseAuthMocks.deleteUser).not.toHaveBeenCalled();
   });
 
   it('does not delete families where another admin can manage remaining members', async () => {
