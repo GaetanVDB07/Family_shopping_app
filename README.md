@@ -184,6 +184,7 @@ tests/                  Automated tests
 ## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md) — system diagrams, data flow, tech stack, and repo layout
+- [Project board](https://github.com/users/GaetanVDB07/projects/1) — feature backlog and status
 
 ## License
 
