@@ -62,6 +62,9 @@ tmp/
 temp/
 *.tar.gz
 .worktrees/
+.codex/
+.codex-remote-attachments/
+.agents/
 
 # Debug and test scripts in root (keep organized scripts in scripts/ directory)
 /check-*.mjs

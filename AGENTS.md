@@ -44,7 +44,7 @@ Copy `.env.example` to `.env.development`, fill in your dev project credentials,
 These do not require Supabase or Docker:
 
 - `npm run check` — TypeScript
-- `npm test -- --run` — Vitest (48 tests; API tests use mocks)
+- `npm test -- --run` — Vitest (72 tests; API tests use mocks)
 
 ### Run / lint / test commands
 
