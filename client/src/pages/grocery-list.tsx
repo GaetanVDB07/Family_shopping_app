@@ -16,7 +16,7 @@ import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
-import { Search, ShoppingCart, Wifi, WifiOff, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
+import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
@@ -73,8 +73,11 @@ export default function GroceryList() {
   });
 
   // WebSocket connection for real-time updates
-  const { isConnected: wsConnected } = useWebSocket({
+  useWebSocket({
     familyId,
+    onResync: () => {
+      void refetch();
+    },
     onItemAdded: (item) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemAdded:`, item);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
@@ -469,24 +472,7 @@ export default function GroceryList() {
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              {wsConnected ? (
-                <>
-                  <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
-                  <Wifi className="w-5 h-5" />
-                  <span className="text-sm">Live</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-2.5 h-2.5 bg-red-400 rounded-full"></div>
-                  <WifiOff className="w-5 h-5" />
-                  <span className="text-sm">Offline</span>
-                </>
-              )}
-            </div>
-            <UserMenu />
-          </div>
+          <UserMenu />
         </div>
       </header>
 
