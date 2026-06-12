@@ -19,16 +19,26 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/hooks/use-auth', () => ({
   useAuth: () => ({
-    user: { id: 'user-1', email: 'test@example.com' },
+    user: { id: 'user-1', email: 'test@example.com', user_metadata: { name: 'Marie' } },
     session: { access_token: 'test-token' },
     signOut: vi.fn(),
   }),
+}));
+
+const mockResolveInitialJoinCode = vi.fn(() => null as string | null);
+const mockClearPendingJoinCode = vi.fn();
+
+vi.mock('@/lib/family-invite', () => ({
+  resolveInitialJoinCode: () => mockResolveInitialJoinCode(),
+  clearPendingJoinCode: () => mockClearPendingJoinCode(),
 }));
 
 describe('FamilySetup', () => {
   beforeEach(() => {
     setLocation.mockReset();
     invalidateQueries.mockReset();
+    mockResolveInitialJoinCode.mockReturnValue(null);
+    mockClearPendingJoinCode.mockReset();
     vi.stubGlobal('fetch', vi.fn());
   });
 
@@ -99,6 +109,19 @@ describe('FamilySetup', () => {
         body: JSON.stringify({ code: '123456' }),
       }),
     );
+  });
+
+  it('prefills the join tab when an invite code is present', async () => {
+    mockResolveInitialJoinCode.mockReturnValue('482917');
+
+    render(<FamilySetup />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Familie Code')).toHaveValue('482917');
+    });
+
+    expect(mockClearPendingJoinCode).toHaveBeenCalled();
+    expect(screen.getByText('Ingelogd als: Marie')).toBeInTheDocument();
   });
 
   it('strips non-digits from the join code input', async () => {

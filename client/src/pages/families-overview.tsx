@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import type { FamilyWithRole } from "@shared/schema";
 import { isValidJoinCode, normalizeJoinCodeInput } from "@/lib/family-code";
+import { clearPendingJoinCode, resolveInitialJoinCode } from "@/lib/family-invite";
 
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
@@ -26,6 +27,17 @@ export default function FamiliesOverview() {
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const code = resolveInitialJoinCode();
+    if (!code) {
+      return;
+    }
+
+    setJoinCode(code);
+    setShowJoinDialog(true);
+    clearPendingJoinCode();
+  }, []);
 
   // Fetch all families the user is a member of
   const { data: families, isLoading } = useQuery<FamilyWithRole[]>({
