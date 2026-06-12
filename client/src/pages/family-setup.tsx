@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { Users, Plus, Key, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeJoinCodeInput } from '@/lib/family-code';
+import { clearPendingJoinCode, resolveInitialJoinCode } from '@/lib/family-invite';
+import { getUserDisplayName } from '@/lib/user-display-name';
 import { useToast } from '@/hooks/use-toast';
 import { maxLengthInputProps } from '@/lib/api-error';
 
@@ -21,12 +23,21 @@ export default function FamilySetup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('create');
 
-  // Create family state
   const [familyName, setFamilyName] = useState('');
-  
-  // Join family state
   const [familyCode, setFamilyCode] = useState('');
+
+  useEffect(() => {
+    const code = resolveInitialJoinCode();
+    if (!code) {
+      return;
+    }
+
+    setFamilyCode(code);
+    setActiveTab('join');
+    clearPendingJoinCode();
+  }, []);
 
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,16 +62,13 @@ export default function FamilySetup() {
 
       const { family } = await response.json();
       setSuccess(`Familie "${family.name}" aangemaakt! Familie code: ${family.code}`);
-      
-      // Invalidate family status query to trigger redirect
+
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      
-      // Small delay to show success message, then the App will automatically redirect
+
       setTimeout(() => {
         setLocation("/families");
       }, 1500);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
     } finally {
@@ -91,16 +99,13 @@ export default function FamilySetup() {
 
       const { family } = await response.json();
       setSuccess(`Welkom bij familie "${family.name}"!`);
-      
-      // Invalidate family status query to trigger redirect
+
       queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      
-      // Small delay to show success message, then the App will automatically redirect
+
       setTimeout(() => {
         setLocation("/families");
       }, 1500);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
     } finally {
@@ -127,7 +132,7 @@ export default function FamilySetup() {
           </CardDescription>
           <div className="flex justify-between items-center mt-4 pt-4 border-t">
             <span className="text-sm text-gray-600">
-              Ingelogd als: {user?.email}
+              Ingelogd als: {getUserDisplayName(user)}
             </span>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -136,7 +141,7 @@ export default function FamilySetup() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="create" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="create">
                 <Plus className="w-4 h-4 mr-2" />
@@ -147,7 +152,7 @@ export default function FamilySetup() {
                 Familie Joinen
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="create" className="space-y-4">
               <form onSubmit={handleCreateFamily} className="space-y-4">
                 <div className="space-y-2">
@@ -171,7 +176,7 @@ export default function FamilySetup() {
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="join" className="space-y-4">
               <form onSubmit={handleJoinFamily} className="space-y-4">
                 <div className="space-y-2">

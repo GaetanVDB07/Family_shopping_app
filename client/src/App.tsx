@@ -12,6 +12,7 @@ import AuthPage, { ResetPasswordPage } from "@/pages/auth";
 import FamilySetup from "@/pages/family-setup";
 import FamilyManagement from "@/pages/family-management";
 import FamiliesOverview from "@/pages/families-overview";
+import { captureInviteCodeFromUrl } from "@/lib/family-invite";
 
 function DefaultRedirect() {
   const [, setLocation] = useLocation();
@@ -88,6 +89,10 @@ function AuthenticatedApp() {
 }
 
 function App() {
+  useEffect(() => {
+    captureInviteCodeFromUrl();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

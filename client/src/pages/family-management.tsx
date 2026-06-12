@@ -7,11 +7,11 @@ import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
-import { ArrowLeft, Users, Copy, Check, UserX, Trash2 } from "lucide-react";
+import { FamilyInviteShare } from "@/components/family-invite-share";
+import { ArrowLeft, Users, UserX, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -48,7 +48,6 @@ export default function FamilyManagement() {
   const { currentFamilyId } = useCurrentFamily();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [copiedCode, setCopiedCode] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
 
@@ -154,22 +153,6 @@ export default function FamilyManagement() {
     );
   }
 
-  const handleCopyCode = async () => {
-    if (family?.code) {
-      try {
-        await navigator.clipboard.writeText(family.code);
-        setCopiedCode(true);
-        setTimeout(() => setCopiedCode(false), 2000);
-      } catch (err) {
-        toast({
-          title: "Fout",
-          description: "Kon code niet kopiëren.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
   const handleRemoveMember = (member: FamilyMember) => {
     if (member.role === "admin") {
       toast({
@@ -265,27 +248,7 @@ export default function FamilyManagement() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Familie Code</label>
-              <div className="flex items-center space-x-2 mt-1">
-                <Input 
-                  value={family?.code || ""} 
-                  readOnly 
-                  className="font-mono text-center tracking-wider"
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleCopyCode}
-                  className="flex-shrink-0"
-                >
-                  {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Deel deze code met familieleden om hen uit te nodigen
-              </p>
-            </div>
+            {family?.code ? <FamilyInviteShare familyCode={family.code} /> : null}
           </CardContent>
         </Card>
 

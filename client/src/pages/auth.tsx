@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShoppingCart, Eye, EyeOff } from 'lucide-react';
+import { maxLengthInputProps } from '@/lib/api-error';
+import { useToast } from '@/hooks/use-toast';
 
 type AuthMode = 'login' | 'signup' | 'forgot';
 
@@ -92,6 +94,7 @@ export default function AuthPage() {
   const [success, setSuccess] = useState('');
 
   const { signIn, signUp, resetPasswordForEmail } = useAuth();
+  const { toast } = useToast();
 
   const resetMessages = () => {
     setError('');
@@ -122,7 +125,7 @@ export default function AuthPage() {
       const result =
         mode === 'login'
           ? await signIn(email, password)
-          : await signUp(email, password, name);
+          : await signUp(email, password, name.trim());
 
       if (result.error) {
         setError(result.error.message);
@@ -153,6 +156,7 @@ export default function AuthPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              {...maxLengthInputProps(50, toast)}
             />
           </div>
         )}
