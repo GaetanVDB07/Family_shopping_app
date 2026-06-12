@@ -302,7 +302,10 @@ async function authenticateUser(req) {
   return {
     id: user.id,
     email: user.email,
-    name: user.user_metadata?.name || user.email?.split('@')[0],
+    name: user.user_metadata?.name
+      || user.user_metadata?.user_name
+      || user.user_metadata?.full_name
+      || user.email?.split('@')[0],
   };
 }
 

@@ -39,6 +39,22 @@ describe('AuthPage', () => {
     expect(screen.queryByLabelText('Wachtwoord')).not.toBeInTheDocument();
   });
 
+  it('passes the display name when signing up', async () => {
+    render(<AuthPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nog geen account? Maak er een aan' }));
+    fireEvent.change(screen.getByLabelText('Naam'), { target: { value: '  Marie  ' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'marie@example.com' } });
+    fireEvent.change(screen.getByLabelText('Wachtwoord'), { target: { value: 'secret12' } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Account aanmaken' }));
+      await Promise.resolve();
+    });
+
+    expect(mockSignUp).toHaveBeenCalledWith('marie@example.com', 'secret12', 'Marie');
+  });
+
   it('sends a reset email when forgot password is submitted', async () => {
     render(<AuthPage />);
 
