@@ -72,7 +72,7 @@ describe('useWebSocket', () => {
       updatePassword: vi.fn(),
     });
 
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useWebSocket({
         familyId: 'family-1',
         onItemAdded,
@@ -83,19 +83,21 @@ describe('useWebSocket', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.isConnected).toBe(false);
+      expect(mockChannel.subscribe).not.toHaveBeenCalled();
     });
-    expect(mockChannel.subscribe).not.toHaveBeenCalled();
   });
 
-  it('reports connected when the realtime channel is subscribed', async () => {
-    const { result } = renderHook(() =>
+  it('calls onResync after a realtime reconnect', async () => {
+    const onResync = vi.fn();
+
+    renderHook(() =>
       useWebSocket({
         familyId: 'family-1',
         onItemAdded,
         onItemUpdated,
         onItemDeleted,
         onSync,
+        onResync,
       }),
     );
 
@@ -104,9 +106,11 @@ describe('useWebSocket', () => {
     });
 
     subscribeStatusCallback?.('SUBSCRIBED');
+    subscribeStatusCallback?.('CLOSED');
+    subscribeStatusCallback?.('SUBSCRIBED');
 
     await waitFor(() => {
-      expect(result.current.isConnected).toBe(true);
+      expect(onResync).toHaveBeenCalledTimes(1);
     });
   });
 
