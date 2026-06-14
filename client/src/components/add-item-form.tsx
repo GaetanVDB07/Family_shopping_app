@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { maxLengthInputProps, toastApiError } from "@/lib/api-error";
 import { GroceryItem } from "@shared/schema";
@@ -21,7 +21,7 @@ interface AddItemFormProps {
 
 interface MatchingExistingItem {
   displayName: string;
-  reactivateId?: number;
+  reactivateId: number;
 }
 
 export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
@@ -32,6 +32,8 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
   const [addedBy, setAddedBy] = useState("Familie");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +46,10 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     const matches = new Map<string, MatchingExistingItem>();
 
     for (const item of existingItems) {
+      if (!item.completed) {
+        continue;
+      }
+
       const itemName = item.name.trim();
       if (!itemName) {
         continue;
@@ -57,17 +63,12 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       if (!matches.has(normalized)) {
         matches.set(normalized, {
           displayName: itemName,
-          reactivateId: item.completed ? item.id : undefined,
+          reactivateId: item.id,
         });
         continue;
       }
 
       const existingMatch = matches.get(normalized)!;
-
-      if (!existingMatch.reactivateId && item.completed) {
-        existingMatch.reactivateId = item.id;
-      }
-
       if (itemName.length < existingMatch.displayName.length) {
         existingMatch.displayName = itemName;
       }
@@ -78,16 +79,44 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       .slice(0, 6);
   }, [existingItems, name]);
 
-  // Auto-focus input when form becomes visible
   useEffect(() => {
     if (!isLoading && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isLoading]);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) {
+      return;
+    }
+
+    const updateKeyboardOffset = () => {
+      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardOffset(offset);
+    };
+
+    viewport.addEventListener("resize", updateKeyboardOffset);
+    viewport.addEventListener("scroll", updateKeyboardOffset);
+    updateKeyboardOffset();
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardOffset);
+      viewport.removeEventListener("scroll", updateKeyboardOffset);
+    };
+  }, []);
+
+  const hasDetailValues =
+    quantity.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    notes.trim().length > 0;
+
+  const showDetailsSection = showDetails || hasDetailValues;
+  const showDetailsToggle = name.trim().length > 0 || hasDetailValues;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast({
         title: "Fout",
@@ -98,12 +127,10 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
     }
 
     if (isSubmitting) {
-      console.log("Already submitting, ignoring duplicate submission");
       return;
     }
 
     setIsSubmitting(true);
-    console.log(`[${new Date().toISOString()}] Form: Starting submission for "${name.trim()}"`);
 
     try {
       const options: AddItemOptions = {};
@@ -126,54 +153,40 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       setQuantity("");
       setUnit("");
       setNotes("");
-      console.log(`[${new Date().toISOString()}] Form: Submission completed successfully`);
-      
-      // Re-focus input for quick successive additions
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
+      setShowDetails(false);
+      inputRef.current?.focus();
     } catch (error) {
-      console.log(`[${new Date().toISOString()}] Form: Submission failed:`, error);
       toastApiError(toast, error, "Er is iets misgegaan. Probeer het opnieuw.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const showOptionalFields =
-    name.trim().length > 0 ||
-    quantity.trim().length > 0 ||
-    unit.trim().length > 0 ||
-    notes.trim().length > 0;
-
   const optionalFieldClassName = `
     px-4 py-3 text-sm border rounded-xl transition-all duration-200
     focus:ring-2 focus:ring-primary focus:border-primary
-    ${isFocused ? 'border-primary/30' : 'border-gray-200'}
+    ${isFocused ? "border-primary/30" : "border-gray-200"}
   `;
 
   const handleSelectExisting = (match: MatchingExistingItem) => {
-    if (match.reactivateId) {
-      setName("");
-      onReactivateItem(match.reactivateId);
-    } else {
-      setName(match.displayName);
-    }
+    setName("");
+    onReactivateItem(match.reactivateId);
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
   };
 
   return (
-    <div 
+    <div
       className={`
-        fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 
-        max-w-md mx-auto transition-all duration-300 ease-in-out
-        ${isFocused || showOptionalFields ? 'shadow-2xl border-primary/20' : 'shadow-lg'}
+        fixed left-0 right-0 bg-white border-t border-gray-200
+        max-w-md mx-auto transition-all duration-200 ease-out
+        ${isFocused || showDetailsSection || matchingExistingItems.length > 0 ? "shadow-2xl border-primary/20" : "shadow-lg"}
       `}
       style={{
-        paddingBottom: 'env(safe-area-inset-bottom)', // Handle iPhone home indicator
-        boxShadow: "0 -4px 6px -1px rgba(0, 0, 0, 0.1)"
+        bottom: keyboardOffset,
+        paddingBottom: keyboardOffset > 0 ? "0.5rem" : "env(safe-area-inset-bottom)",
+        boxShadow: "0 -4px 6px -1px rgba(0, 0, 0, 0.1)",
       }}
     >
       <div className="p-4">
@@ -191,32 +204,83 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 className={`
                   px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
                   focus:ring-2 focus:ring-primary focus:border-primary
-                  ${isFocused ? 'border-primary/40' : 'border-gray-200'}
+                  ${isFocused ? "border-primary/40" : "border-gray-200"}
                 `}
                 disabled={isLoading}
                 autoComplete="off"
                 autoCapitalize="words"
+                enterKeyHint="done"
                 {...maxLengthInputProps(200, toast)}
               />
             </div>
             <Button
               type="submit"
               disabled={isLoading || isSubmitting || !name.trim()}
+              aria-label={name.trim() ? `Voeg ${name.trim()} toe` : "Voeg item toe"}
               className={`
-                bg-primary hover:bg-green-700 text-white px-5 py-4 font-medium 
-                rounded-xl transition-all duration-200 min-w-[64px] text-base
+                bg-primary hover:bg-green-700 text-white font-medium
+                rounded-xl transition-all duration-200 text-base
                 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                ${(isLoading || isSubmitting) ? 'animate-pulse' : ''}
+                ${isFocused && name.trim() ? "px-4" : "px-5 min-w-[64px]"}
+                py-4
+                ${(isLoading || isSubmitting) ? "animate-pulse" : ""}
               `}
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : isFocused && name.trim() ? (
+                <span className="text-sm font-semibold">Voeg toe</span>
               ) : (
                 <Plus className="w-5 h-5" />
               )}
             </Button>
           </div>
-          {showOptionalFields ? (
+
+          {matchingExistingItems.length > 0 ? (
+            <div className="animate-in fade-in slide-in-from-bottom-1 duration-150">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Eerder gekocht
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {matchingExistingItems.map((match) => (
+                  <button
+                    key={match.displayName}
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      handleSelectExisting(match);
+                    }}
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary/10 rounded-full border border-gray-200 transition-colors"
+                  >
+                    {match.displayName}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {showDetailsToggle ? (
+            <button
+              type="button"
+              onClick={() => setShowDetails((current) => !current)}
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:text-green-700 transition-colors"
+              aria-expanded={showDetailsSection}
+            >
+              {showDetailsSection ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Minder details
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Meer details
+                </>
+              )}
+            </button>
+          ) : null}
+
+          {showDetailsSection ? (
             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <div className="flex space-x-3">
                 <Input
@@ -229,6 +293,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                   className={`flex-1 ${optionalFieldClassName}`}
                   disabled={isLoading || isSubmitting}
                   autoComplete="off"
+                  inputMode="decimal"
                   {...maxLengthInputProps(20, toast)}
                 />
                 <Input
@@ -260,35 +325,12 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
             </div>
           ) : null}
         </form>
-        
-        {matchingExistingItems.length > 0 ? (
-          <div className="mt-4">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Beschikbare items
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {matchingExistingItems.map((match) => (
-                <button
-                  key={match.displayName}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    handleSelectExisting(match);
-                  }}
-                  className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary/10 rounded-full border border-gray-200 transition-colors"
-                >
-                  {match.displayName}
-                </button>
-              ))}
-            </div>
+
+        {matchingExistingItems.length === 0 && name.trim() ? (
+          <div className="mt-3 text-xs text-gray-500 text-center">
+            Druk op Enter om "{name.trim()}" toe te voegen
           </div>
-        ) : (
-          name.trim() && (
-            <div className="mt-3 text-xs text-gray-500 text-center">
-              Druk op Enter om "{name.trim()}" toe te voegen
-            </div>
-          )
-        )}
+        ) : null}
       </div>
     </div>
   );
