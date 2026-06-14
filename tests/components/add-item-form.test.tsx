@@ -29,7 +29,7 @@ describe('AddItemForm', () => {
     toastSpy.mockReset();
   });
 
-  it('hides optional fields until the user starts typing a product name', () => {
+  it('hides optional fields until the user expands Meer details', () => {
     render(
       <AddItemForm
         onAddItem={vi.fn()}
@@ -45,6 +45,10 @@ describe('AddItemForm', () => {
     fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
       target: { value: 'Melk' },
     });
+
+    expect(screen.queryByPlaceholderText('Aantal (optioneel), bijv. 2')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Meer details/i }));
 
     expect(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk')).toBeInTheDocument();
@@ -78,27 +82,21 @@ describe('AddItemForm', () => {
     expect(onAddItem).not.toHaveBeenCalled();
   });
 
-  it('prefills the input when selecting a pending item suggestion', async () => {
-    const onAddItem = vi.fn().mockResolvedValue(undefined);
-    const onReactivateItem = vi.fn();
-
+  it('does not suggest pending items that are already on the list', () => {
     render(
       <AddItemForm
-        onAddItem={onAddItem}
-        onReactivateItem={onReactivateItem}
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
         isLoading={false}
         existingItems={[baseItem({ id: 5, name: 'Carrots', completed: false })]}
       />
     );
 
-    const input = screen.getByPlaceholderText('Voeg een item toe...') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'car' } });
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'car' },
+    });
 
-    const suggestion = await screen.findByRole('button', { name: 'Carrots' });
-    fireEvent.mouseDown(suggestion);
-
-    expect(onReactivateItem).not.toHaveBeenCalled();
-    expect(input.value).toBe('Carrots');
+    expect(screen.queryByRole('button', { name: 'Carrots' })).not.toBeInTheDocument();
   });
 
   it('submits a new item and clears the field', async () => {
@@ -144,6 +142,7 @@ describe('AddItemForm', () => {
     fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
       target: { value: 'Melk' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /Meer details/i }));
     fireEvent.change(screen.getByPlaceholderText('Notitie (optioneel), bijv. halfvolle melk'), {
       target: { value: '  Halfvolle melk  ' },
     });
@@ -173,6 +172,7 @@ describe('AddItemForm', () => {
     fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
       target: { value: 'Melk' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /Meer details/i }));
     fireEvent.change(screen.getByPlaceholderText('Aantal (optioneel), bijv. 2'), {
       target: { value: ' 2 ' },
     });
