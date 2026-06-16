@@ -372,49 +372,69 @@ export default function FamilyManagement() {
           <CardContent>
             {family?.members && family.members.length > 0 ? (
               <div className="space-y-3">
-                {family.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium">
-                          {member.userName || member.userEmail}
-                        </span>
-                        <Badge variant={member.role === "admin" ? "default" : "secondary"}>
-                          {member.role === "admin" ? "Admin" : "Lid"}
-                        </Badge>
+                {family.members.map((member) => {
+                  const canManageMember = member.role !== "admin" && member.userId !== user?.id;
+
+                  return (
+                    <div key={member.id} className="p-3 border rounded-lg">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate">
+                            {member.userName || member.userEmail}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={member.role === "admin"
+                              ? "shrink-0 gap-1 border-amber-200 bg-amber-100 text-amber-800 leading-none"
+                              : "shrink-0 leading-none"
+                            }
+                          >
+                            {member.role === "admin" ? (
+                              <>
+                                <Crown className="h-3.5 w-3.5 text-amber-600" />
+                                Admin
+                              </>
+                            ) : (
+                              "Lid"
+                            )}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{member.userEmail}</p>
+                        <p className="text-xs text-gray-400">
+                          Lid sinds {new Date(member.joinedAt).toLocaleDateString("nl-NL")}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-500">{member.userEmail}</p>
-                      <p className="text-xs text-gray-400">
-                        Lid sinds {new Date(member.joinedAt).toLocaleDateString("nl-NL")}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {member.role !== "admin" && member.userId !== user?.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleTransferAdmin(member)}
-                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          disabled={transferAdminMutation.isPending}
-                          title="Admin-rol overdragen"
-                        >
-                          <Crown className="w-4 h-4" />
-                        </Button>
+                      {canManageMember && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTransferAdmin(member)}
+                            className="h-8 rounded-full border-amber-200 bg-amber-50 px-3 text-xs text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                            disabled={transferAdminMutation.isPending}
+                            title="Admin maken"
+                            aria-label={`${member.userName || member.userEmail} admin maken`}
+                          >
+                            <Crown className="w-4 h-4" />
+                            Admin maken
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveMember(member)}
+                            className="h-8 rounded-full px-3 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            disabled={removeMemberMutation.isPending}
+                            title="Familielid verwijderen"
+                            aria-label={`${member.userName || member.userEmail} verwijderen`}
+                          >
+                            <UserX className="w-4 h-4" />
+                            Verwijderen
+                          </Button>
+                        </div>
                       )}
-                      {member.role !== "admin" && member.userId !== user?.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMember(member)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          disabled={removeMemberMutation.isPending}
-                        >
-                          <UserX className="w-4 h-4" />
-                        </Button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-gray-500 text-center py-4">Geen familieleden gevonden</p>
