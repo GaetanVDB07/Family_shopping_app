@@ -172,6 +172,9 @@ function selectRowsFor(condition: any, isCountQuery: boolean) {
   }
 
   if (hasUserId && hasFamilyId && params.includes('admin')) {
+    if (testScenario.membershipRole !== 'admin') {
+      return [];
+    }
     return [{
       family: {
         id: familyId,
@@ -255,10 +258,12 @@ function createSelectBuilder(selectedFields?: unknown) {
 
 function createFakeDb() {
   const insertCalls: any[] = [];
+  const updateCalls: any[] = [];
 
   return {
     deleteCalls: [] as unknown[][],
     insertCalls,
+    updateCalls,
     get familyInsertValues() {
       return insertCalls[0] ?? null;
     },
@@ -275,6 +280,16 @@ function createFakeDb() {
             createdAt: new Date('2026-01-01T00:00:00.000Z'),
             ...values,
           }]),
+        };
+      },
+    })),
+    update: vi.fn(() => ({
+      set: (values: any) => {
+        updateCalls.push(values);
+        return {
+          where: () => ({
+            returning: vi.fn(async () => [{ id: 'family-1', ...values }]),
+          }),
         };
       },
     })),
@@ -445,6 +460,74 @@ describe('family management scoping', () => {
 
     expect(res.statusCode).toBe(200);
     expect(fakeDb.deleteCalls.at(-1)).toEqual(expect.arrayContaining(['admin-2', 'family-2']));
+  });
+
+  it('renames the family when the user is admin', async () => {
+    const res = await request('PATCH', '/api/family/details/family-2', {
+      name: 'Updated Family Name',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(fakeDb.updateCalls).toContainEqual({ name: 'Updated Family Name' });
+  });
+
+  it('blocks renaming when the user is not an admin', async () => {
+    testScenario.membershipRole = 'member';
+
+    const res = await request('PATCH', '/api/family/details/family-2', {
+      name: 'Updated Family Name',
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(fakeDb.updateCalls).toHaveLength(0);
+  });
+
+  it('rejects an empty family name on rename', async () => {
+    const res = await request('PATCH', '/api/family/details/family-2', {
+      name: '   ',
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(fakeDb.updateCalls).toHaveLength(0);
+  });
+
+  it('transfers admin role to another member', async () => {
+    const res = await request('POST', '/api/family/transfer-admin', {
+      familyId: 'family-2',
+      memberId: 'member-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(fakeDb.updateCalls).toContainEqual({ role: 'member' });
+    expect(fakeDb.updateCalls).toContainEqual({ role: 'admin' });
+  });
+
+  it('blocks transfer when the user is not an admin', async () => {
+    testScenario.membershipRole = 'member';
+
+    const res = await request('POST', '/api/family/transfer-admin', {
+      familyId: 'family-2',
+      memberId: 'member-2',
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(fakeDb.updateCalls).toHaveLength(0);
+  });
+
+  it('blocks transferring admin to yourself', async () => {
+    testScenario.targetMember = {
+      id: 'admin-membership',
+      role: 'admin',
+      userId: 'user-1',
+    };
+
+    const res = await request('POST', '/api/family/transfer-admin', {
+      familyId: 'family-2',
+      memberId: 'admin-membership',
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(fakeDb.updateCalls).toHaveLength(0);
   });
 });
 

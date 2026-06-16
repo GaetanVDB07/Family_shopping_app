@@ -15,6 +15,8 @@ import {
   createGroceryItemRequestSchema,
   updateGroceryItemRequestSchema,
   cleanupDuplicatesRequestSchema,
+  renameFamilyRequestSchema,
+  transferAdminRequestSchema,
   formatValidationError,
 } from "../shared/api-validation.js";
 import { sanitizeBodyForLog, sanitizeHeadersForLog } from "../shared/log-sanitize.js";
@@ -417,6 +419,19 @@ async function handler(req, res) {
           return null;
         },
         handler: (req, res, params) => handleRemoveFamilyMember(req, res, params.memberId),
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/family/details/') && mthd === 'PATCH') {
+            return { familyId: path.split('/')[3] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleRenameFamily(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => (path === '/family/transfer-admin' && mthd === 'POST' ? {} : null),
+        handler: handleTransferAdmin,
       },
       {
         match: (path, mthd) => (path === '/grocery-items' && mthd === 'GET' ? {} : null),
@@ -968,6 +983,113 @@ async function handleRemoveFamilyMember(req, res, memberId) {
     return res.status(200).json({ message: 'Member removed successfully' });
   } catch (error) {
     console.error('Error removing family member:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleRenameFamily(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const { name } = parseRequestBody(renameFamilyRequestSchema, req.body);
+    const validatedFamilyId = requireFamilyId(familyId);
+    const database = await getDatabase();
+
+    const [userFamily] = await database
+      .select({
+        family: families,
+        member: familyMembers,
+      })
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(and(
+        eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, validatedFamilyId),
+        eq(familyMembers.role, 'admin')
+      ))
+      .limit(1);
+
+    if (!userFamily) {
+      return res.status(404).json({ message: 'Family not found or not authorized' });
+    }
+
+    const [updated] = await database
+      .update(families)
+      .set({ name })
+      .where(eq(families.id, validatedFamilyId))
+      .returning();
+
+    return res.status(200).json({ family: updated });
+  } catch (error) {
+    console.error('Error renaming family:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleTransferAdmin(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const { familyId, memberId } = parseRequestBody(transferAdminRequestSchema, req.body);
+    const database = await getDatabase();
+
+    const [userFamily] = await database
+      .select({
+        family: families,
+        member: familyMembers,
+      })
+      .from(familyMembers)
+      .innerJoin(families, eq(familyMembers.familyId, families.id))
+      .where(and(
+        eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, familyId),
+        eq(familyMembers.role, 'admin')
+      ))
+      .limit(1);
+
+    if (!userFamily) {
+      return res.status(404).json({ message: 'Family not found or not authorized' });
+    }
+
+    const [targetMember] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.id, memberId), eq(familyMembers.familyId, familyId)))
+      .limit(1);
+
+    if (!targetMember) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    if (targetMember.userId === user.id) {
+      return res.status(400).json({ message: 'You are already the admin' });
+    }
+
+    await database.transaction(async (tx) => {
+      await tx
+        .update(familyMembers)
+        .set({ role: 'member' })
+        .where(and(
+          eq(familyMembers.userId, user.id),
+          eq(familyMembers.familyId, familyId),
+        ));
+
+      await tx
+        .update(familyMembers)
+        .set({ role: 'admin' })
+        .where(and(
+          eq(familyMembers.id, memberId),
+          eq(familyMembers.familyId, familyId),
+        ));
+    });
+
+    return res.status(200).json({ message: 'Admin role transferred successfully' });
+  } catch (error) {
+    console.error('Error transferring admin role:', error);
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
     }
