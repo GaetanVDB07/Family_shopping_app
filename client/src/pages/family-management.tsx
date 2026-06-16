@@ -8,10 +8,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
 import { FamilyInviteShare } from "@/components/family-invite-share";
-import { ArrowLeft, Users, UserX, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, UserX, Trash2, Pencil, Check, X, Crown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -49,6 +50,9 @@ export default function FamilyManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [transferTarget, setTransferTarget] = useState<FamilyMember | null>(null);
   const queryClient = useQueryClient();
 
   const familyId = params.familyId || currentFamilyId;
@@ -99,6 +103,40 @@ export default function FamilyManagement() {
     },
     onError: (error) => {
       toastApiError(toast, error, "Kon familie niet verwijderen.");
+    },
+  });
+
+  // Rename family mutation
+  const renameFamilyMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("PATCH", `/api/family/details/${familyId}`, { name });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      setIsEditingName(false);
+      toast({ title: "Naam gewijzigd", description: "De familienaam is succesvol gewijzigd." });
+    },
+    onError: (error) => {
+      toastApiError(toast, error, "Kon de familienaam niet wijzigen.");
+    },
+  });
+
+  // Transfer admin role mutation
+  const transferAdminMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const response = await apiRequest("POST", "/api/family/transfer-admin", { familyId, memberId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      setTransferTarget(null);
+      toast({ title: "Admin overgedragen", description: "De admin-rol is succesvol overgedragen." });
+    },
+    onError: (error) => {
+      toastApiError(toast, error, "Kon de admin-rol niet overdragen.");
     },
   });
 
@@ -177,6 +215,35 @@ export default function FamilyManagement() {
     setShowDeleteDialog(false);
   };
 
+  const handleStartRename = () => {
+    setEditName(family?.name || "");
+    setIsEditingName(true);
+  };
+
+  const handleConfirmRename = () => {
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      toast({ title: "Ongeldig", description: "De naam mag niet leeg zijn.", variant: "destructive" });
+      return;
+    }
+    renameFamilyMutation.mutate(trimmed);
+  };
+
+  const handleCancelRename = () => {
+    setIsEditingName(false);
+    setEditName("");
+  };
+
+  const handleTransferAdmin = (member: FamilyMember) => {
+    setTransferTarget(member);
+  };
+
+  const confirmTransferAdmin = () => {
+    if (transferTarget) {
+      transferAdminMutation.mutate(transferTarget.id);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
@@ -241,7 +308,52 @@ export default function FamilyManagement() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Users className="w-5 h-5" />
-              <span>{family?.name}</span>
+              {isEditingName ? (
+                <div className="flex items-center space-x-2 flex-1">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleConfirmRename();
+                      if (e.key === "Escape") handleCancelRename();
+                    }}
+                    maxLength={100}
+                    autoFocus
+                    className="h-8"
+                    disabled={renameFamilyMutation.isPending}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleConfirmRename}
+                    disabled={renameFamilyMutation.isPending}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Check className="w-4 h-4 text-green-600" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelRename}
+                    disabled={renameFamilyMutation.isPending}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <span>{family?.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleStartRename}
+                    className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
             </CardTitle>
             <CardDescription>
               Beheer je familie en nodig nieuwe leden uit
@@ -276,17 +388,31 @@ export default function FamilyManagement() {
                         Lid sinds {new Date(member.joinedAt).toLocaleDateString("nl-NL")}
                       </p>
                     </div>
-                    {member.role !== "admin" && member.userId !== user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveMember(member)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        disabled={removeMemberMutation.isPending}
-                      >
-                        <UserX className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {member.role !== "admin" && member.userId !== user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleTransferAdmin(member)}
+                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          disabled={transferAdminMutation.isPending}
+                          title="Admin-rol overdragen"
+                        >
+                          <Crown className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {member.role !== "admin" && member.userId !== user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          disabled={removeMemberMutation.isPending}
+                        >
+                          <UserX className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -357,6 +483,31 @@ export default function FamilyManagement() {
               disabled={deleteFamilyMutation.isPending}
             >
               {deleteFamilyMutation.isPending ? "Verwijderen..." : "Ja, Familie Verwijderen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Transfer Admin Confirmation Dialog */}
+      <AlertDialog open={!!transferTarget} onOpenChange={(open) => { if (!open) setTransferTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Admin-rol overdragen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Je staat de admin-rol over aan <strong>{transferTarget?.userName || transferTarget?.userEmail}</strong>.
+              <br /><br />
+              Hierna word jij een gewoon familielid en kan je de familie niet meer beheren.
+              <br /><br />
+              Weet je zeker dat je door wilt gaan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmTransferAdmin}
+              disabled={transferAdminMutation.isPending}
+            >
+              {transferAdminMutation.isPending ? "Overdragen..." : "Ja, Admin Overdragen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
