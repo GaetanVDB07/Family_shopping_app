@@ -73,6 +73,19 @@ export const updateGroceryItemRequestSchema = z
     { message: "Geen geldige velden om bij te werken" },
   );
 
+export const renameFamilyRequestSchema = z.object({
+  name: requiredTrimmedString(100, "Familienaam is verplicht"),
+});
+
+export const transferAdminRequestSchema = z.object({
+  familyId: FAMILY_ID,
+  memberId: z
+    .string({ required_error: "Lid-ID is verplicht" })
+    .trim()
+    .min(1, "Lid-ID is verplicht")
+    .max(64),
+});
+
 export const cleanupDuplicatesRequestSchema = z.object({
   familyId: z
     .string({ required_error: "familyId is verplicht" })
