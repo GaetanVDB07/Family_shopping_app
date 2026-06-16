@@ -1,8 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
+import { useGroceryItems } from "@/hooks/use-grocery-items";
+import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { GroceryItemComponent } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
@@ -54,15 +56,10 @@ export default function GroceryList() {
   const familyId = currentFamilyId || params.familyId;
 
   // Fetch grocery items for the specific family
-  const { data: items = [], isLoading, refetch } = useQuery<GroceryItem[]>({
-    queryKey: ["/api/grocery-items", familyId],
-    queryFn: async () => {
-      if (!familyId) return [];
-      const response = await apiRequest("GET", `/api/grocery-items/${familyId}`);
-      return response.json();
-    },
-    enabled: !!familyId,
-  });
+  const { data: items = [], isLoading, refetch } = useGroceryItems(familyId);
+
+  // Refetch when the tab becomes visible again (mobile backgrounding)
+  useRefetchOnVisibility(refetch);
 
   // Pull to refresh functionality
   const { isPulling, isRefreshing, pullDistance, shouldShowIndicator } = usePullToRefresh({
