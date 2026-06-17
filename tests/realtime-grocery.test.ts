@@ -63,4 +63,18 @@ describe("mapRealtimeGroceryRow", () => {
     expect(item.unit).toBeNull();
     expect(item.notes).toBeNull();
   });
+
+  it("maps realtime user ids as ids because realtime payloads do not include member names", () => {
+    const item = mapRealtimeGroceryRow({
+      id: 5,
+      name: "Bananen",
+      completed: false,
+      added_by: "fddc0f4f-6ea3-4ef9-89d0-b2d01ad25156",
+      family_id: "family-1",
+      added_at: "2026-01-15T10:00:00.000Z",
+      created_at: "2026-01-15T10:00:00.000Z",
+    });
+
+    expect(item.addedBy).toBe("fddc0f4f-6ea3-4ef9-89d0-b2d01ad25156");
+  });
 });

@@ -1221,7 +1221,7 @@ async function handleCreateGroceryItem(req, res) {
 async function handleUpdateGroceryItem(req, res, itemId) {
   try {
     const user = await authenticateUser(req);
-    const { completed, quantity, unit, notes, familyId } = parseRequestBody(
+    const { name, completed, quantity, unit, notes, familyId } = parseRequestBody(
       updateGroceryItemRequestSchema,
       req.body,
     );
@@ -1233,6 +1233,9 @@ async function handleUpdateGroceryItem(req, res, itemId) {
     }
 
     const updates = {};
+    if (name !== undefined) {
+      updates.name = name;
+    }
     if (completed !== undefined) {
       updates.completed = completed;
     }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { GroceryItemComponent } from '../client/src/components/grocery-item'
 import type { GroceryItem } from '../shared/schema'
@@ -65,5 +65,36 @@ describe('GroceryItemComponent', () => {
       />
     )
     expect(screen.getByText('2 L')).toBeInTheDocument()
+  })
+
+  it('edits item details', async () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    const onUpdate = vi.fn()
+
+    render(
+      <GroceryItemComponent
+        item={{ ...sampleItem, quantity: '1', unit: 'L', notes: 'Halfvol' }}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+      />
+    )
+
+    fireEvent.click(screen.getByLabelText('Milk bewerken'))
+    fireEvent.change(screen.getByPlaceholderText('Itemnaam'), { target: { value: 'Havermelk' } })
+    fireEvent.change(screen.getByPlaceholderText('Hoeveelheid'), { target: { value: '2' } })
+    fireEvent.change(screen.getByPlaceholderText('Eenheid'), { target: { value: 'pakken' } })
+    fireEvent.change(screen.getByPlaceholderText('Notities'), { target: { value: 'Ongezoet' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Opslaan' }))
+
+    await waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith(1, {
+        name: 'Havermelk',
+        quantity: '2',
+        unit: 'pakken',
+        notes: 'Ongezoet',
+      })
+    })
   })
 })
