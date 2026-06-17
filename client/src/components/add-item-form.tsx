@@ -24,6 +24,10 @@ interface MatchingExistingItem {
   reactivateId: number;
 }
 
+function normalizeItemName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("nl-NL");
+}
+
 export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -79,6 +83,15 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       .slice(0, 6);
   }, [existingItems, name]);
 
+  const activeDuplicateItem = useMemo(() => {
+    const normalizedName = normalizeItemName(name);
+    if (!normalizedName) {
+      return null;
+    }
+
+    return existingItems.find((item) => !item.completed && normalizeItemName(item.name) === normalizedName) ?? null;
+  }, [existingItems, name]);
+
   useEffect(() => {
     if (!isLoading && inputRef.current) {
       inputRef.current.focus();
@@ -117,11 +130,21 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
       toast({
         title: "Fout",
         description: "Voer een boodschappenitem in",
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (activeDuplicateItem) {
+      toast({
+        title: "Staat al op de lijst",
+        description: `${activeDuplicateItem.name.trim()} staat al op de lijst`,
       });
       return;
     }
@@ -148,7 +171,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
         options.notes = trimmedNotes;
       }
 
-      await onAddItem(name.trim(), addedBy, Object.keys(options).length > 0 ? options : undefined);
+      await onAddItem(trimmedName, addedBy, Object.keys(options).length > 0 ? options : undefined);
       setName("");
       setQuantity("");
       setUnit("");
@@ -236,7 +259,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
             </Button>
           </div>
 
-          {matchingExistingItems.length > 0 ? (
+          {matchingExistingItems.length > 0 && !activeDuplicateItem ? (
             <div className="animate-in fade-in slide-in-from-bottom-1 duration-150">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                 Eerder gekocht
@@ -256,6 +279,12 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                   </button>
                 ))}
               </div>
+            </div>
+          ) : null}
+
+          {activeDuplicateItem ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {activeDuplicateItem.name.trim()} staat al op de lijst
             </div>
           ) : null}
 
@@ -326,7 +355,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
           ) : null}
         </form>
 
-        {matchingExistingItems.length === 0 && name.trim() ? (
+        {matchingExistingItems.length === 0 && !activeDuplicateItem && name.trim() ? (
           <div className="mt-3 text-xs text-gray-500 text-center">
             Druk op Enter om "{name.trim()}" toe te voegen
           </div>
