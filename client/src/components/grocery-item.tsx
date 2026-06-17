@@ -210,16 +210,17 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate }: Gro
               variant="ghost"
               size="sm"
               className={cn(
-                "w-7 h-7 p-0 border-2 rounded-lg hover:border-primary transition-all duration-200 flex-shrink-0",
+                "w-11 h-11 p-0 border-2 rounded-xl hover:border-primary transition-all duration-200 flex-shrink-0",
                 "active:scale-95", // Touch feedback
                 item.completed
                   ? "bg-primary border-primary shadow-sm"
                   : "border-gray-300 hover:border-primary/60"
               )}
               onClick={() => onToggle(item.id)}
+              aria-label={`${item.name} ${item.completed ? "opnieuw kopen" : "afvinken"}`}
             >
               {item.completed && (
-                <Check className="w-4 h-4 text-white" />
+                <Check className="w-5 h-5 text-white" />
               )}
             </Button>
             
