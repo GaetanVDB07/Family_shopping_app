@@ -380,8 +380,9 @@ export default function GroceryList() {
     const total = items.length;
     const completed = items.filter((item) => item.completed).length;
     const remaining = total - completed;
+    const completionPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
     
-    return { total, completed, remaining };
+    return { total, completed, remaining, completionPercent };
   }, [items]);
 
   const handleAddItem = useCallback(async (
@@ -542,13 +543,31 @@ export default function GroceryList() {
 
       {/* Quick Stats with better mobile layout */}
       <div className="px-6 py-4 bg-white border-b border-gray-100">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex justify-between text-sm text-gray-600 flex-1 space-x-4">
-            <span className="font-medium">{stats.total} items</span>
-            <span className="text-primary font-medium">{stats.completed} klaar</span>
-            <span className="text-orange-500 font-medium">{stats.remaining} te doen</span>
+        {items.length > 0 ? (
+          <div className="mb-4 rounded-2xl border border-green-100 bg-green-50/70 p-4">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-semibold text-gray-800">
+                {stats.completed} van {stats.total} klaar
+              </span>
+              <span className={stats.remaining === 0 ? "font-semibold text-primary" : "font-medium text-orange-600"}>
+                {stats.remaining === 0 ? "Alles afgevinkt" : `${stats.remaining} te gaan`}
+              </span>
+            </div>
+            <div
+              className="mt-3 h-2 overflow-hidden rounded-full bg-white"
+              role="progressbar"
+              aria-label="Voortgang boodschappen"
+              aria-valuemin={0}
+              aria-valuemax={stats.total}
+              aria-valuenow={stats.completed}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${stats.completionPercent}%` }}
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
         {items.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Button
@@ -594,6 +613,14 @@ export default function GroceryList() {
           </div>
         ) : (
           <>
+            {stats.remaining === 0 && items.length > 0 && !searchQuery ? (
+              <div className="mx-6 mt-6 rounded-2xl border border-green-100 bg-green-50 p-5 text-center">
+                <CheckCircle className="mx-auto mb-3 h-9 w-9 text-primary" />
+                <h2 className="text-lg font-semibold text-gray-800">Alles afgevinkt</h2>
+                <p className="mt-1 text-sm text-gray-600">Je boodschappenlijst is klaar.</p>
+              </div>
+            ) : null}
+
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
               <div className="px-6 py-4">

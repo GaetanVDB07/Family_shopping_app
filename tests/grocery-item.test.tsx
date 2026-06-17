@@ -27,7 +27,7 @@ describe('GroceryItemComponent', () => {
     const onDelete = vi.fn()
     render(<GroceryItemComponent item={sampleItem} onToggle={onToggle} onDelete={onDelete} />)
     expect(screen.getByText('Milk')).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Milk afvinken' }))
     expect(onToggle).toHaveBeenCalledWith(1)
   })
 
