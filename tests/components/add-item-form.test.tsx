@@ -99,6 +99,53 @@ describe('AddItemForm', () => {
     expect(screen.queryByRole('button', { name: 'Carrots' })).not.toBeInTheDocument();
   });
 
+  it('warns and blocks adding an active duplicate item', async () => {
+    const onAddItem = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <AddItemForm
+        onAddItem={onAddItem}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[baseItem({ id: 5, name: 'Melk', completed: false })]}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Voeg een item toe...') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '  melk  ' } });
+
+    expect(screen.getByText('Melk staat al op de lijst')).toBeInTheDocument();
+
+    const form = input.closest('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
+
+    expect(onAddItem).not.toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalledWith({
+      title: 'Staat al op de lijst',
+      description: 'Melk staat al op de lijst',
+    });
+  });
+
+  it('normalizes extra spaces when detecting active duplicates', () => {
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[baseItem({ id: 5, name: 'Rode paprika', completed: false })]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'rode   paprika' },
+    });
+
+    expect(screen.getByText('Rode paprika staat al op de lijst')).toBeInTheDocument();
+  });
+
   it('submits a new item and clears the field', async () => {
     const onAddItem = vi.fn().mockResolvedValue(undefined);
     const onReactivateItem = vi.fn();
