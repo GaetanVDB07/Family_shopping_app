@@ -58,6 +58,7 @@ export const createGroceryItemRequestSchema = z.object({
 
 export const updateGroceryItemRequestSchema = z
   .object({
+    name: requiredTrimmedString(200, "Itemnaam is verplicht").optional(),
     completed: z.boolean().optional(),
     quantity: optionalTrimmedString(20).optional(),
     unit: optionalTrimmedString(20).optional(),
@@ -66,6 +67,7 @@ export const updateGroceryItemRequestSchema = z
   })
   .refine(
     (data) =>
+      data.name !== undefined ||
       data.completed !== undefined ||
       data.quantity !== undefined ||
       data.unit !== undefined ||

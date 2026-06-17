@@ -2,7 +2,9 @@ import React, { useState, useRef } from "react";
 import { GroceryItem } from "@shared/schema";
 import { formatAddedAt } from "@shared/format-added-at";
 import { Button } from "@/components/ui/button";
-import { Trash2, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Trash2, Check, Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function formatQuantityLine(quantity: string | null, unit: string | null): string | null {
@@ -22,24 +24,40 @@ interface GroceryItemProps {
   item: GroceryItem;
   onToggle: (id: number) => void;
   onDelete: (item: GroceryItem) => void;
+  onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
 }
 
-export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemProps) {
+export interface GroceryItemEditValues {
+  name: string;
+  quantity: string | null;
+  unit: string | null;
+  notes: string | null;
+}
+
+export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate }: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const [isPressed, setIsPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editName, setEditName] = useState(item.name);
+  const [editQuantity, setEditQuantity] = useState(item.quantity ?? "");
+  const [editUnit, setEditUnit] = useState(item.unit ?? "");
+  const [editNotes, setEditNotes] = useState(item.notes ?? "");
   const startX = useRef(0);
   const startY = useRef(0);
   const currentX = useRef(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isEditing) return;
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (isEditing) return;
     if (!isDragging) return;
     
     currentX.current = e.touches[0].clientX;
@@ -58,6 +76,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
   };
 
   const handleTouchEnd = () => {
+    if (isEditing) return;
     setIsDragging(false);
     
     // If swiped more than 60px (increased threshold), trigger delete
@@ -73,6 +92,43 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
   const handleMouseUp = () => setIsPressed(false);
   const handleMouseLeave = () => setIsPressed(false);
 
+  const startEdit = () => {
+    setEditName(item.name);
+    setEditQuantity(item.quantity ?? "");
+    setEditUnit(item.unit ?? "");
+    setEditNotes(item.notes ?? "");
+    setSwipeOffset(0);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const saveEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const trimmedName = editName.trim();
+    if (!trimmedName || !onUpdate || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onUpdate(item.id, {
+        name: trimmedName,
+        quantity: editQuantity.trim() || null,
+        unit: editUnit.trim() || null,
+        notes: editNotes.trim() || null,
+      });
+      setIsEditing(false);
+    } catch {
+      // The parent mutation shows the toast and rolls back optimistic state.
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div 
       className={cn(
@@ -81,11 +137,11 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
         item.completed 
           ? "bg-gray-50 opacity-75" 
           : "bg-white hover:shadow-md active:shadow-lg",
-        isPressed && "scale-[0.98]",
+        isPressed && !isEditing && "scale-[0.98]",
         isDragging && "transition-none"
       )}
       style={{
-        transform: `translateX(${swipeOffset}px)`,
+        transform: `translateX(${isEditing ? 0 : swipeOffset}px)`,
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -101,7 +157,52 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
         </div>
       )}
 
-      <div className="p-4">
+      {isEditing ? (
+        <form onSubmit={saveEdit} className="p-4 space-y-3">
+          <Input
+            value={editName}
+            onChange={(event) => setEditName(event.target.value)}
+            placeholder="Itemnaam"
+            maxLength={200}
+            autoFocus
+            disabled={isSaving}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={editQuantity}
+              onChange={(event) => setEditQuantity(event.target.value)}
+              placeholder="Hoeveelheid"
+              maxLength={20}
+              disabled={isSaving}
+            />
+            <Input
+              value={editUnit}
+              onChange={(event) => setEditUnit(event.target.value)}
+              placeholder="Eenheid"
+              maxLength={20}
+              disabled={isSaving}
+            />
+          </div>
+          <Textarea
+            value={editNotes}
+            onChange={(event) => setEditNotes(event.target.value)}
+            placeholder="Notities"
+            maxLength={200}
+            disabled={isSaving}
+            className="min-h-[72px] resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={cancelEdit} disabled={isSaving}>
+              <X className="w-4 h-4" />
+              Annuleren
+            </Button>
+            <Button type="submit" size="sm" disabled={!editName.trim() || isSaving}>
+              {isSaving ? "Opslaan..." : "Opslaan"}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4 flex-1">
             {/* Enhanced checkbox button */}
@@ -160,23 +261,37 @@ export function GroceryItemComponent({ item, onToggle, onDelete }: GroceryItemPr
             </div>
           </div>
           
-          {/* Enhanced delete button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "p-2 rounded-lg transition-all duration-200 flex-shrink-0 ml-2",
-              "active:scale-95", // Touch feedback
-              item.completed
-                ? "text-red-400 hover:text-red-600 hover:bg-red-50"
-                : "text-red-500 hover:text-red-700 hover:bg-red-50"
-            )}
-            onClick={() => onDelete(item)}
-          >
-            <Trash2 className="w-5 h-5" />
-          </Button>
+          <div className="flex flex-shrink-0 items-center gap-1 ml-2">
+            {onUpdate ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 rounded-lg transition-all duration-200 active:scale-95 text-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                onClick={startEdit}
+                aria-label={`${item.name} bewerken`}
+              >
+                <Pencil className="w-5 h-5" />
+              </Button>
+            ) : null}
+            {/* Enhanced delete button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "p-2 rounded-lg transition-all duration-200",
+                "active:scale-95", // Touch feedback
+                item.completed
+                  ? "text-red-400 hover:text-red-600 hover:bg-red-50"
+                  : "text-red-500 hover:text-red-700 hover:bg-red-50"
+              )}
+              onClick={() => onDelete(item)}
+            >
+              <Trash2 className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

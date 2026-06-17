@@ -175,7 +175,7 @@ function createFakeDb() {
           return {
             returning: vi.fn(async () => [{
               id: 10,
-              name: 'Milk',
+              name: updates.name ?? 'Milk',
               quantity: updates.quantity ?? null,
               unit: updates.unit ?? null,
               notes: updates.notes ?? null,
@@ -387,6 +387,17 @@ describe('grocery item family scoping', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.quantity).toBe('6');
     expect(res.body.unit).toBe('stuks');
+  });
+
+  it('updates item names without changing completion state', async () => {
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      name: '  Havermelk  ',
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(fakeDb.lastUpdates).toEqual({ name: 'Havermelk' });
+    expect(res.body.name).toBe('Havermelk');
   });
 
   it('updates notes without changing completion state', async () => {

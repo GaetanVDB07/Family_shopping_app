@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
-import { GroceryItemComponent } from "@/components/grocery-item";
+import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
 import { UserMenu } from "@/components/user-menu";
@@ -20,6 +20,10 @@ import { toastApiError } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+
+function looksLikeAuthUserId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
 
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,14 +91,29 @@ export default function GroceryList() {
         }
         return [...old, item];
       });
+      if (looksLikeAuthUserId(item.addedBy)) {
+        void refetch();
+      }
     },
     onItemUpdated: (updatedItem) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemUpdated:`, updatedItem);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        const updated = old.map((item) => (item.id === updatedItem.id ? updatedItem : item));
+        const updated = old.map((item) => {
+          if (item.id !== updatedItem.id) {
+            return item;
+          }
+
+          return {
+            ...updatedItem,
+            addedBy: looksLikeAuthUserId(updatedItem.addedBy) ? item.addedBy : updatedItem.addedBy,
+          };
+        });
         console.log(`[${new Date().toISOString()}] Client: WebSocket updated ${old.length} items`);
         return updated;
       });
+      if (looksLikeAuthUserId(updatedItem.addedBy)) {
+        void refetch();
+      }
     },
     onItemDeleted: (id) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemDeleted:`, id);
@@ -177,6 +196,36 @@ export default function GroceryList() {
         queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
       }
       toastApiError(toast, err, "Kon item niet bijwerken. Probeer het opnieuw.");
+    },
+  });
+
+  // Edit item mutation
+  const editItemMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: GroceryItemEditValues }) => {
+      const response = await apiRequest("PATCH", `/api/grocery-items/${id}`, { ...updates, familyId });
+      return response.json();
+    },
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items", familyId] });
+
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items", familyId]);
+
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      );
+
+      return { previousItems };
+    },
+    onSuccess: (updatedItem: GroceryItem) => {
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+      );
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
+      }
+      toastApiError(toast, err, "Kon item niet bewerken. Probeer het opnieuw.");
     },
   });
 
@@ -364,6 +413,10 @@ export default function GroceryList() {
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
   }, [items, toggleItemMutation]);
+
+  const handleUpdateItem = useCallback(async (id: number, updates: GroceryItemEditValues) => {
+    await editItemMutation.mutateAsync({ id, updates });
+  }, [editItemMutation]);
 
   const handleDeleteItem = useCallback((item: GroceryItem) => {
     // Delete immediately without confirmation
@@ -558,6 +611,7 @@ export default function GroceryList() {
                         item={item}
                         onToggle={handleToggleItem}
                         onDelete={handleDeleteItem}
+                        onUpdate={handleUpdateItem}
                       />
                     </div>
                   ))}
@@ -582,6 +636,7 @@ export default function GroceryList() {
                         item={item}
                         onToggle={handleToggleItem}
                         onDelete={handleDeleteItem}
+                        onUpdate={handleUpdateItem}
                       />
                     </div>
                   ))}
