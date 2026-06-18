@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Familie Boodschappenlijst">
+  <rect width="512" height="512" rx="112" fill="#22c55e"/>
+  <circle cx="198" cy="390" r="32" fill="#ffffff"/>
+  <circle cx="346" cy="390" r="32" fill="#ffffff"/>
+  <path d="M112 122h54l32 154c6 25 27 42 53 42h128c25 0 46-15 54-39l32-101H208" fill="none" stroke="#ffffff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M234 218h154" stroke="#dcfce7" stroke-width="28" stroke-linecap="round"/>
+</svg>
