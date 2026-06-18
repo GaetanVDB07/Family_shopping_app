@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Familie Boodschappenlijst">
-  <rect width="512" height="512" rx="112" fill="#22c55e"/>
-  <circle cx="198" cy="390" r="32" fill="#ffffff"/>
-  <circle cx="346" cy="390" r="32" fill="#ffffff"/>
-  <path d="M112 122h54l32 154c6 25 27 42 53 42h128c25 0 46-15 54-39l32-101H208" fill="none" stroke="#ffffff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M234 218h154" stroke="#dcfce7" stroke-width="28" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Shopy">
+  <defs>
+    <linearGradient id="shopy-icon-512" x1="72" y1="48" x2="448" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34d399"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#shopy-icon-512)"/>
+  <path d="M160 204h192l-16 170H176L160 204Z" fill="#ffffff"/>
+  <path d="M192 204c0-44 26-78 64-78s64 34 64 78" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round"/>
+  <path d="m208 288 38 38 72-88" fill="none" stroke="#16a34a" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
