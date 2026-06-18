@@ -126,6 +126,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
 
   const showDetailsSection = showDetails || hasDetailValues;
   const showDetailsToggle = name.trim().length > 0 || hasDetailValues;
+  const canSubmit = name.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,20 +239,20 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
             </div>
             <Button
               type="submit"
-              disabled={isLoading || isSubmitting || !name.trim()}
+              disabled={isLoading || isSubmitting || !canSubmit}
               aria-label={name.trim() ? `Voeg ${name.trim()} toe` : "Voeg item toe"}
               className={`
                 bg-primary hover:bg-green-700 text-white font-medium
                 rounded-xl transition-all duration-200 text-base
                 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                ${isFocused && name.trim() ? "px-4" : "px-5 min-w-[64px]"}
+                ${canSubmit ? "px-4" : "px-5 min-w-[64px]"}
                 py-4
                 ${(isLoading || isSubmitting) ? "animate-pulse" : ""}
               `}
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : isFocused && name.trim() ? (
+              ) : canSubmit ? (
                 <span className="text-sm font-semibold">Voeg toe</span>
               ) : (
                 <Plus className="w-5 h-5" />
