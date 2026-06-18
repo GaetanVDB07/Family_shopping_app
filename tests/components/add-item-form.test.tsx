@@ -173,6 +173,33 @@ describe('AddItemForm', () => {
     expect(onReactivateItem).not.toHaveBeenCalled();
   });
 
+  it('keeps the submit button visible after the input loses focus', async () => {
+    const onAddItem = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <AddItemForm
+        onAddItem={onAddItem}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Voeg een item toe...') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Melk' } });
+    fireEvent.blur(input);
+
+    const submitButton = screen.getByRole('button', { name: 'Voeg Melk toe' });
+    expect(submitButton).toHaveTextContent('Voeg toe');
+
+    await act(async () => {
+      fireEvent.click(submitButton);
+      await Promise.resolve();
+    });
+
+    expect(onAddItem).toHaveBeenCalledWith('Melk', 'Familie', undefined);
+  });
+
   it('submits notes when provided', async () => {
     const onAddItem = vi.fn().mockResolvedValue(undefined);
     const onReactivateItem = vi.fn();
