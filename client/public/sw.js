@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-shopping-app-v1';
+const CACHE_NAME = 'family-shopping-app-v2';
 const APP_SHELL = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest'];
 
 async function cacheDiscoveredAssets(cache) {
