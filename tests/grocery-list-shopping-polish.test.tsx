@@ -1,19 +1,32 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import GroceryList from '@/pages/grocery-list';
-import type { GroceryItem } from '@shared/schema';
+import React from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import GroceryList from "@/pages/grocery-list";
+import type { GroceryItem } from "@shared/schema";
+import { getQueuedGroceryMutations } from "@/lib/offline-grocery-queue";
 
 const mockItems: GroceryItem[] = [];
+let mockIsOfflineData = false;
+let mockIsOnline = true;
 const setLocation = vi.fn();
+const setQueryData = vi.fn((queryKey, updater) => {
+  const next =
+    typeof updater === "function"
+      ? updater(mockItems)
+      : updater;
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/grocery-list/family-1', setLocation],
-  useParams: () => ({ familyId: 'family-1' }),
+  mockItems.splice(0, mockItems.length, ...(next ?? []));
+});
+
+vi.mock("wouter", () => ({
+  useLocation: () => ["/grocery-list/family-1", setLocation],
+  useParams: () => ({ familyId: "family-1" }),
 }));
 
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
+    "@tanstack/react-query",
+  );
   return {
     ...actual,
     useMutation: (options: any) => ({
@@ -22,26 +35,27 @@ vi.mock('@tanstack/react-query', async () => {
       mutateAsync: vi.fn(async (variables) => options?.mutationFn?.(variables)),
     }),
     useQueryClient: () => ({
-      setQueryData: vi.fn(),
+      setQueryData,
       cancelQueries: vi.fn(),
       getQueryData: vi.fn(),
     }),
   };
 });
 
-vi.mock('@/hooks/use-grocery-items', () => ({
+vi.mock("@/hooks/use-grocery-items", () => ({
   useGroceryItems: () => ({
     data: mockItems,
+    isOfflineData: mockIsOfflineData,
     isLoading: false,
     refetch: vi.fn(),
   }),
 }));
 
-vi.mock('@/hooks/use-refetch-on-visibility', () => ({
+vi.mock("@/hooks/use-refetch-on-visibility", () => ({
   useRefetchOnVisibility: vi.fn(),
 }));
 
-vi.mock('@/hooks/use-pull-to-refresh', () => ({
+vi.mock("@/hooks/use-pull-to-refresh", () => ({
   usePullToRefresh: () => ({
     isPulling: false,
     isRefreshing: false,
@@ -50,86 +64,144 @@ vi.mock('@/hooks/use-pull-to-refresh', () => ({
   }),
 }));
 
-vi.mock('@/hooks/use-websocket', () => ({
+vi.mock("@/hooks/use-online-status", () => ({
+  useOnlineStatus: () => mockIsOnline,
+}));
+
+vi.mock("@/hooks/use-websocket", () => ({
   useWebSocket: vi.fn(),
 }));
 
-vi.mock('@/hooks/use-auth', () => ({
-  useAuth: () => ({ user: { id: 'user-1', email: 'user@test.dev' } }),
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: { id: "user-1", email: "user@test.dev" } }),
 }));
 
-vi.mock('@/hooks/use-family-status', () => ({
+vi.mock("@/hooks/use-family-status", () => ({
   useFamilyStatus: () => ({
-    allFamilies: [{ familyId: 'family-1', familyName: 'Test Family' }],
+    allFamilies: [{ familyId: "family-1", familyName: "Test Family" }],
     familiesLoading: false,
   }),
 }));
 
-vi.mock('@/hooks/use-current-family', () => ({
+vi.mock("@/hooks/use-current-family", () => ({
   useCurrentFamily: () => ({
-    currentFamilyId: 'family-1',
-    currentFamily: { familyId: 'family-1', familyName: 'Test Family' },
+    currentFamilyId: "family-1",
+    currentFamily: { familyId: "family-1", familyName: "Test Family" },
     updateCurrentFamily: vi.fn(),
   }),
 }));
 
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock('@/components/user-menu', () => ({
+vi.mock("@/components/user-menu", () => ({
   UserMenu: () => <div data-testid="user-menu" />,
 }));
 
 function groceryItem(overrides: Partial<GroceryItem>): GroceryItem {
   return {
     id: 1,
-    name: 'Melk',
+    name: "Melk",
     quantity: null,
     unit: null,
     notes: null,
     completed: false,
-    addedBy: 'tester',
-    familyId: 'family-1',
-    addedAt: new Date('2026-06-11T12:00:00.000Z'),
-    createdAt: new Date('2026-06-11T12:00:00.000Z'),
+    addedBy: "tester",
+    familyId: "family-1",
+    addedAt: new Date("2026-06-11T12:00:00.000Z"),
+    createdAt: new Date("2026-06-11T12:00:00.000Z"),
     ...overrides,
   };
 }
 
-describe('GroceryList shopping-friendly polish', () => {
+describe("GroceryList shopping-friendly polish", () => {
   beforeEach(() => {
+    localStorage.clear();
     mockItems.length = 0;
+    mockIsOfflineData = false;
+    mockIsOnline = true;
     vi.clearAllMocks();
   });
 
-  it('shows grocery progress without switching to a separate mode', () => {
+  it("shows grocery progress without switching to a separate mode", () => {
     mockItems.push(
-      groceryItem({ id: 1, name: 'Melk', completed: true }),
-      groceryItem({ id: 2, name: 'Brood', completed: false }),
-      groceryItem({ id: 3, name: 'Appels', completed: false }),
+      groceryItem({ id: 1, name: "Melk", completed: true }),
+      groceryItem({ id: 2, name: "Brood", completed: false }),
+      groceryItem({ id: 3, name: "Appels", completed: false }),
     );
 
     render(<GroceryList />);
 
-    expect(screen.getByText('1 van 3 klaar')).toBeInTheDocument();
-    expect(screen.getByText('2 te gaan')).toBeInTheDocument();
+    expect(screen.getByText("1 van 3 klaar")).toBeInTheDocument();
+    expect(screen.getByText("2 te gaan")).toBeInTheDocument();
 
-    const progressBar = screen.getByRole('progressbar', { name: 'Voortgang boodschappen' });
-    expect(progressBar).toHaveAttribute('aria-valuenow', '1');
-    expect(progressBar).toHaveAttribute('aria-valuemax', '3');
+    const progressBar = screen.getByRole("progressbar", {
+      name: "Voortgang boodschappen",
+    });
+    expect(progressBar).toHaveAttribute("aria-valuenow", "1");
+    expect(progressBar).toHaveAttribute("aria-valuemax", "3");
   });
 
-  it('shows a done state when every item is completed', () => {
+  it("shows a done state when every item is completed", () => {
     mockItems.push(
-      groceryItem({ id: 1, name: 'Melk', completed: true }),
-      groceryItem({ id: 2, name: 'Brood', completed: true }),
+      groceryItem({ id: 1, name: "Melk", completed: true }),
+      groceryItem({ id: 2, name: "Brood", completed: true }),
     );
 
     render(<GroceryList />);
 
-    expect(screen.getByText('2 van 2 klaar')).toBeInTheDocument();
-    expect(screen.getAllByText('Alles afgevinkt').length).toBeGreaterThan(0);
-    expect(screen.getByText('Je boodschappenlijst is klaar.')).toBeInTheDocument();
+    expect(screen.getByText("2 van 2 klaar")).toBeInTheDocument();
+    expect(screen.getAllByText("Alles afgevinkt").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Je boodschappenlijst is klaar."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows when the visible list comes from offline cache", () => {
+    mockIsOnline = true;
+    mockIsOfflineData = true;
+    mockItems.push(groceryItem({ id: 1, name: "Melk" }));
+
+    render(<GroceryList />);
+
+    expect(
+      screen.getByText(
+        "Je bent offline. Wij synchroniseren je wijzigingen zodra je weer online bent.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Alles afvinken/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Nog te kopen/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Wis alles/i })).toBeDisabled();
+  });
+
+  it("queues and optimistically caches a new item while offline", async () => {
+    mockIsOnline = false;
+
+    render(<GroceryList />);
+
+    fireEvent.change(screen.getByPlaceholderText("Voeg een item toe..."), {
+      target: { value: "Offline melk" },
+    });
+    await act(async () => {
+      fireEvent.submit(
+        screen.getByPlaceholderText("Voeg een item toe...").closest("form")!,
+      );
+      await Promise.resolve();
+    });
+
+    expect(mockItems).toEqual([
+      expect.objectContaining({
+        name: "Offline melk",
+        completed: false,
+        familyId: "family-1",
+      }),
+    ]);
+    expect(getQueuedGroceryMutations("family-1")).toEqual([
+      expect.objectContaining({
+        type: "add",
+        payload: expect.objectContaining({ name: "Offline melk" }),
+      }),
+    ]);
   });
 });

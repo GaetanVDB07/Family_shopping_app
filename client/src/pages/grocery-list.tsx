@@ -18,6 +18,8 @@ import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { useOfflineGrocerySync } from "@/hooks/use-offline-grocery-sync";
 import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -35,6 +37,7 @@ export default function GroceryList() {
   const { user } = useAuth();
   const { allFamilies, familiesLoading } = useFamilyStatus();
   const { currentFamilyId, currentFamily, updateCurrentFamily } = useCurrentFamily();
+  const isOnline = useOnlineStatus();
 
   // Update current family if URL param is different (for direct navigation)
   useEffect(() => {
@@ -60,7 +63,23 @@ export default function GroceryList() {
   const familyId = currentFamilyId || params.familyId;
 
   // Fetch grocery items for the specific family
-  const { data: items = [], isLoading, refetch } = useGroceryItems(familyId);
+  const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
+  const {
+    queuedMutationCount,
+    isSyncingQueuedChanges,
+    syncFailed,
+    queueAddItem,
+    queueToggleItem,
+    queueUpdateItem,
+    queueDeleteItem,
+  } = useOfflineGrocerySync({
+    familyId,
+    isOfflineData,
+    isOnline,
+    refetch,
+    userId: user?.id || "",
+    userLabel: user?.user_metadata?.name || user?.email || "Offline",
+  });
 
   // Refetch when the tab becomes visible again (mobile backgrounding)
   useRefetchOnVisibility(refetch);
@@ -391,6 +410,10 @@ export default function GroceryList() {
     options?: { notes?: string; quantity?: string; unit?: string },
   ) => {
     console.log(`[${new Date().toISOString()}] Client: handleAddItem called with name: "${name}"`);
+    if (queueAddItem(name, options)) {
+      return;
+    }
+
     await addItemMutation.mutateAsync({ 
       name, 
       quantity: options?.quantity ?? null,
@@ -399,30 +422,46 @@ export default function GroceryList() {
       completed: false,
       addedBy: user?.id || "" // Use current user's ID
     });
-  }, [addItemMutation, user?.id]);
+  }, [addItemMutation, queueAddItem, user?.id]);
 
   const handleReactivateItem = useCallback((id: number) => {
     const item = items.find((entry) => entry.id === id);
     if (item && item.completed) {
+      if (queueToggleItem(item)) {
+        return;
+      }
+
       toggleItemMutation.mutate({ id, completed: false });
     }
-  }, [items, toggleItemMutation]);
+  }, [items, queueToggleItem, toggleItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
     const item = items.find((item) => item.id === id);
     if (item) {
+      if (queueToggleItem(item)) {
+        return;
+      }
+
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
-  }, [items, toggleItemMutation]);
+  }, [items, queueToggleItem, toggleItemMutation]);
 
   const handleUpdateItem = useCallback(async (id: number, updates: GroceryItemEditValues) => {
+    if (queueUpdateItem(id, updates)) {
+      return;
+    }
+
     await editItemMutation.mutateAsync({ id, updates });
-  }, [editItemMutation]);
+  }, [editItemMutation, queueUpdateItem]);
 
   const handleDeleteItem = useCallback((item: GroceryItem) => {
+    if (queueDeleteItem(item)) {
+      return;
+    }
+
     // Delete immediately without confirmation
     deleteItemMutation.mutate(item.id);
-  }, [deleteItemMutation]);
+  }, [deleteItemMutation, queueDeleteItem]);
 
   const handleDeleteAll = useCallback(() => {
     setShowDeleteAllDialog(true);
@@ -541,6 +580,19 @@ export default function GroceryList() {
         </div>
       </div>
 
+      {(!isOnline || isOfflineData || queuedMutationCount > 0 || isSyncingQueuedChanges || syncFailed) ? (
+        <div className="px-6 py-3 border-b border-amber-100 bg-amber-50 text-sm text-amber-900">
+          {isSyncingQueuedChanges ? "Wij synchroniseren je wijzigingen..." : null}
+          {!isSyncingQueuedChanges && syncFailed ? "Sommige wijzigingen konden nog niet worden gesynchroniseerd." : null}
+          {!isSyncingQueuedChanges && !syncFailed && (!isOnline || isOfflineData)
+            ? "Je bent offline. Wij synchroniseren je wijzigingen zodra je weer online bent."
+            : null}
+          {!isSyncingQueuedChanges && !syncFailed && isOnline && !isOfflineData && queuedMutationCount > 0
+            ? "Er staan wijzigingen klaar om te synchroniseren."
+            : null}
+        </div>
+      ) : null}
+
       {/* Quick Stats with better mobile layout */}
       <div className="px-6 py-4 bg-white border-b border-gray-100">
         {items.length > 0 ? (
@@ -574,7 +626,7 @@ export default function GroceryList() {
               variant="outline"
               size="sm"
               onClick={handleMarkAllCompleted}
-              disabled={markAllCompletedMutation.isPending}
+              disabled={markAllCompletedMutation.isPending || !isOnline || isOfflineData}
               className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 rounded-lg px-3 py-2 w-full"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
@@ -584,7 +636,7 @@ export default function GroceryList() {
               variant="outline"
               size="sm"
               onClick={handleMarkAllPending}
-              disabled={markAllPendingMutation.isPending}
+              disabled={markAllPendingMutation.isPending || !isOnline || isOfflineData}
               className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg px-3 py-2 w-full"
             >
               <Circle className="w-4 h-4 mr-2" />
@@ -594,6 +646,7 @@ export default function GroceryList() {
               variant="outline"
               size="sm"
               onClick={handleDeleteAll}
+              disabled={!isOnline || isOfflineData}
               className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2 w-full"
             >
               <Trash2 className="w-4 h-4 mr-2" />
