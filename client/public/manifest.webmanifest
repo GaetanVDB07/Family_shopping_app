@@ -1,6 +1,6 @@
 {
-  "name": "Familie Boodschappenlijst",
-  "short_name": "Boodschappen",
+  "name": "Shopy",
+  "short_name": "Shopy",
   "description": "Deel je boodschappenlijst met je familie",
   "start_url": "/",
   "scope": "/",

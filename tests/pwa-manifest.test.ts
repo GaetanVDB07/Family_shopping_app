@@ -10,8 +10,8 @@ describe("PWA manifest", () => {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
 
     expect(manifest).toMatchObject({
-      name: "Familie Boodschappenlijst",
-      short_name: "Boodschappen",
+      name: "Shopy",
+      short_name: "Shopy",
       start_url: "/",
       scope: "/",
       display: "standalone",
@@ -48,6 +48,10 @@ describe("PWA manifest", () => {
     );
     expect(html).toContain(
       '<link rel="apple-touch-icon" href="/icons/icon-192.svg" />',
+    );
+    expect(html).toContain("<title>Shopy</title>");
+    expect(html).toContain(
+      '<meta name="apple-mobile-web-app-title" content="Shopy" />',
     );
   });
 });

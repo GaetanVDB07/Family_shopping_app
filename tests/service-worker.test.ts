@@ -12,6 +12,7 @@ describe("service worker asset", () => {
     expect(source).toContain("self.addEventListener('install'");
     expect(source).toContain("self.addEventListener('activate'");
     expect(source).toContain("self.addEventListener('fetch'");
+    expect(source).toContain("family-shopping-app-v2");
     expect(source).toContain("/index.html");
     expect(source).toContain("request.mode === 'navigate'");
     expect(source).toContain("url.pathname.startsWith('/api/')");
