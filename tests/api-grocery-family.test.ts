@@ -105,6 +105,20 @@ function selectRowsFor(condition: any, selectedFields?: Record<string, unknown>)
       .map((item) => ({ id: item.id }));
   }
 
+  if (selectedFields && 'id' in selectedFields && 'completed' in selectedFields && !('addedByUserId' in selectedFields)) {
+    const itemId = params.find((param) => typeof param === 'number');
+    const scopedFamilyId = params.includes('family-2') ? 'family-2' : 'family-1';
+    const items = fakeDbConfig.groceryItems[scopedFamilyId] ?? [];
+    const item = items.find((entry) => entry.id === itemId);
+    if (item) {
+      return [{ id: item.id, completed: item.completed ?? false }];
+    }
+    if (itemId === 10) {
+      return [{ id: 10, completed: fakeDbConfig.existingItemCompleted ?? false }];
+    }
+    return [];
+  }
+
   if (selectedFields && 'completed' in selectedFields && !('addedByUserId' in selectedFields)) {
     return [{ completed: fakeDbConfig.existingItemCompleted ?? true }];
   }
@@ -472,14 +486,27 @@ describe('grocery item family scoping', () => {
   });
 
   it('deletes items using the requested family scope', async () => {
+    fakeDbConfig.existingItemCompleted = false;
+
     const res = await request('DELETE', '/api/grocery-items/10?familyId=family-2');
 
     expect(res.statusCode).toBe(200);
     expect(fakeDb.deleteWhereParams).toContain('family-2');
   });
 
+  it('archives completed items instead of deleting them', async () => {
+    fakeDbConfig.existingItemCompleted = true;
+
+    const res = await request('DELETE', '/api/grocery-items/10?familyId=family-2');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ archived: true });
+    expect(fakeDb.lastUpdates).toMatchObject({ archivedAt: expect.any(Date) });
+  });
+
   it('returns 404 when deleting a missing grocery item', async () => {
     fakeDbConfig.deleteReturning = [];
+    fakeDbConfig.existingItemCompleted = false;
 
     const res = await request('DELETE', '/api/grocery-items/999?familyId=family-1');
 

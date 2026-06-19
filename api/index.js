@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and, count, inArray, asc, ne, max } from "drizzle-orm";
+import { eq, and, count, inArray, asc, desc, max, isNull, or, isNotNull, ne } from "drizzle-orm";
 import {
   generateFamilyCode,
   checkJoinRateLimit,
@@ -189,10 +189,15 @@ async function fetchGroceryItemsForFamily(database, familyId) {
       familyId: groceryItems.familyId,
       addedAt: groceryItems.addedAt,
       sortOrder: groceryItems.sortOrder,
+      completedAt: groceryItems.completedAt,
+      archivedAt: groceryItems.archivedAt,
       createdAt: groceryItems.createdAt,
     })
     .from(groceryItems)
-    .where(eq(groceryItems.familyId, familyId))
+    .where(and(
+      eq(groceryItems.familyId, familyId),
+      isNull(groceryItems.archivedAt),
+    ))
     .orderBy(asc(groceryItems.sortOrder), asc(groceryItems.addedAt));
 
   if (rows.length === 0) {
@@ -226,6 +231,73 @@ async function fetchGroceryItemsForFamily(database, familyId) {
     familyId: row.familyId,
     addedAt: row.addedAt,
     sortOrder: row.sortOrder,
+    completedAt: row.completedAt,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+  }));
+}
+
+async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
+  const rows = await database
+    .select({
+      id: groceryItems.id,
+      name: groceryItems.name,
+      quantity: groceryItems.quantity,
+      unit: groceryItems.unit,
+      notes: groceryItems.notes,
+      completed: groceryItems.completed,
+      addedByUserId: groceryItems.addedBy,
+      familyId: groceryItems.familyId,
+      addedAt: groceryItems.addedAt,
+      sortOrder: groceryItems.sortOrder,
+      completedAt: groceryItems.completedAt,
+      archivedAt: groceryItems.archivedAt,
+      createdAt: groceryItems.createdAt,
+    })
+    .from(groceryItems)
+    .where(and(
+      eq(groceryItems.familyId, familyId),
+      or(
+        isNotNull(groceryItems.archivedAt),
+        eq(groceryItems.completed, true),
+      ),
+    ))
+    .orderBy(desc(groceryItems.completedAt), desc(groceryItems.archivedAt), desc(groceryItems.addedAt))
+    .limit(limit);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const userIds = [...new Set(rows.map((row) => row.addedByUserId))];
+  const members = await database
+    .select({
+      userId: familyMembers.userId,
+      userName: familyMembers.userName,
+    })
+    .from(familyMembers)
+    .where(and(
+      eq(familyMembers.familyId, familyId),
+      inArray(familyMembers.userId, userIds),
+    ));
+
+  const nameByUserId = new Map(
+    members.map((member) => [member.userId, member.userName ?? member.userId]),
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    quantity: row.quantity,
+    unit: row.unit,
+    notes: row.notes,
+    completed: row.completed,
+    addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
+    familyId: row.familyId,
+    addedAt: row.addedAt,
+    sortOrder: row.sortOrder,
+    completedAt: row.completedAt,
+    archivedAt: row.archivedAt,
     createdAt: row.createdAt,
   }));
 }
@@ -439,6 +511,18 @@ async function handler(req, res) {
       {
         match: (path, mthd) => (path === '/grocery-items' && mthd === 'GET' ? {} : null),
         handler: handleGetGroceryItems,
+      },
+      {
+        match: (path, mthd) => {
+          if (path.startsWith('/grocery-items/') && path.endsWith('/history') && mthd === 'GET') {
+            const parts = path.split('/');
+            if (parts.length === 4) {
+              return { familyId: parts[2] };
+            }
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleGetGroceryHistoryByFamily(req, res, params.familyId),
       },
       {
         match: (path, mthd) => {
@@ -1156,6 +1240,32 @@ async function handleGetGroceryItemsByFamily(req, res, familyId) {
   }
 }
 
+async function handleGetGroceryHistoryByFamily(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = await getDatabase();
+
+    const [userFamilyMembership] = await database
+      .select()
+      .from(familyMembers)
+      .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
+
+    if (!userFamilyMembership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
+
+    const items = await fetchGroceryHistoryForFamily(database, familyId);
+
+    return res.status(200).json(items);
+  } catch (error) {
+    console.error('Error fetching grocery history by family:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 async function getUserFamilyMembership(database, userId, familyId) {
   if (!familyId) {
     const membershipCount = await countUserFamilyMemberships(database, userId);
@@ -1251,6 +1361,11 @@ async function handleUpdateGroceryItem(req, res, itemId) {
     }
     if (completed !== undefined) {
       updates.completed = completed;
+      if (completed === true) {
+        updates.completedAt = new Date();
+      } else if (completed === false) {
+        updates.completedAt = null;
+      }
     }
     if (notes !== undefined) {
       updates.notes = notes;
@@ -1264,7 +1379,10 @@ async function handleUpdateGroceryItem(req, res, itemId) {
 
     if (completed === false) {
       const [existingItem] = await database
-        .select({ completed: groceryItems.completed })
+        .select({
+          completed: groceryItems.completed,
+          archivedAt: groceryItems.archivedAt,
+        })
         .from(groceryItems)
         .where(and(
           eq(groceryItems.id, Number.parseInt(itemId, 10)),
@@ -1272,9 +1390,10 @@ async function handleUpdateGroceryItem(req, res, itemId) {
         ))
         .limit(1);
 
-      if (existingItem?.completed) {
+      if (existingItem?.completed || existingItem?.archivedAt) {
         updates.addedAt = new Date();
         updates.addedBy = user.id;
+        updates.archivedAt = null;
       }
     }
 
@@ -1375,11 +1494,46 @@ async function handleDeleteGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'No family found' });
     }
 
+    const parsedItemId = Number.parseInt(itemId, 10);
+    const [existingItem] = await database
+      .select({
+        id: groceryItems.id,
+        completed: groceryItems.completed,
+      })
+      .from(groceryItems)
+      .where(and(
+        eq(groceryItems.id, parsedItemId),
+        eq(groceryItems.familyId, userFamily.familyId),
+        isNull(groceryItems.archivedAt),
+      ))
+      .limit(1);
+
+    if (!existingItem) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    if (existingItem.completed) {
+      const [archivedItem] = await database
+        .update(groceryItems)
+        .set({ archivedAt: new Date() })
+        .where(and(
+          eq(groceryItems.id, parsedItemId),
+          eq(groceryItems.familyId, userFamily.familyId),
+        ))
+        .returning();
+
+      return res.status(200).json({
+        message: 'Item archived successfully',
+        archived: true,
+        item: archivedItem,
+      });
+    }
+
     const deletedItems = await database
       .delete(groceryItems)
       .where(and(
-  eq(groceryItems.id, Number.parseInt(itemId, 10)),
-        eq(groceryItems.familyId, userFamily.familyId)
+        eq(groceryItems.id, parsedItemId),
+        eq(groceryItems.familyId, userFamily.familyId),
       ))
       .returning();
 
@@ -1387,7 +1541,7 @@ async function handleDeleteGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    return res.status(200).json({ message: 'Item deleted successfully' });
+    return res.status(200).json({ message: 'Item deleted successfully', archived: false });
   } catch (error) {
     console.error('Error deleting grocery item:', error);
     if (error instanceof HttpError || error?.status) {
@@ -1412,15 +1566,31 @@ async function handleDeleteAllGroceryItems(req, res, familyId) {
       return res.status(403).json({ message: 'Access denied: Not a member of this family' });
     }
 
-    // Delete all items for this family
-    const deletedItems = await database
+    const now = new Date();
+
+    const deletedPending = await database
       .delete(groceryItems)
-      .where(eq(groceryItems.familyId, familyId))
+      .where(and(
+        eq(groceryItems.familyId, familyId),
+        eq(groceryItems.completed, false),
+        isNull(groceryItems.archivedAt),
+      ))
       .returning();
 
-    return res.status(200).json({ 
-      message: 'All items deleted successfully',
-      deletedCount: deletedItems.length
+    const archivedCompleted = await database
+      .update(groceryItems)
+      .set({ archivedAt: now })
+      .where(and(
+        eq(groceryItems.familyId, familyId),
+        eq(groceryItems.completed, true),
+        isNull(groceryItems.archivedAt),
+      ))
+      .returning();
+
+    return res.status(200).json({
+      message: 'List cleared successfully',
+      deletedCount: deletedPending.length,
+      archivedCount: archivedCompleted.length,
     });
   } catch (error) {
     console.error('Error deleting all grocery items:', error);
@@ -1447,10 +1617,14 @@ async function handleMarkAllItemsCompleted(req, res, familyId) {
     }
 
     // Mark all items as completed for this family
+    const now = new Date();
     const updatedItems = await database
       .update(groceryItems)
-      .set({ completed: true })
-      .where(eq(groceryItems.familyId, familyId))
+      .set({ completed: true, completedAt: now })
+      .where(and(
+        eq(groceryItems.familyId, familyId),
+        isNull(groceryItems.archivedAt),
+      ))
       .returning();
 
     return res.status(200).json({ 
@@ -1488,12 +1662,14 @@ async function handleMarkAllItemsPending(req, res, familyId) {
       .update(groceryItems)
       .set({
         completed: false,
+        completedAt: null,
         addedAt: now,
         addedBy: user.id,
       })
       .where(and(
         eq(groceryItems.familyId, familyId),
         eq(groceryItems.completed, true),
+        isNull(groceryItems.archivedAt),
       ))
       .returning();
 

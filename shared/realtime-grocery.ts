@@ -1,5 +1,17 @@
 import type { GroceryItem } from "./schema";
 
+function parseOptionalTimestamp(value: unknown): Date | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  return new Date(String(value));
+}
+
 /** Map Supabase Realtime row (snake_case) to app GroceryItem (camelCase). */
 export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem {
   const createdAtRaw = row.created_at ?? row.createdAt;
@@ -25,6 +37,8 @@ export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem
     familyId: String(row.family_id ?? row.familyId ?? ""),
     addedAt,
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    completedAt: parseOptionalTimestamp(row.completed_at ?? row.completedAt),
+    archivedAt: parseOptionalTimestamp(row.archived_at ?? row.archivedAt),
     createdAt,
   };
 }

@@ -51,6 +51,13 @@ vi.mock("@/hooks/use-grocery-items", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-grocery-history", () => ({
+  useGroceryHistory: () => ({
+    data: [],
+    isLoading: false,
+  }),
+}));
+
 vi.mock("@/hooks/use-refetch-on-visibility", () => ({
   useRefetchOnVisibility: vi.fn(),
 }));
@@ -111,6 +118,8 @@ function groceryItem(overrides: Partial<GroceryItem>): GroceryItem {
     familyId: "family-1",
     addedAt: new Date("2026-06-11T12:00:00.000Z"),
     sortOrder: 0,
+    completedAt: null,
+    archivedAt: null,
     createdAt: new Date("2026-06-11T12:00:00.000Z"),
     ...overrides,
   };
