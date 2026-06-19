@@ -38,7 +38,7 @@ export function FamilyInviteShare({ familyCode }: FamilyInviteShareProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium text-gray-700">Familie Code</label>
+        <label className="text-sm font-medium text-foreground">Familie Code</label>
         <div className="flex items-center space-x-2 mt-1">
           <Input
             value={familyCode}
@@ -58,7 +58,7 @@ export function FamilyInviteShare({ familyCode }: FamilyInviteShareProps) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-gray-700">Uitnodigingslink</label>
+        <label className="text-sm font-medium text-foreground">Uitnodigingslink</label>
         <div className="flex items-center space-x-2 mt-1">
           <Input value={inviteUrl} readOnly className="text-xs" />
           <Button
@@ -71,14 +71,14 @@ export function FamilyInviteShare({ familyCode }: FamilyInviteShareProps) {
             {copiedLink ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
           </Button>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Deel de link of QR-code — de familiecode wordt automatisch ingevuld
         </p>
       </div>
 
-      <div className="flex flex-col items-center rounded-lg border bg-white p-4">
+      <div className="flex flex-col items-center rounded-lg border bg-card p-4">
         <QRCode value={inviteUrl} size={160} />
-        <p className="text-xs text-gray-500 mt-3 text-center">Scan om direct te joinen</p>
+        <p className="text-xs text-muted-foreground mt-3 text-center">Scan om direct te joinen</p>
       </div>
     </div>
   );

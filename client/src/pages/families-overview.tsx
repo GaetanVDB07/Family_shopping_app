@@ -104,15 +104,15 @@ export default function FamiliesOverview() {
 
   if (isLoading) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <h1 className="text-lg font-semibold">Laden...</h1>
         </div>
         <div className="p-4">
           <div className="animate-pulse space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function FamiliesOverview() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+    <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
       {/* Header */}
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center justify-between">
@@ -272,9 +272,9 @@ export default function FamiliesOverview() {
         ) : (
           <Card>
             <CardContent className="text-center py-8">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Geen families</h3>
-              <p className="text-gray-500 mb-6">Je bent nog geen lid van een familie. Maak een nieuwe familie aan of join een bestaande familie.</p>
+              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Geen families</h3>
+              <p className="text-muted-foreground mb-6">Je bent nog geen lid van een familie. Maak een nieuwe familie aan of join een bestaande familie.</p>
               <div className="space-y-2">
                 <Button onClick={() => setShowCreateDialog(true)} className="w-full">
                   <Plus className="w-4 h-4 mr-2" />
