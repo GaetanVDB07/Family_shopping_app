@@ -610,7 +610,7 @@ export default function GroceryList() {
               )}
             </div>
           </div>
-          <UserMenu />
+          <UserMenu groceryItems={items} familyName={currentFamily?.familyName} />
         </div>
       </header>
 
