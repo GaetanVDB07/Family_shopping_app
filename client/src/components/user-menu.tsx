@@ -25,10 +25,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Menu, UserX, LogOut, Users, Home, UserMinus } from "lucide-react";
+import { Menu, UserX, LogOut, Users, Home, UserMinus, Copy, MessageCircle } from "lucide-react";
 import { ThemeToggleMenu } from "@/components/theme-toggle";
+import type { GroceryItem } from "@shared/schema";
+import {
+  buildWhatsAppShareUrl,
+  formatGroceryListForExport,
+} from "@/lib/export-grocery-list";
 
-export function UserMenu() {
+interface UserMenuProps {
+  groceryItems?: GroceryItem[];
+  familyName?: string;
+}
+
+export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
   const [, setLocation] = useLocation();
   const { familyMembership, allFamilies } = useFamilyStatus();
   const { currentFamilyId, currentFamily } = useCurrentFamily();
@@ -119,6 +129,39 @@ export function UserMenu() {
     deleteAccountMutation.mutate();
   };
 
+  const exportText =
+    groceryItems && groceryItems.length > 0
+      ? formatGroceryListForExport(groceryItems, familyName)
+      : null;
+
+  const copyExportedList = async () => {
+    if (!exportText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(exportText);
+      toast({
+        title: "Gekopieerd",
+        description: "De boodschappenlijst staat op je klembord.",
+      });
+    } catch {
+      toast({
+        title: "Fout",
+        description: "Kon de lijst niet kopiëren naar het klembord.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const shareExportedListOnWhatsApp = () => {
+    if (!exportText) {
+      return;
+    }
+
+    window.open(buildWhatsAppShareUrl(exportText), "_blank", "noopener,noreferrer");
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -168,6 +211,20 @@ export function UserMenu() {
             <UserMinus className="w-4 h-4 mr-2" />
             Account verwijderen
           </DropdownMenuItem>
+
+          {exportText ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void copyExportedList()}>
+                <Copy className="w-4 h-4 mr-2" />
+                Lijst kopiëren
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={shareExportedListOnWhatsApp}>
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Deel via WhatsApp
+              </DropdownMenuItem>
+            </>
+          ) : null}
 
           <DropdownMenuSeparator />
 
