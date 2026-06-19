@@ -25,8 +25,9 @@ export function DeleteAllConfirmationDialog({
             <span>Hele lijst wissen</span>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Weet je zeker dat je alle {itemCount} items van de boodschappenlijst wilt verwijderen? 
-            Dit kan niet ongedaan worden gemaakt.
+            Weet je zeker dat je alle {itemCount} items van de boodschappenlijst wilt wissen?
+            Openstaande items worden verwijderd. Afgevinkte items blijven bewaard in je geschiedenis
+            zodat je ze later snel kunt terugzetten.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

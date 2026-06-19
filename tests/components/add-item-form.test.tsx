@@ -22,6 +22,8 @@ describe('AddItemForm', () => {
     familyId: 'family-1',
     addedAt: new Date(),
     sortOrder: 0,
+    completedAt: null,
+    archivedAt: null,
     createdAt: new Date(),
     ...overrides,
   });
@@ -145,6 +147,31 @@ describe('AddItemForm', () => {
     });
 
     expect(screen.getByText('Rode paprika staat al op de lijst')).toBeInTheDocument();
+  });
+
+  it('prefers the most recently completed item when multiple history matches exist', () => {
+    const onReactivateItem = vi.fn();
+
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={onReactivateItem}
+        isLoading={false}
+        existingItems={[]}
+        historyItems={[
+          baseItem({ id: 1, name: 'Melk', completed: true, completedAt: new Date('2026-01-01') }),
+          baseItem({ id: 2, name: 'Melk', completed: true, completedAt: new Date('2026-06-01') }),
+        ]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'mel' },
+    });
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Melk' }));
+
+    expect(onReactivateItem).toHaveBeenCalledWith(2);
   });
 
   it('submits a new item and clears the field', async () => {

@@ -21,7 +21,7 @@ function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -78,7 +78,7 @@ function PasswordField({
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
       </div>
-      {hint ? <p className="text-sm text-gray-500">{hint}</p> : null}
+      {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

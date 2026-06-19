@@ -36,6 +36,8 @@ export const groceryItems = pgTable("grocery_items", {
   familyId: uuid("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
   addedAt: timestamp("added_at").notNull().defaultNow(), // last time item was put on the list
   sortOrder: integer("sort_order").notNull().default(0), // manual order for shopping route
+  completedAt: timestamp("completed_at"), // when item was last checked off
+  archivedAt: timestamp("archived_at"), // soft-removed from active list, kept for history
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

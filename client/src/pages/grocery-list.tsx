@@ -4,6 +4,7 @@ import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
+import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
@@ -66,6 +67,7 @@ export default function GroceryList() {
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
+  const { data: historyItems = [] } = useGroceryHistory(familyId);
   const {
     queuedMutationCount,
     isSyncingQueuedChanges,
@@ -206,10 +208,21 @@ export default function GroceryList() {
       return { previousItems };
     },
     onSuccess: (updatedItem: GroceryItem) => {
-      // Update with the actual response from the server
-      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
-        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-      );
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
+        const isVisible = !updatedItem.archivedAt;
+        const exists = old.some((item) => item.id === updatedItem.id);
+
+        if (!isVisible) {
+          return old.filter((item) => item.id !== updatedItem.id);
+        }
+
+        if (exists) {
+          return old.map((item) => (item.id === updatedItem.id ? updatedItem : item));
+        }
+
+        return [...old, updatedItem];
+      });
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
     },
     onError: (err, { id }, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
@@ -272,7 +285,7 @@ export default function GroceryList() {
       return { previousItems };
     },
     onSuccess: () => {
-      // Item deleted successfully, no toast notification
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
     },
     onError: (err, id, context) => {
       // If the mutation fails, roll back
@@ -303,10 +316,15 @@ export default function GroceryList() {
     },
     onSuccess: (response) => {
       setShowDeleteAllDialog(false);
-      // Keep toast for delete all since it's a major action
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
+      const archivedCount = response.archivedCount ?? 0;
+      const deletedCount = response.deletedCount ?? 0;
+      const description = archivedCount > 0
+        ? `${deletedCount} openstaande items verwijderd. ${archivedCount} afgevinkte items bewaard in je geschiedenis.`
+        : `${deletedCount} items verwijderd van de lijst`;
       toast({
         title: "Lijst gewist",
-        description: `${response.deletedCount} items verwijderd van de lijst`,
+        description,
       });
     },
     onError: (err, variables, context) => {
@@ -463,15 +481,19 @@ export default function GroceryList() {
   }, [addItemMutation, queueAddItem, user?.id]);
 
   const handleReactivateItem = useCallback((id: number) => {
-    const item = items.find((entry) => entry.id === id);
-    if (item && item.completed) {
-      if (queueToggleItem(item)) {
-        return;
-      }
+    const activeItem = items.find((entry) => entry.id === id);
+    const historyItem = historyItems.find((entry) => entry.id === id);
 
-      toggleItemMutation.mutate({ id, completed: false });
+    if (!activeItem && !historyItem) {
+      return;
     }
-  }, [items, queueToggleItem, toggleItemMutation]);
+
+    if (activeItem && queueToggleItem(activeItem)) {
+      return;
+    }
+
+    toggleItemMutation.mutate({ id, completed: false });
+  }, [historyItems, items, queueToggleItem, toggleItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
     const item = items.find((item) => item.id === id);
@@ -529,7 +551,7 @@ export default function GroceryList() {
 
   if (isLoading) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -556,13 +578,13 @@ export default function GroceryList() {
   // Show families page if no family selected
   if (!familyId) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md">
           <h1 className="text-xl font-semibold">Geen familie geselecteerd</h1>
         </div>
         <div className="p-6 text-center">
-          <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-600 mb-4">Selecteer een familie om de boodschappenlijst te bekijken.</p>
+          <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground mb-4">Selecteer een familie om de boodschappenlijst te bekijken.</p>
           <Button onClick={() => setLocation("/families")}>
             Ga naar Families
           </Button>
@@ -572,7 +594,7 @@ export default function GroceryList() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
+    <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg relative">
       {/* Pull to refresh indicator */}
       {shouldShowIndicator && (
         <div 
@@ -582,7 +604,7 @@ export default function GroceryList() {
             opacity: isRefreshing ? 1 : Math.min(1, pullDistance / 40),
           }}
         >
-          <div className="bg-white rounded-full p-3 shadow-lg border border-gray-200">
+          <div className="bg-card rounded-full p-3 shadow-lg border border-border">
             <RefreshCw className={`w-5 h-5 text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
           </div>
         </div>
@@ -615,21 +637,21 @@ export default function GroceryList() {
       </header>
 
       {/* Search Bar with better mobile design */}
-      <div className="p-6 bg-white border-b border-gray-100">
+      <div className="p-6 bg-card border-b border-border">
         <div className="relative">
           <Input
             type="text"
             placeholder="Zoek in boodschappenlijst..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
+            className="pl-12 pr-4 py-4 text-base border-2 border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
           />
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         </div>
       </div>
 
       {(!isOnline || isOfflineData || queuedMutationCount > 0 || isSyncingQueuedChanges || syncFailed) ? (
-        <div className="px-6 py-3 border-b border-amber-100 bg-amber-50 text-sm text-amber-900">
+        <div className="px-6 py-3 border-b border-amber-500/30 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-200">
           {isSyncingQueuedChanges ? "Wij synchroniseren je wijzigingen..." : null}
           {!isSyncingQueuedChanges && syncFailed ? "Sommige wijzigingen konden nog niet worden gesynchroniseerd." : null}
           {!isSyncingQueuedChanges && !syncFailed && (!isOnline || isOfflineData)
@@ -642,11 +664,11 @@ export default function GroceryList() {
       ) : null}
 
       {/* Quick Stats with better mobile layout */}
-      <div className="px-6 py-4 bg-white border-b border-gray-100">
+      <div className="px-6 py-4 bg-card border-b border-border">
         {items.length > 0 ? (
-          <div className="mb-4 rounded-2xl border border-green-100 bg-green-50/70 p-4">
+          <div className="mb-4 rounded-2xl border border-primary/20 bg-primary/10 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="font-semibold text-gray-800">
+              <span className="font-semibold text-foreground">
                 {stats.completed} van {stats.total} klaar
               </span>
               <span className={stats.remaining === 0 ? "font-semibold text-primary" : "font-medium text-orange-600"}>
@@ -654,7 +676,7 @@ export default function GroceryList() {
               </span>
             </div>
             <div
-              className="mt-3 h-2 overflow-hidden rounded-full bg-white"
+              className="mt-3 h-2 overflow-hidden rounded-full bg-background"
               role="progressbar"
               aria-label="Voortgang boodschappen"
               aria-valuemin={0}
@@ -675,7 +697,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleMarkAllCompleted}
               disabled={markAllCompletedMutation.isPending || !isOnline || isOfflineData}
-              className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 rounded-lg px-3 py-2 w-full"
+              className="text-green-600 border-green-500/30 hover:bg-green-500/10 hover:border-green-500/50 rounded-lg px-3 py-2 w-full"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               Alles afvinken
@@ -685,7 +707,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleMarkAllPending}
               disabled={markAllPendingMutation.isPending || !isOnline || isOfflineData}
-              className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 rounded-lg px-3 py-2 w-full"
+              className="text-orange-600 border-orange-500/30 hover:bg-orange-500/10 hover:border-orange-500/50 rounded-lg px-3 py-2 w-full"
             >
               <Circle className="w-4 h-4 mr-2" />
               Nog te kopen
@@ -695,7 +717,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleDeleteAll}
               disabled={!isOnline || isOfflineData}
-              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg px-3 py-2 w-full"
+              className="text-red-600 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg px-3 py-2 w-full"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Wis alles
@@ -707,25 +729,25 @@ export default function GroceryList() {
       {/* Main Content with better mobile spacing */}
       <main className="pb-32"> {/* Increased bottom padding for better FAB spacing */}
         {items.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <ShoppingCart className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+          <div className="p-12 text-center text-muted-foreground">
+            <ShoppingCart className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
             <h3 className="text-xl font-medium mb-3">Geen boodschappen</h3>
             <p className="text-base">Voeg je eerste item toe om te beginnen</p>
           </div>
         ) : (
           <>
             {stats.remaining === 0 && items.length > 0 && !searchQuery ? (
-              <div className="mx-6 mt-6 rounded-2xl border border-green-100 bg-green-50 p-5 text-center">
+              <div className="mx-6 mt-6 rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center">
                 <CheckCircle className="mx-auto mb-3 h-9 w-9 text-primary" />
-                <h2 className="text-lg font-semibold text-gray-800">Alles afgevinkt</h2>
-                <p className="mt-1 text-sm text-gray-600">Je boodschappenlijst is klaar.</p>
+                <h2 className="text-lg font-semibold text-foreground">Alles afgevinkt</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Je boodschappenlijst is klaar.</p>
               </div>
             ) : null}
 
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
               <div className="px-6 py-4">
-                <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
                   Nog te kopen ({filteredItems.pending.length})
                 </h2>
                 {canReorderItems ? (
@@ -760,8 +782,8 @@ export default function GroceryList() {
 
             {/* Completed Items */}
             {filteredItems.completed.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-100">
-                <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">
+              <div className="px-6 py-4 border-t border-border">
+                <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
                   Afgevinkt ({filteredItems.completed.length})
                 </h2>
                 <div className="space-y-2">
@@ -784,8 +806,8 @@ export default function GroceryList() {
             )}
 
             {searchQuery && filteredItems.pending.length === 0 && filteredItems.completed.length === 0 && (
-              <div className="p-12 text-center text-gray-500">
-                <Search className="w-20 h-20 mx-auto mb-6 text-gray-300" />
+              <div className="p-12 text-center text-muted-foreground">
+                <Search className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
                 <h3 className="text-xl font-medium mb-3">Geen resultaten</h3>
                 <p className="text-base">Geen items gevonden voor "{searchQuery}"</p>
               </div>
@@ -800,6 +822,7 @@ export default function GroceryList() {
         onReactivateItem={handleReactivateItem}
         isLoading={addItemMutation.isPending}
         existingItems={items}
+        historyItems={historyItems}
       />
 
       {/* Delete All Confirmation Dialog */}
