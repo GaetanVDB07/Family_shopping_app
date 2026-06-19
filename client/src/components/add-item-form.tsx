@@ -189,7 +189,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
   const optionalFieldClassName = `
     px-4 py-3 text-sm border rounded-xl transition-all duration-200
     focus:ring-2 focus:ring-primary focus:border-primary
-    ${isFocused ? "border-primary/30" : "border-gray-200"}
+    ${isFocused ? "border-primary/30" : "border-border"}
   `;
 
   const handleSelectExisting = (match: MatchingExistingItem) => {
@@ -203,7 +203,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
   return (
     <div
       className={`
-        fixed left-0 right-0 bg-white border-t border-gray-200
+        fixed left-0 right-0 bg-background border-t border-border
         max-w-md mx-auto transition-all duration-200 ease-out
         ${isFocused || showDetailsSection || matchingExistingItems.length > 0 ? "shadow-2xl border-primary/20" : "shadow-lg"}
       `}
@@ -228,7 +228,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                 className={`
                   px-4 py-4 text-base border-2 rounded-xl transition-all duration-200
                   focus:ring-2 focus:ring-primary focus:border-primary
-                  ${isFocused ? "border-primary/40" : "border-gray-200"}
+                  ${isFocused ? "border-primary/40" : "border-border"}
                 `}
                 disabled={isLoading}
                 autoComplete="off"
@@ -262,7 +262,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
 
           {matchingExistingItems.length > 0 && !activeDuplicateItem ? (
             <div className="animate-in fade-in slide-in-from-bottom-1 duration-150">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Eerder gekocht
               </div>
               <div className="flex flex-wrap gap-2">
@@ -274,7 +274,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
                       event.preventDefault();
                       handleSelectExisting(match);
                     }}
-                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary/10 rounded-full border border-gray-200 transition-colors"
+                    className="px-3 py-1.5 text-sm bg-muted hover:bg-primary/10 rounded-full border border-border transition-colors"
                   >
                     {match.displayName}
                   </button>
@@ -357,7 +357,7 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
         </form>
 
         {matchingExistingItems.length === 0 && !activeDuplicateItem && name.trim() ? (
-          <div className="mt-3 text-xs text-gray-500 text-center">
+          <div className="mt-3 text-xs text-muted-foreground text-center">
             Druk op Enter om "{name.trim()}" toe te voegen
           </div>
         ) : null}

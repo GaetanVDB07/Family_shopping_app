@@ -13,6 +13,7 @@ import FamilySetup from "@/pages/family-setup";
 import FamilyManagement from "@/pages/family-management";
 import FamiliesOverview from "@/pages/families-overview";
 import { captureInviteCodeFromUrl } from "@/lib/family-invite";
+import { ThemeProvider } from "@/components/theme-provider";
 
 function DefaultRedirect() {
   const [, setLocation] = useLocation();
@@ -34,10 +35,10 @@ function DefaultRedirect() {
   }, [hasFamilies, familiesLoading, setLocation]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-gray-600 mobile-text">Laden...</p>
+        <p className="text-muted-foreground mobile-text">Laden...</p>
       </div>
     </div>
   );
@@ -50,10 +51,10 @@ function AuthenticatedApp() {
 
   if (authLoading || familiesLoading || currentFamilyLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600 mobile-text">Laden...</p>
+          <p className="text-muted-foreground mobile-text">Laden...</p>
         </div>
       </div>
     );
@@ -94,16 +95,18 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <div className="min-h-screen bg-background">
-            <Toaster />
-            <AuthenticatedApp />
-          </div>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <div className="min-h-screen bg-background">
+              <Toaster />
+              <AuthenticatedApp />
+            </div>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Menu, UserX, LogOut, Users, Home, UserMinus } from "lucide-react";
+import { ThemeToggleMenu } from "@/components/theme-toggle";
 
 export function UserMenu() {
   const [, setLocation] = useLocation();
@@ -130,7 +131,7 @@ export function UserMenu() {
           <div className="px-2 py-1.5 text-sm font-medium">
             {currentFamily?.familyName || "Onbekende Familie"}
           </div>
-          <div className="px-2 py-1 text-xs text-gray-500">
+          <div className="px-2 py-1 text-xs text-muted-foreground">
             {isAdmin ? "Admin" : "Lid"} • {allFamilies.length} {allFamilies.length === 1 ? 'familie' : 'families'}
           </div>
           <DropdownMenuSeparator />
@@ -167,6 +168,10 @@ export function UserMenu() {
             <UserMinus className="w-4 h-4 mr-2" />
             Account verwijderen
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <ThemeToggleMenu />
           
           <DropdownMenuSeparator />
           
