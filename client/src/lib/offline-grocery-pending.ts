@@ -26,6 +26,8 @@ export function applyQueuedGroceryMutations(
             familyId,
             addedAt: now,
             sortOrder: currentItems.length,
+            completedAt: null,
+            archivedAt: null,
             createdAt: now,
           },
         ];

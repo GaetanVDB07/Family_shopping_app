@@ -17,18 +17,31 @@ interface AddItemFormProps {
   onReactivateItem: (itemId: number) => void;
   isLoading: boolean;
   existingItems: GroceryItem[];
+  historyItems?: GroceryItem[];
 }
 
 interface MatchingExistingItem {
   displayName: string;
   reactivateId: number;
+  recency: number;
 }
 
 function normalizeItemName(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("nl-NL");
 }
 
-export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingItems }: AddItemFormProps) {
+function historyRecency(item: GroceryItem): number {
+  const timestamp = item.completedAt ?? item.archivedAt ?? item.addedAt ?? item.createdAt;
+  return timestamp instanceof Date ? timestamp.getTime() : new Date(timestamp).getTime();
+}
+
+export function AddItemForm({
+  onAddItem,
+  onReactivateItem,
+  isLoading,
+  existingItems,
+  historyItems = [],
+}: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
@@ -47,13 +60,13 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
       return [];
     }
 
+    const suggestionSource = historyItems.length > 0
+      ? historyItems
+      : existingItems.filter((item) => item.completed);
+
     const matches = new Map<string, MatchingExistingItem>();
 
-    for (const item of existingItems) {
-      if (!item.completed) {
-        continue;
-      }
-
+    for (const item of suggestionSource) {
       const itemName = item.name.trim();
       if (!itemName) {
         continue;
@@ -64,24 +77,26 @@ export function AddItemForm({ onAddItem, onReactivateItem, isLoading, existingIt
         continue;
       }
 
-      if (!matches.has(normalized)) {
+      const recency = historyRecency(item);
+      const existingMatch = matches.get(normalized);
+      if (!existingMatch || recency > existingMatch.recency) {
         matches.set(normalized, {
           displayName: itemName,
           reactivateId: item.id,
+          recency,
         });
         continue;
       }
 
-      const existingMatch = matches.get(normalized)!;
-      if (itemName.length < existingMatch.displayName.length) {
+      if (recency === existingMatch.recency && itemName.length < existingMatch.displayName.length) {
         existingMatch.displayName = itemName;
       }
     }
 
     return Array.from(matches.values())
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, "nl", { sensitivity: "base" }))
+      .sort((a, b) => b.recency - a.recency)
       .slice(0, 6);
-  }, [existingItems, name]);
+  }, [existingItems, historyItems, name]);
 
   const activeDuplicateItem = useMemo(() => {
     const normalizedName = normalizeItemName(name);

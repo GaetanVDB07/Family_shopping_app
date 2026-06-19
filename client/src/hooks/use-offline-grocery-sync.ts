@@ -120,6 +120,8 @@ export function useOfflineGrocerySync({
         familyId,
         addedAt: new Date(),
         sortOrder: 0,
+        completedAt: null,
+        archivedAt: null,
         createdAt: new Date(),
       };
 

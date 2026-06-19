@@ -4,6 +4,7 @@ import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
+import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
@@ -66,6 +67,7 @@ export default function GroceryList() {
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
+  const { data: historyItems = [] } = useGroceryHistory(familyId);
   const {
     queuedMutationCount,
     isSyncingQueuedChanges,
@@ -206,10 +208,21 @@ export default function GroceryList() {
       return { previousItems };
     },
     onSuccess: (updatedItem: GroceryItem) => {
-      // Update with the actual response from the server
-      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
-        old.map((item) => (item.id === updatedItem.id ? updatedItem : item))
-      );
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
+        const isVisible = !updatedItem.archivedAt;
+        const exists = old.some((item) => item.id === updatedItem.id);
+
+        if (!isVisible) {
+          return old.filter((item) => item.id !== updatedItem.id);
+        }
+
+        if (exists) {
+          return old.map((item) => (item.id === updatedItem.id ? updatedItem : item));
+        }
+
+        return [...old, updatedItem];
+      });
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
     },
     onError: (err, { id }, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
@@ -272,7 +285,7 @@ export default function GroceryList() {
       return { previousItems };
     },
     onSuccess: () => {
-      // Item deleted successfully, no toast notification
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
     },
     onError: (err, id, context) => {
       // If the mutation fails, roll back
@@ -303,10 +316,15 @@ export default function GroceryList() {
     },
     onSuccess: (response) => {
       setShowDeleteAllDialog(false);
-      // Keep toast for delete all since it's a major action
+      void queryClient.invalidateQueries({ queryKey: ["/api/grocery-items", familyId, "history"] });
+      const archivedCount = response.archivedCount ?? 0;
+      const deletedCount = response.deletedCount ?? 0;
+      const description = archivedCount > 0
+        ? `${deletedCount} openstaande items verwijderd. ${archivedCount} afgevinkte items bewaard in je geschiedenis.`
+        : `${deletedCount} items verwijderd van de lijst`;
       toast({
         title: "Lijst gewist",
-        description: `${response.deletedCount} items verwijderd van de lijst`,
+        description,
       });
     },
     onError: (err, variables, context) => {
@@ -463,15 +481,19 @@ export default function GroceryList() {
   }, [addItemMutation, queueAddItem, user?.id]);
 
   const handleReactivateItem = useCallback((id: number) => {
-    const item = items.find((entry) => entry.id === id);
-    if (item && item.completed) {
-      if (queueToggleItem(item)) {
-        return;
-      }
+    const activeItem = items.find((entry) => entry.id === id);
+    const historyItem = historyItems.find((entry) => entry.id === id);
 
-      toggleItemMutation.mutate({ id, completed: false });
+    if (!activeItem && !historyItem) {
+      return;
     }
-  }, [items, queueToggleItem, toggleItemMutation]);
+
+    if (activeItem && queueToggleItem(activeItem)) {
+      return;
+    }
+
+    toggleItemMutation.mutate({ id, completed: false });
+  }, [historyItems, items, queueToggleItem, toggleItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
     const item = items.find((item) => item.id === id);
@@ -800,6 +822,7 @@ export default function GroceryList() {
         onReactivateItem={handleReactivateItem}
         isLoading={addItemMutation.isPending}
         existingItems={items}
+        historyItems={historyItems}
       />
 
       {/* Delete All Confirmation Dialog */}

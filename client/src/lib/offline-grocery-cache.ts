@@ -49,6 +49,8 @@ function parseCachedItem(value: unknown): GroceryItem | null {
     familyId: item.familyId,
     addedAt,
     sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : 0,
+    completedAt: parseDate(item.completedAt),
+    archivedAt: parseDate(item.archivedAt),
     createdAt,
   };
 }
