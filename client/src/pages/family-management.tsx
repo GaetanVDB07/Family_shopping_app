@@ -151,14 +151,14 @@ export default function FamilyManagement() {
   // Show loading while family membership is being checked
   if (familiesLoading) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <h1 className="text-lg font-semibold">Laden...</h1>
         </div>
         <div className="p-4">
           <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
           </div>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function FamilyManagement() {
   // Return null if not admin (will redirect via useEffect)
   if (!isAdmin) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
@@ -246,7 +246,7 @@ export default function FamilyManagement() {
 
   if (isLoading) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
@@ -257,8 +257,8 @@ export default function FamilyManagement() {
         </div>
         <div className="p-4 space-y-4">
           <div className="animate-pulse space-y-4">
-            <div className="h-32 bg-gray-200 rounded"></div>
-            <div className="h-24 bg-gray-200 rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-24 bg-muted rounded"></div>
           </div>
         </div>
       </div>
@@ -267,7 +267,7 @@ export default function FamilyManagement() {
 
   if (error) {
     return (
-      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+      <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
         <div className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/families")} className="text-white hover:bg-white/20">
@@ -291,7 +291,7 @@ export default function FamilyManagement() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+    <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
       {/* Header */}
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center space-x-3">
@@ -348,7 +348,7 @@ export default function FamilyManagement() {
                     variant="ghost"
                     size="sm"
                     onClick={handleStartRename}
-                    className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
@@ -399,13 +399,13 @@ export default function FamilyManagement() {
                             )}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-500 truncate">{member.userEmail}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-sm text-muted-foreground truncate">{member.userEmail}</p>
+                        <p className="text-xs text-muted-foreground/70">
                           Lid sinds {new Date(member.joinedAt).toLocaleDateString("nl-NL")}
                         </p>
                       </div>
                       {canManageMember && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
                           <Button
                             variant="outline"
                             size="sm"
@@ -422,7 +422,7 @@ export default function FamilyManagement() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveMember(member)}
-                            className="h-8 rounded-full px-3 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className="h-8 rounded-full px-3 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
                             disabled={removeMemberMutation.isPending}
                             title="Familielid verwijderen"
                             aria-label={`${member.userName || member.userEmail} verwijderen`}
@@ -437,7 +437,7 @@ export default function FamilyManagement() {
                 })}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">Geen familieleden gevonden</p>
+              <p className="text-muted-foreground text-center py-4">Geen familieleden gevonden</p>
             )}
           </CardContent>
         </Card>
@@ -469,7 +469,7 @@ export default function FamilyManagement() {
               <Trash2 className="w-4 h-4 mr-2" />
               {deleteFamilyMutation.isPending ? "Verwijderen..." : "Familie Verwijderen"}
             </Button>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Dit verwijdert de familie definitief inclusief alle boodschappenlijsten en leden.
             </p>
           </CardContent>

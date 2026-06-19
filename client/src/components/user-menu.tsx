@@ -197,7 +197,7 @@ export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
           {!isAdmin && currentFamilyId && (
             <DropdownMenuItem 
               onClick={handleLeaveFamily}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-red-600 hover:text-red-600 hover:bg-red-500/10"
             >
               <UserX className="w-4 h-4 mr-2" />
               Familie Verlaten
@@ -206,7 +206,7 @@ export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
 
           <DropdownMenuItem
             onClick={() => setShowDeleteAccountDialog(true)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-600 hover:text-red-600 hover:bg-red-500/10"
           >
             <UserMinus className="w-4 h-4 mr-2" />
             Account verwijderen
@@ -234,7 +234,7 @@ export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
           
           <DropdownMenuItem 
             onClick={handleSignOut}
-            className="text-gray-600"
+            className="text-muted-foreground"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Uitloggen

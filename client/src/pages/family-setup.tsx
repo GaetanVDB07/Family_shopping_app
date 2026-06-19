@@ -118,7 +118,7 @@ export default function FamilySetup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -131,7 +131,7 @@ export default function FamilySetup() {
             Maak een nieuwe familie aan of sluit je aan bij een bestaande familie
           </CardDescription>
           <div className="flex justify-between items-center mt-4 pt-4 border-t">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted-foreground">
               Ingelogd als: {getUserDisplayName(user)}
             </span>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
@@ -166,7 +166,7 @@ export default function FamilySetup() {
                     required
                     {...maxLengthInputProps(100, toast)}
                   />
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Deze naam zien andere familieleden
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export default function FamilySetup() {
                     maxLength={6}
                     required
                   />
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Vraag de 6-cijferige code aan een familielid
                   </p>
                 </div>
@@ -211,8 +211,8 @@ export default function FamilySetup() {
           )}
 
           {success && (
-            <Alert className="mt-4 border-green-200 bg-green-50">
-              <AlertDescription className="text-green-800">
+            <Alert className="mt-4 border-green-500/30 bg-green-500/10">
+              <AlertDescription className="text-green-700 dark:text-green-300">
                 {success}
               </AlertDescription>
             </Alert>

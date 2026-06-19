@@ -34,13 +34,13 @@ export function DeleteConfirmationDialog({
             <Trash2 className="w-6 h-6 text-red-600" />
           </div>
           <AlertDialogTitle className="text-lg">Item verwijderen?</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-600">
+          <AlertDialogDescription className="text-muted-foreground">
             Weet je zeker dat je "<span className="font-medium">{item?.name}</span>" wilt verwijderen?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex space-x-3">
           <AlertDialogCancel 
-            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800"
+            className="flex-1 bg-muted hover:bg-muted/80 text-foreground"
             disabled={isLoading}
           >
             Annuleren

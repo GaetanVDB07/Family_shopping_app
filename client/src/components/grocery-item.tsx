@@ -133,11 +133,11 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
   return (
     <div 
       className={cn(
-        "mb-3 border border-gray-100 rounded-xl shadow-sm transition-all duration-200 overflow-hidden relative",
+        "mb-3 border border-border rounded-xl shadow-sm transition-all duration-200 overflow-hidden relative",
         "touch-manipulation select-none", // Better touch handling
         item.completed 
-          ? "bg-gray-50 opacity-75" 
-          : "bg-white hover:shadow-md active:shadow-lg",
+          ? "bg-muted/60 opacity-75" 
+          : "bg-card hover:shadow-md active:shadow-lg",
         isPressed && !isEditing && "scale-[0.98]",
         isDragging && "transition-none"
       )}
@@ -215,7 +215,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
                 "active:scale-95", // Touch feedback
                 item.completed
                   ? "bg-primary border-primary shadow-sm"
-                  : "border-gray-300 hover:border-primary/60"
+                  : "border-border hover:border-primary/60"
               )}
               onClick={() => onToggle(item.id)}
               aria-label={`${item.name} ${item.completed ? "opnieuw kopen" : "afvinken"}`}
@@ -230,15 +230,15 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
               <span className={cn(
                 "font-medium text-base leading-relaxed block",
                 item.completed
-                  ? "text-gray-600 line-through"
-                  : "text-gray-800"
+                  ? "text-muted-foreground line-through"
+                  : "text-foreground"
               )}>
                 {item.name}
               </span>
               {quantityLine ? (
                 <span className={cn(
                   "text-sm mt-1 block",
-                  item.completed ? "text-gray-400" : "text-gray-600"
+                  item.completed ? "text-muted-foreground/70" : "text-muted-foreground"
                 )}>
                   {quantityLine}
                 </span>
@@ -246,7 +246,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
               {item.notes ? (
                 <span className={cn(
                   "text-sm mt-1 block",
-                  item.completed ? "text-gray-400" : "text-gray-600"
+                  item.completed ? "text-muted-foreground/70" : "text-muted-foreground"
                 )}>
                   {item.notes}
                 </span>
@@ -255,8 +255,8 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
               <span className={cn(
                 "text-sm mt-1 inline-block px-2 py-0.5 rounded-full",
                 item.completed
-                  ? "text-gray-400 bg-gray-200"
-                  : "text-gray-500 bg-gray-100"
+                  ? "text-muted-foreground bg-muted"
+                  : "text-muted-foreground bg-muted"
               )}>
                 door {item.addedBy} · {formatAddedAt(item.addedAt)}
               </span>
@@ -267,7 +267,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
             {dragHandleProps && !item.completed ? (
               <button
                 type="button"
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 touch-manipulation cursor-grab active:cursor-grabbing"
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted touch-manipulation cursor-grab active:cursor-grabbing"
                 aria-label={`${item.name} verslepen`}
                 {...dragHandleProps}
               >
@@ -278,7 +278,7 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-2 rounded-lg transition-all duration-200 active:scale-95 text-gray-400 hover:text-gray-700 hover:bg-gray-50"
+                className="p-2 rounded-lg transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:bg-muted"
                 onClick={startEdit}
                 aria-label={`${item.name} bewerken`}
               >
@@ -293,8 +293,8 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
                 "p-2 rounded-lg transition-all duration-200",
                 "active:scale-95", // Touch feedback
                 item.completed
-                  ? "text-red-400 hover:text-red-600 hover:bg-red-50"
-                  : "text-red-500 hover:text-red-700 hover:bg-red-50"
+                  ? "text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                  : "text-red-500 hover:text-red-600 hover:bg-red-500/10"
               )}
               onClick={() => onDelete(item)}
             >
