@@ -35,6 +35,7 @@ function groceryItem(overrides: Partial<GroceryItem> = {}): GroceryItem {
     addedBy: "user-1",
     familyId: "family-1",
     addedAt: new Date("2026-06-18T10:00:00.000Z"),
+    sortOrder: 0,
     createdAt: new Date("2026-06-18T10:00:00.000Z"),
     ...overrides,
   };

@@ -56,6 +56,13 @@ export const createGroceryItemRequestSchema = z.object({
   familyId: FAMILY_ID.optional(),
 });
 
+export const reorderGroceryItemsRequestSchema = z.object({
+  familyId: FAMILY_ID,
+  orderedIds: z
+    .array(z.number().int().positive())
+    .min(1, "Minstens één item is vereist"),
+});
+
 export const updateGroceryItemRequestSchema = z
   .object({
     name: requiredTrimmedString(200, "Itemnaam is verplicht").optional(),

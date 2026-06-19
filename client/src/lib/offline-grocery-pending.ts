@@ -25,6 +25,7 @@ export function applyQueuedGroceryMutations(
             addedBy: mutation.payload.addedBy ?? "Offline",
             familyId,
             addedAt: now,
+            sortOrder: currentItems.length,
             createdAt: now,
           },
         ];

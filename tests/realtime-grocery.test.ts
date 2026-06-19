@@ -26,6 +26,7 @@ describe("mapRealtimeGroceryRow", () => {
       addedBy: "user-abc",
       familyId: "family-xyz",
       addedAt: new Date("2026-01-15T10:00:00.000Z"),
+      sortOrder: 0,
       createdAt: new Date("2026-01-15T10:00:00.000Z"),
     });
   });
@@ -62,6 +63,21 @@ describe("mapRealtimeGroceryRow", () => {
     expect(item.quantity).toBeNull();
     expect(item.unit).toBeNull();
     expect(item.notes).toBeNull();
+  });
+
+  it("maps sort_order from realtime payloads", () => {
+    const item = mapRealtimeGroceryRow({
+      id: 6,
+      name: "Eieren",
+      completed: false,
+      added_by: "user-abc",
+      family_id: "family-1",
+      sort_order: 4,
+      added_at: "2026-01-15T10:00:00.000Z",
+      created_at: "2026-01-15T10:00:00.000Z",
+    });
+
+    expect(item.sortOrder).toBe(4);
   });
 
   it("maps realtime user ids as ids because realtime payloads do not include member names", () => {

@@ -78,6 +78,7 @@ export class MemStorage implements IStorage {
       addedBy: insertItem.addedBy || "demo-user",
       familyId: insertItem.familyId || "demo-family-123",
       addedAt: new Date(),
+      sortOrder: 0,
       createdAt: new Date(),
     };
     this.groceryItems.set(id, item);
