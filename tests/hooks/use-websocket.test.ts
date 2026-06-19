@@ -150,6 +150,7 @@ describe('useWebSocket', () => {
       addedBy: 'user-abc',
       familyId: 'family-1',
       addedAt: new Date('2026-01-15T10:00:00.000Z'),
+      sortOrder: 0,
       createdAt: new Date('2026-01-15T10:00:00.000Z'),
     } satisfies GroceryItem);
   });

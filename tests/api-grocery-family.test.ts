@@ -81,7 +81,28 @@ function selectRowsFor(condition: any, selectedFields?: Record<string, unknown>)
   }
 
   if (selectedFields && 'addedByUserId' in selectedFields) {
-    return fakeDbConfig.groceryItems[familyId] ?? [];
+    return (fakeDbConfig.groceryItems[familyId] ?? []).map((item) => ({
+      ...item,
+      addedByUserId: item.addedByUserId ?? 'user-1',
+      sortOrder: item.sortOrder ?? 0,
+    }));
+  }
+
+  if (selectedFields && 'maxSortOrder' in selectedFields) {
+    const items = fakeDbConfig.groceryItems[familyId] ?? [];
+    const maxValue = items.reduce(
+      (currentMax, item) => Math.max(currentMax, Number(item.sortOrder ?? 0)),
+      -1,
+    );
+    return [{ maxSortOrder: maxValue < 0 ? null : maxValue }];
+  }
+
+  if (selectedFields && 'id' in selectedFields && !('addedByUserId' in selectedFields) && !('completed' in selectedFields)) {
+    const items = fakeDbConfig.groceryItems[familyId] ?? [];
+    const pendingOnly = params.includes(false);
+    return items
+      .filter((item) => !pendingOnly || item.completed === false)
+      .map((item) => ({ id: item.id }));
   }
 
   if (selectedFields && 'completed' in selectedFields && !('addedByUserId' in selectedFields)) {
@@ -134,6 +155,11 @@ function createSelectBuilder(selectedFields?: Record<string, unknown>) {
       return this;
     },
     orderBy() {
+      if (this.rows.some((row) => "sortOrder" in row)) {
+        this.rows = [...this.rows].sort(
+          (left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0),
+        );
+      }
       return this;
     },
     limit() {
@@ -172,6 +198,15 @@ function createFakeDb() {
         return {
         where: (condition: any) => {
           fakeDb.updateWhereParams = conditionParams(condition);
+          const itemId = fakeDb.updateWhereParams.find((param) => typeof param === 'number');
+          const familyId = fakeDb.updateWhereParams.includes('family-2') ? 'family-2' : 'family-1';
+          if (itemId !== undefined && updates.sortOrder !== undefined) {
+            const items = fakeDbConfig.groceryItems[familyId] ?? [];
+            const target = items.find((item) => item.id === itemId);
+            if (target) {
+              target.sortOrder = updates.sortOrder;
+            }
+          }
           return {
             returning: vi.fn(async () => [{
               id: 10,
@@ -257,7 +292,20 @@ describe('grocery item family scoping', () => {
           addedByUserId: 'user-1',
           familyId: 'family-1',
           addedAt: new Date('2026-01-01T00:00:00.000Z'),
+          sortOrder: 0,
           createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        }, {
+          id: 3,
+          name: 'Kaas',
+          quantity: null,
+          unit: null,
+          notes: null,
+          completed: false,
+          addedByUserId: 'user-1',
+          familyId: 'family-1',
+          addedAt: new Date('2026-01-03T00:00:00.000Z'),
+          sortOrder: 1,
+          createdAt: new Date('2026-01-03T00:00:00.000Z'),
         }],
         'family-2': [{
           id: 2,
@@ -269,6 +317,7 @@ describe('grocery item family scoping', () => {
           addedByUserId: 'user-1',
           familyId: 'family-2',
           addedAt: new Date('2026-01-02T00:00:00.000Z'),
+          sortOrder: 0,
           createdAt: new Date('2026-01-02T00:00:00.000Z'),
         }],
       },
@@ -291,6 +340,7 @@ describe('grocery item family scoping', () => {
       addedBy: 'User One',
       familyId: 'family-2',
       addedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sortOrder: 0,
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
     }]);
   });
@@ -351,6 +401,7 @@ describe('grocery item family scoping', () => {
 
     expect(res.statusCode).toBe(201);
     expect(fakeDb.insertedValues.familyId).toBe('family-2');
+    expect(fakeDb.insertedValues.sortOrder).toBe(1);
   });
 
   it('stores optional notes when creating an item', async () => {
@@ -434,5 +485,52 @@ describe('grocery item family scoping', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({ message: 'Item not found' });
+  });
+
+  it('reorders pending grocery items for a family', async () => {
+    const res = await request('PATCH', '/api/grocery-items/reorder', {
+      familyId: 'family-1',
+      orderedIds: [3, 1],
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.items).toEqual([
+      {
+        id: 3,
+        name: 'Kaas',
+        quantity: null,
+        unit: null,
+        notes: null,
+        completed: false,
+        addedBy: 'User One',
+        familyId: 'family-1',
+        addedAt: new Date('2026-01-03T00:00:00.000Z'),
+        sortOrder: 0,
+        createdAt: new Date('2026-01-03T00:00:00.000Z'),
+      },
+      {
+        id: 1,
+        name: 'Brood',
+        quantity: null,
+        unit: null,
+        notes: null,
+        completed: false,
+        addedBy: 'User One',
+        familyId: 'family-1',
+        addedAt: new Date('2026-01-01T00:00:00.000Z'),
+        sortOrder: 1,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+  });
+
+  it('rejects reorder requests that omit pending items', async () => {
+    const res = await request('PATCH', '/api/grocery-items/reorder', {
+      familyId: 'family-1',
+      orderedIds: [1],
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({ message: 'Alle openstaande items moeten worden meegestuurd' });
   });
 });

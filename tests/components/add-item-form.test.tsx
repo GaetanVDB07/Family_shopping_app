@@ -21,6 +21,7 @@ describe('AddItemForm', () => {
     addedBy: 'user-1',
     familyId: 'family-1',
     addedAt: new Date(),
+    sortOrder: 0,
     createdAt: new Date(),
     ...overrides,
   });

@@ -7,6 +7,8 @@ import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
+import { SortableGroceryList } from "@/components/sortable-grocery-list";
+import { sortGroceryItems } from "@/lib/grocery-item-sort";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
 import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
@@ -108,7 +110,7 @@ export default function GroceryList() {
           console.log(`[${new Date().toISOString()}] Client: WebSocket duplicate item prevented:`, item.id);
           return old; // Return unchanged array to prevent duplicate
         }
-        return [...old, item];
+        return sortGroceryItems([...old, item]);
       });
       if (looksLikeAuthUserId(item.addedBy)) {
         void refetch();
@@ -128,7 +130,7 @@ export default function GroceryList() {
           };
         });
         console.log(`[${new Date().toISOString()}] Client: WebSocket updated ${old.length} items`);
-        return updated;
+        return sortGroceryItems(updated);
       });
       if (looksLikeAuthUserId(updatedItem.addedBy)) {
         void refetch();
@@ -173,7 +175,7 @@ export default function GroceryList() {
           return old; // Return unchanged to prevent duplicate
         }
         console.log(`[${new Date().toISOString()}] Client: Adding new item to cache:`, newItem.id);
-        return [...old, newItem];
+        return sortGroceryItems([...old, newItem]);
       });
     },
     onError: (error) => {
@@ -373,6 +375,40 @@ export default function GroceryList() {
     },
   });
 
+  // Reorder items mutation
+  const reorderItemsMutation = useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      const response = await apiRequest("PATCH", "/api/grocery-items/reorder", { familyId, orderedIds });
+      return response.json() as Promise<{ items: GroceryItem[] }>;
+    },
+    onMutate: async (orderedIds) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/grocery-items", familyId] });
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(["/api/grocery-items", familyId]);
+
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
+        const sortOrderById = new Map(orderedIds.map((id, index) => [id, index]));
+        return sortGroceryItems(
+          old.map((item) =>
+            sortOrderById.has(item.id)
+              ? { ...item, sortOrder: sortOrderById.get(item.id)! }
+              : item,
+          ),
+        );
+      });
+
+      return { previousItems };
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData(["/api/grocery-items", familyId], response.items);
+    },
+    onError: (err, _orderedIds, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(["/api/grocery-items", familyId], context.previousItems);
+      }
+      toastApiError(toast, err, "Kon volgorde niet opslaan. Probeer het opnieuw.");
+    },
+  });
+
   // Filter and sort items (with additional deduplication safety)
   const filteredItems = useMemo(() => {
     // First, ensure no duplicates exist (safety net)
@@ -388,7 +424,9 @@ export default function GroceryList() {
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     
-    const pending = filtered.filter((item) => !item.completed);
+    const pending = filtered
+      .filter((item) => !item.completed)
+      .sort((a, b) => a.sortOrder - b.sortOrder || new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
     const completed = filtered.filter((item) => item.completed);
     
     return { pending, completed };
@@ -478,6 +516,16 @@ export default function GroceryList() {
   const handleMarkAllPending = useCallback(() => {
     markAllPendingMutation.mutate();
   }, [markAllPendingMutation]);
+
+  const handleReorderItems = useCallback((orderedIds: number[]) => {
+    if (!isOnline || isOfflineData || reorderItemsMutation.isPending) {
+      return;
+    }
+
+    reorderItemsMutation.mutate(orderedIds);
+  }, [isOfflineData, isOnline, reorderItemsMutation]);
+
+  const canReorderItems = isOnline && !isOfflineData && !searchQuery;
 
   if (isLoading) {
     return (
@@ -680,22 +728,33 @@ export default function GroceryList() {
                 <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wider">
                   Nog te kopen ({filteredItems.pending.length})
                 </h2>
-                <div className="space-y-2">
-                  {filteredItems.pending.map((item, index) => (
-                    <div
-                      key={`pending-${item.id}-${item.name}`}
-                      className="animate-in slide-in-from-left duration-300"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <GroceryItemComponent
-                        item={item}
-                        onToggle={handleToggleItem}
-                        onDelete={handleDeleteItem}
-                        onUpdate={handleUpdateItem}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {canReorderItems ? (
+                  <SortableGroceryList
+                    items={filteredItems.pending}
+                    onReorder={handleReorderItems}
+                    onToggle={handleToggleItem}
+                    onDelete={handleDeleteItem}
+                    onUpdate={handleUpdateItem}
+                    disabled={reorderItemsMutation.isPending}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {filteredItems.pending.map((item, index) => (
+                      <div
+                        key={`pending-${item.id}-${item.name}`}
+                        className="animate-in slide-in-from-left duration-300"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <GroceryItemComponent
+                          item={item}
+                          onToggle={handleToggleItem}
+                          onDelete={handleDeleteItem}
+                          onUpdate={handleUpdateItem}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

@@ -4,7 +4,7 @@ import { formatAddedAt } from "@shared/format-added-at";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Check, Pencil, X } from "lucide-react";
+import { Trash2, Check, Pencil, X, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function formatQuantityLine(quantity: string | null, unit: string | null): string | null {
@@ -25,6 +25,7 @@ interface GroceryItemProps {
   onToggle: (id: number) => void;
   onDelete: (item: GroceryItem) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
 export interface GroceryItemEditValues {
@@ -34,7 +35,7 @@ export interface GroceryItemEditValues {
   notes: string | null;
 }
 
-export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate }: GroceryItemProps) {
+export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const [isPressed, setIsPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -263,6 +264,16 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate }: Gro
           </div>
           
           <div className="flex flex-shrink-0 items-center gap-1 ml-2">
+            {dragHandleProps && !item.completed ? (
+              <button
+                type="button"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 touch-manipulation cursor-grab active:cursor-grabbing"
+                aria-label={`${item.name} verslepen`}
+                {...dragHandleProps}
+              >
+                <GripVertical className="w-5 h-5" />
+              </button>
+            ) : null}
             {onUpdate ? (
               <Button
                 variant="ghost"

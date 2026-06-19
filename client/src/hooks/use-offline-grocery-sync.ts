@@ -119,6 +119,7 @@ export function useOfflineGrocerySync({
         addedBy: userLabel,
         familyId,
         addedAt: new Date(),
+        sortOrder: 0,
         createdAt: new Date(),
       };
 

@@ -3,6 +3,7 @@ import {
   createFamilyRequestSchema,
   createGroceryItemRequestSchema,
   joinFamilyRequestSchema,
+  reorderGroceryItemsRequestSchema,
   updateGroceryItemRequestSchema,
 } from "../shared/api-validation.js";
 
@@ -61,6 +62,24 @@ describe("API request schemas", () => {
 
   it("rejects grocery updates with no mutable fields", () => {
     const result = updateGroceryItemRequestSchema.safeParse({ familyId: "family-1" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts grocery reorder payloads", () => {
+    const result = reorderGroceryItemsRequestSchema.safeParse({
+      familyId: "family-1",
+      orderedIds: [3, 1, 2],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects grocery reorder payloads without ids", () => {
+    const result = reorderGroceryItemsRequestSchema.safeParse({
+      familyId: "family-1",
+      orderedIds: [],
+    });
+
     expect(result.success).toBe(false);
   });
 });

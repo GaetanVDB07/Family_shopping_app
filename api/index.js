@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { eq, and, count, inArray, asc, ne } from "drizzle-orm";
+import { eq, and, count, inArray, asc, ne, max } from "drizzle-orm";
 import {
   generateFamilyCode,
   checkJoinRateLimit,
@@ -14,6 +14,7 @@ import {
   familyIdRequestSchema,
   createGroceryItemRequestSchema,
   updateGroceryItemRequestSchema,
+  reorderGroceryItemsRequestSchema,
   cleanupDuplicatesRequestSchema,
   renameFamilyRequestSchema,
   transferAdminRequestSchema,
@@ -187,11 +188,12 @@ async function fetchGroceryItemsForFamily(database, familyId) {
       addedByUserId: groceryItems.addedBy,
       familyId: groceryItems.familyId,
       addedAt: groceryItems.addedAt,
+      sortOrder: groceryItems.sortOrder,
       createdAt: groceryItems.createdAt,
     })
     .from(groceryItems)
     .where(eq(groceryItems.familyId, familyId))
-    .orderBy(groceryItems.addedAt);
+    .orderBy(asc(groceryItems.sortOrder), asc(groceryItems.addedAt));
 
   if (rows.length === 0) {
     return [];
@@ -223,6 +225,7 @@ async function fetchGroceryItemsForFamily(database, familyId) {
     addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
     familyId: row.familyId,
     addedAt: row.addedAt,
+    sortOrder: row.sortOrder,
     createdAt: row.createdAt,
   }));
 }
@@ -476,6 +479,10 @@ async function handler(req, res) {
           return null;
         },
         handler: (req, res, params) => handleMarkAllItemsPending(req, res, params.familyId),
+      },
+      {
+        match: (path, mthd) => (path === '/grocery-items/reorder' && mthd === 'PATCH' ? {} : null),
+        handler: handleReorderGroceryItems,
       },
       {
         match: (path, mthd) => {
@@ -1190,6 +1197,11 @@ async function handleCreateGroceryItem(req, res) {
       return res.status(404).json({ message: 'No family found' });
     }
 
+    const [{ maxSortOrder }] = await database
+      .select({ maxSortOrder: max(groceryItems.sortOrder) })
+      .from(groceryItems)
+      .where(eq(groceryItems.familyId, userFamily.familyId));
+
     const [item] = await database
       .insert(groceryItems)
       .values({
@@ -1199,6 +1211,7 @@ async function handleCreateGroceryItem(req, res) {
         notes,
         addedBy: user.id,
         familyId: userFamily.familyId,
+        sortOrder: (maxSortOrder ?? -1) + 1,
       })
       .returning();
 
@@ -1283,6 +1296,66 @@ async function handleUpdateGroceryItem(req, res, itemId) {
     return res.status(200).json(formattedItem);
   } catch (error) {
     console.error('Error updating grocery item:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleReorderGroceryItems(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const { familyId, orderedIds } = parseRequestBody(
+      reorderGroceryItemsRequestSchema,
+      req.body,
+    );
+    const database = await getDatabase();
+    const userFamily = await getUserFamilyMembership(database, user.id, familyId);
+
+    if (!userFamily) {
+      return res.status(404).json({ message: 'No family found' });
+    }
+
+    const pendingItems = await database
+      .select({ id: groceryItems.id })
+      .from(groceryItems)
+      .where(and(
+        eq(groceryItems.familyId, userFamily.familyId),
+        eq(groceryItems.completed, false),
+      ));
+
+    const pendingIds = new Set(pendingItems.map((item) => item.id));
+    const orderedSet = new Set(orderedIds);
+
+    if (orderedSet.size !== orderedIds.length) {
+      return res.status(400).json({ message: 'Dubbele item-ID\'s zijn niet toegestaan' });
+    }
+
+    if (orderedIds.length !== pendingIds.size) {
+      return res.status(400).json({ message: 'Alle openstaande items moeten worden meegestuurd' });
+    }
+
+    for (const id of orderedIds) {
+      if (!pendingIds.has(id)) {
+        return res.status(400).json({ message: 'Ongeldige item-ID\'s' });
+      }
+    }
+
+    for (let index = 0; index < orderedIds.length; index += 1) {
+      await database
+        .update(groceryItems)
+        .set({ sortOrder: index })
+        .where(and(
+          eq(groceryItems.id, orderedIds[index]),
+          eq(groceryItems.familyId, userFamily.familyId),
+        ));
+    }
+
+    const items = await fetchGroceryItemsForFamily(database, userFamily.familyId);
+    return res.status(200).json({ items });
+  } catch (error) {
+    console.error('Error reordering grocery items:', error);
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
     }
