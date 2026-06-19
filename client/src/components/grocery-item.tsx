@@ -135,8 +135,8 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
       className={cn(
         "mb-3 border border-border rounded-xl shadow-sm transition-all duration-200 overflow-hidden relative",
         "touch-manipulation select-none", // Better touch handling
-        item.completed 
-          ? "bg-muted/60 opacity-75" 
+        item.completed
+          ? "bg-muted/60 opacity-75"
           : "bg-card hover:shadow-md active:shadow-lg",
         isPressed && !isEditing && "scale-[0.98]",
         isDragging && "transition-none"
