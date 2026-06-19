@@ -36,6 +36,7 @@ describe("dark mode theme wiring", () => {
     const themedFiles = [
       "client/src/pages/auth.tsx",
       "client/src/pages/grocery-list.tsx",
+      "client/src/components/add-item-form.tsx",
       "client/src/components/grocery-item.tsx",
       "client/src/pages/families-overview.tsx",
       "client/src/pages/family-management.tsx",
@@ -47,7 +48,9 @@ describe("dark mode theme wiring", () => {
 
     for (const file of themedFiles) {
       const source = readFileSync(resolve(file), "utf8");
-      expect(source, file).not.toMatch(/(^|[\s"'`])(bg-white|bg-gray-\d+|text-gray-\d+|border-gray-\d+|from-blue-50|to-indigo-100)\b/);
+      expect(source, file).not.toMatch(
+        /(^|[\s"'`])(bg-white|bg-gray-\d+|text-gray-\d+|border-gray-\d+|bg-amber-(50|100)|border-amber-(100|200)|from-blue-50|to-indigo-100)\b/,
+      );
     }
   });
 });

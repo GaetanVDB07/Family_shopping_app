@@ -385,13 +385,13 @@ export default function FamilyManagement() {
                           <Badge
                             variant="secondary"
                             className={member.role === "admin"
-                              ? "shrink-0 gap-1 border-amber-200 bg-amber-100 text-amber-800 leading-none"
+                              ? "shrink-0 gap-1 border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 leading-none"
                               : "shrink-0 leading-none"
                             }
                           >
                             {member.role === "admin" ? (
                               <>
-                                <Crown className="h-3.5 w-3.5 text-amber-600" />
+                                <Crown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
                                 Admin
                               </>
                             ) : (
@@ -410,7 +410,7 @@ export default function FamilyManagement() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleTransferAdmin(member)}
-                            className="h-8 rounded-full border-amber-200 bg-amber-50 px-3 text-xs text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                            className="h-8 rounded-full border-amber-500/30 bg-amber-500/10 px-3 text-xs text-amber-700 hover:bg-amber-500/20 hover:text-amber-800 dark:text-amber-200 dark:hover:text-amber-100"
                             disabled={transferAdminMutation.isPending}
                             title="Admin maken"
                             aria-label={`${member.userName || member.userEmail} admin maken`}

@@ -651,7 +651,7 @@ export default function GroceryList() {
       </div>
 
       {(!isOnline || isOfflineData || queuedMutationCount > 0 || isSyncingQueuedChanges || syncFailed) ? (
-        <div className="px-6 py-3 border-b border-amber-100 bg-amber-50 text-sm text-amber-900">
+        <div className="px-6 py-3 border-b border-amber-500/30 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-200">
           {isSyncingQueuedChanges ? "Wij synchroniseren je wijzigingen..." : null}
           {!isSyncingQueuedChanges && syncFailed ? "Sommige wijzigingen konden nog niet worden gesynchroniseerd." : null}
           {!isSyncingQueuedChanges && !syncFailed && (!isOnline || isOfflineData)
