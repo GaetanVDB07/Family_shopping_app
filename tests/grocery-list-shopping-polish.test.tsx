@@ -5,18 +5,24 @@ import GroceryList from "@/pages/grocery-list";
 import type { GroceryItem } from "@shared/schema";
 import { getQueuedGroceryMutations } from "@/lib/offline-grocery-queue";
 
-const mockItems: GroceryItem[] = [];
+let mockItems: GroceryItem[] = [];
 let mockIsOfflineData = false;
 let mockIsOnline = true;
 const setLocation = vi.fn();
+const memberNames = new Map([["22222222-2222-2222-2222-222222222222", "Lisa"]]);
 const setQueryData = vi.fn((queryKey, updater) => {
   const next =
     typeof updater === "function"
       ? updater(mockItems)
       : updater;
 
-  mockItems.splice(0, mockItems.length, ...(next ?? []));
+  mockItems = [...(next ?? [])];
 });
+const queryClient = {
+  setQueryData,
+  cancelQueries: vi.fn(),
+  getQueryData: vi.fn(),
+};
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/grocery-list/family-1", setLocation],
@@ -34,11 +40,7 @@ vi.mock("@tanstack/react-query", async () => {
       mutate: vi.fn(),
       mutateAsync: vi.fn(async (variables) => options?.mutationFn?.(variables)),
     }),
-    useQueryClient: () => ({
-      setQueryData,
-      cancelQueries: vi.fn(),
-      getQueryData: vi.fn(),
-    }),
+    useQueryClient: () => queryClient,
   };
 });
 
@@ -60,7 +62,7 @@ vi.mock("@/hooks/use-grocery-history", () => ({
 
 vi.mock("@/hooks/use-family-member-names", () => ({
   useFamilyMemberNames: () => ({
-    memberNames: new Map([["user-1", "User One"]]),
+    memberNames,
     isReady: true,
   }),
 }));
@@ -131,7 +133,7 @@ function groceryItem(overrides: Partial<GroceryItem>): GroceryItem {
 describe("GroceryList shopping-friendly polish", () => {
   beforeEach(() => {
     localStorage.clear();
-    mockItems.length = 0;
+    mockItems = [];
     mockIsOfflineData = false;
     mockIsOnline = true;
     vi.clearAllMocks();
@@ -186,6 +188,20 @@ describe("GroceryList shopping-friendly polish", () => {
     expect(screen.getByRole("button", { name: /Alles afvinken/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Nog te kopen/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Wis alles/i })).toBeDisabled();
+  });
+
+  it("re-applies member names when grocery items load after member names", () => {
+    const { rerender } = render(<GroceryList />);
+
+    mockItems = [
+      groceryItem({
+        id: 1,
+        addedBy: "22222222-2222-2222-2222-222222222222",
+      }),
+    ];
+    rerender(<GroceryList />);
+
+    expect(mockItems[0]?.addedBy).toBe("Lisa");
   });
 
   it("queues and optimistically caches a new item while offline", async () => {

@@ -63,6 +63,12 @@ export default function GroceryList() {
   const familyId = currentFamilyId || params.familyId;
   const { memberNames, isReady: memberNamesReady } = useFamilyMemberNames(familyId);
 
+  // Fetch grocery items for the specific family
+  const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
+  const { data: historyItems = [] } = useGroceryHistory(familyId, {
+    enabled: historySuggestionsActive,
+  });
+
   useEffect(() => {
     if (!familyId || !memberNamesReady || memberNames.size === 0) {
       return;
@@ -71,13 +77,7 @@ export default function GroceryList() {
     queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => (
       applyMemberNamesToGroceryItems(old, memberNames)
     ));
-  }, [familyId, memberNames, memberNamesReady, queryClient]);
-
-  // Fetch grocery items for the specific family
-  const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
-  const { data: historyItems = [] } = useGroceryHistory(familyId, {
-    enabled: historySuggestionsActive,
-  });
+  }, [familyId, items, memberNames, memberNamesReady, queryClient]);
   const {
     queuedMutationCount,
     isSyncingQueuedChanges,
