@@ -5,6 +5,12 @@ import { useAuth } from './use-auth';
 import supabase from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+function realtimeDevLog(...args: unknown[]) {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+}
+
 interface UseWebSocketProps {
   familyId?: string | null;
   onItemAdded: (item: GroceryItem) => void;
@@ -46,6 +52,7 @@ export function useWebSocket({
       }
 
       if (channelRef.current) {
+        realtimeDevLog('Closing existing WebSocket channel to prevent duplicates');
         await channelRef.current.unsubscribe();
         channelRef.current = null;
       }
@@ -61,6 +68,7 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
+            realtimeDevLog('Item added:', payload.new);
             onItemAddedRef.current(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           },
         )
@@ -73,6 +81,7 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
+            realtimeDevLog('Item updated:', payload.new);
             onItemUpdatedRef.current(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           },
         )
@@ -85,11 +94,13 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
+            realtimeDevLog('Item deleted:', payload.old);
             const mapped = mapRealtimeGroceryRow(payload.old as Record<string, unknown>);
             onItemDeletedRef.current(mapped.id);
           },
         )
         .subscribe((status) => {
+          realtimeDevLog('Realtime subscription status:', status);
           if (status === 'SUBSCRIBED') {
             if (wasSubscribedRef.current) {
               onResyncRef.current?.();
@@ -108,6 +119,7 @@ export function useWebSocket({
     connect();
 
     return () => {
+      realtimeDevLog('Cleaning up WebSocket connection');
       wasSubscribedRef.current = false;
       if (channelRef.current) {
         channelRef.current.unsubscribe();

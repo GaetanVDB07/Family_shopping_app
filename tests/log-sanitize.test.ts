@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeBodyForLog, sanitizeHeadersForLog } from '../shared/log-sanitize.js';
+import {
+  formatDevApiResponseLogSuffix,
+  sanitizeBodyForLog,
+  sanitizeHeadersForLog,
+  shouldLogDevApiResponseBody,
+} from '../shared/log-sanitize.js';
 
 describe('sanitizeHeadersForLog', () => {
   it('redacts authorization headers case-insensitively', () => {
@@ -12,6 +17,27 @@ describe('sanitizeHeadersForLog', () => {
       Authorization: '[REDACTED]',
       'content-type': 'application/json',
     });
+  });
+});
+
+describe('shouldLogDevApiResponseBody', () => {
+  it('logs only failed or slow responses', () => {
+    expect(shouldLogDevApiResponseBody(200, 120)).toBe(false);
+    expect(shouldLogDevApiResponseBody(404, 12)).toBe(true);
+    expect(shouldLogDevApiResponseBody(200, 500)).toBe(true);
+  });
+});
+
+describe('formatDevApiResponseLogSuffix', () => {
+  it('skips stringify for fast successful responses', () => {
+    expect(formatDevApiResponseLogSuffix(200, 120, { items: [{ id: '1' }] })).toBe('');
+  });
+
+  it('includes sanitized bodies for errors and slow requests', () => {
+    expect(formatDevApiResponseLogSuffix(500, 40, { message: 'fail', code: '123456' })).toBe(
+      ' :: {"message":"fail","code":"[REDACTED]"}',
+    );
+    expect(formatDevApiResponseLogSuffix(200, 900, { items: [] })).toBe(' :: {"items":[]}');
   });
 });
 

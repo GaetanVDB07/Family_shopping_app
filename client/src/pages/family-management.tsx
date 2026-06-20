@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
+import { invalidateFamilyMemberNames } from "@/hooks/use-family-member-names";
 import { FamilyInviteShare } from "@/components/family-invite-share";
 import { ArrowLeft, Users, UserX, Trash2, Pencil, Check, X, Crown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -80,6 +81,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      invalidateFamilyMemberNames(queryClient, familyId);
       queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
     },
     onError: (error) => {
@@ -110,6 +112,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      invalidateFamilyMemberNames(queryClient, familyId);
       queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setIsEditingName(false);
       toast({ title: "Naam gewijzigd", description: "De familienaam is succesvol gewijzigd." });
@@ -127,6 +130,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
+      invalidateFamilyMemberNames(queryClient, familyId);
       queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setTransferTarget(null);
       toast({ title: "Admin overgedragen", description: "De admin-rol is succesvol overgedragen." });

@@ -6,6 +6,7 @@ dotenv.config({ path: envFile });
 
 import express, { type Request, type Response, type NextFunction } from "express";
 import { setupVite, serveStatic, log } from "./vite";
+import { formatDevApiResponseLogSuffix } from "../shared/log-sanitize.js";
 import { createServer } from "http";
 import { createListenOptions } from "./listen-options";
 // Use the same API logic as production
@@ -31,9 +32,11 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+      logLine += formatDevApiResponseLogSuffix(
+        res.statusCode,
+        duration,
+        capturedJsonResponse,
+      );
 
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
