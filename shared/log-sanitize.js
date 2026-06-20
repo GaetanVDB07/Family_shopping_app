@@ -30,6 +30,20 @@ export function sanitizeHeadersForLog(headers = {}) {
   return sanitized;
 }
 
+export const DEV_API_SLOW_REQUEST_MS = 500;
+
+export function shouldLogDevApiResponseBody(statusCode, durationMs) {
+  return statusCode >= 400 || durationMs >= DEV_API_SLOW_REQUEST_MS;
+}
+
+export function formatDevApiResponseLogSuffix(statusCode, durationMs, responseBody) {
+  if (!shouldLogDevApiResponseBody(statusCode, durationMs) || responseBody === undefined) {
+    return '';
+  }
+
+  return ` :: ${JSON.stringify(sanitizeBodyForLog(responseBody))}`;
+}
+
 export function sanitizeBodyForLog(body) {
   if (body === undefined || body === null) {
     return body;
