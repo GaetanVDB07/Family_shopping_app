@@ -10,6 +10,8 @@ interface FamilyDetailsMembers {
   }>;
 }
 
+const EMPTY_MEMBER_NAME_MAP = new Map<string, string>();
+
 export function useFamilyMemberNames(familyId: string | null | undefined) {
   const query = useQuery({
     queryKey: ["/api/family/details", familyId],
@@ -22,5 +24,8 @@ export function useFamilyMemberNames(familyId: string | null | undefined) {
     select: (data) => buildFamilyMemberNameMap(data.members),
   });
 
-  return query.data ?? new Map<string, string>();
+  return {
+    memberNames: query.data ?? EMPTY_MEMBER_NAME_MAP,
+    isReady: query.isSuccess,
+  };
 }

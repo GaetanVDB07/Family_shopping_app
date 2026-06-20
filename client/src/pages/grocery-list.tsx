@@ -6,7 +6,7 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
-import { resolveAddedByDisplayName } from "@/lib/family-member-names";
+import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { SortableGroceryList } from "@/components/sortable-grocery-list";
@@ -61,7 +61,17 @@ export default function GroceryList() {
   }, [params.familyId, currentFamilyId, familiesLoading, allFamilies, updateCurrentFamily, setLocation]);
 
   const familyId = currentFamilyId || params.familyId;
-  const memberNames = useFamilyMemberNames(familyId);
+  const { memberNames, isReady: memberNamesReady } = useFamilyMemberNames(familyId);
+
+  useEffect(() => {
+    if (!familyId || !memberNamesReady || memberNames.size === 0) {
+      return;
+    }
+
+    queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => (
+      applyMemberNamesToGroceryItems(old, memberNames)
+    ));
+  }, [familyId, memberNames, memberNamesReady, queryClient]);
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
