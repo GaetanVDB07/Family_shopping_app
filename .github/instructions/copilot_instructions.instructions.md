@@ -18,3 +18,10 @@ Release/version rule:
 - Breaking releases increment the second number and reset the third number, for example `1.1.4` to `1.2.0`.
 - If the third number would go past `9`, increment the second number and reset the third number, for example `1.1.9` to `1.2.0`.
 - The app displays the root package version on the `Mijn Families` page as `Vx.y.z`, so bump the version when merging features into `develop`.
+
+Supabase Auth email (agents and automation):
+- Do not call `signUp()` or `resetPasswordForEmail()` against hosted Supabase with fake or invalid emails; bounces can restrict project email sending.
+- Prefer local Supabase (`npx supabase start`) for auth flows; emails are captured in Mailpit.
+- Hosted integration tests must use `SUPABASE_SERVICE_ROLE_KEY` and `auth.admin.createUser({ email_confirm: true })` (see `scripts/test-family-setup-flow.mjs`).
+- Vitest (`npm test -- --run`) mocks auth and does not send email.
+- Production should use custom SMTP in the Supabase dashboard (Authentication → SMTP).

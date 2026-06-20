@@ -14,6 +14,13 @@ This directory contains utility scripts for database management, testing, and de
 - `test-db-connection.mjs` - Tests database connection with environment loading
 - `test-query.mjs` - Tests specific database queries for debugging
 - `test-get-items.mjs` - Tests the getAllGroceryItems function
+- `test-family-setup-flow.mjs` - Integration test for family create/join API
+
+### Auth email safety (`test-family-setup-flow.mjs`)
+
+Against **hosted** Supabase, this script requires `SUPABASE_SERVICE_ROLE_KEY` so it can create users with `email_confirm: true` without sending confirmation emails. Without it, the script exits immediately to avoid bounces from `signUp()` on fake addresses.
+
+For auth testing without the service role, use **local Supabase** (`npx supabase start`); auth emails are captured in Mailpit, not sent to the internet.
 
 ## Debugging Scripts
 
