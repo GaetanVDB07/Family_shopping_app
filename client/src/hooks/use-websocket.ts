@@ -5,6 +5,12 @@ import { useAuth } from './use-auth';
 import supabase from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+function realtimeDevLog(...args: unknown[]) {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+}
+
 interface UseWebSocketProps {
   familyId?: string | null;
   onItemAdded: (item: GroceryItem) => void;
@@ -42,17 +48,17 @@ export function useWebSocket({
   const connect = useCallback(async () => {
     try {
       if (!user || !session) {
-        console.log('No authenticated user, skipping realtime connection');
+        realtimeDevLog('No authenticated user, skipping realtime connection');
         return;
       }
 
       if (!familyId) {
-        console.log('No selected family, skipping realtime connection');
+        realtimeDevLog('No selected family, skipping realtime connection');
         return;
       }
 
       if (channelRef.current) {
-        console.log('Closing existing WebSocket channel to prevent duplicates');
+        realtimeDevLog('Closing existing WebSocket channel to prevent duplicates');
         await channelRef.current.unsubscribe();
         channelRef.current = null;
       }
@@ -68,7 +74,7 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
-            console.log('Item added:', payload.new);
+            realtimeDevLog('Item added:', payload.new);
             onItemAddedRef.current(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           },
         )
@@ -81,7 +87,7 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
-            console.log('Item updated:', payload.new);
+            realtimeDevLog('Item updated:', payload.new);
             onItemUpdatedRef.current(mapRealtimeGroceryRow(payload.new as Record<string, unknown>));
           },
         )
@@ -94,13 +100,13 @@ export function useWebSocket({
             filter: `family_id=eq.${familyId}`,
           },
           (payload) => {
-            console.log('Item deleted:', payload.old);
+            realtimeDevLog('Item deleted:', payload.old);
             const mapped = mapRealtimeGroceryRow(payload.old as Record<string, unknown>);
             onItemDeletedRef.current(mapped.id);
           },
         )
         .subscribe((status) => {
-          console.log('Realtime subscription status:', status);
+          realtimeDevLog('Realtime subscription status:', status);
           if (status === 'SUBSCRIBED') {
             if (wasSubscribedRef.current) {
               onResyncRef.current?.();
@@ -119,7 +125,7 @@ export function useWebSocket({
     connect();
 
     return () => {
-      console.log('Cleaning up WebSocket connection');
+      realtimeDevLog('Cleaning up WebSocket connection');
       wasSubscribedRef.current = false;
       if (channelRef.current) {
         channelRef.current.unsubscribe();
