@@ -58,8 +58,8 @@ vi.mock("@/hooks/use-grocery-history", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-refetch-on-visibility", () => ({
-  useRefetchOnVisibility: vi.fn(),
+vi.mock("@/hooks/use-family-member-names", () => ({
+  useFamilyMemberNames: () => new Map([["user-1", "User One"]]),
 }));
 
 vi.mock("@/hooks/use-pull-to-refresh", () => ({

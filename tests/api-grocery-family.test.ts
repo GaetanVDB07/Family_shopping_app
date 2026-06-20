@@ -475,6 +475,16 @@ describe('grocery item family scoping', () => {
     expect(res.body.notes).toBe('Geen lactose');
   });
 
+  it('returns the current member display name when updating an item', async () => {
+    const res = await request('PATCH', '/api/grocery-items/10', {
+      completed: true,
+      familyId: 'family-2',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.addedBy).toBe('User One');
+  });
+
   it('updates items using the requested family scope', async () => {
     const res = await request('PATCH', '/api/grocery-items/10', {
       completed: true,

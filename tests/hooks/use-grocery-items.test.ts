@@ -76,13 +76,18 @@ describe("useGroceryItems", () => {
     );
   });
 
-  it("opts the query in to window-focus refetch", () => {
+  it("uses the global query client refetch defaults", () => {
     renderHook(() => useGroceryItems("family-1"));
 
     expect(mockedUseQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        refetchOnWindowFocus: "always",
+        queryKey: ["/api/grocery-items", "family-1"],
+        enabled: true,
       }),
+    );
+    expect(mockedUseQuery.mock.calls[0][0]).not.toHaveProperty(
+      "refetchOnWindowFocus",
+      "always",
     );
   });
 
