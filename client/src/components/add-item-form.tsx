@@ -18,6 +18,7 @@ interface AddItemFormProps {
   isLoading: boolean;
   existingItems: GroceryItem[];
   historyItems?: GroceryItem[];
+  onSuggestionsActiveChange?: (active: boolean) => void;
 }
 
 interface MatchingExistingItem {
@@ -41,6 +42,7 @@ export function AddItemForm({
   isLoading,
   existingItems,
   historyItems = [],
+  onSuggestionsActiveChange,
 }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -106,6 +108,10 @@ export function AddItemForm({
 
     return existingItems.find((item) => !item.completed && normalizeItemName(item.name) === normalizedName) ?? null;
   }, [existingItems, name]);
+
+  useEffect(() => {
+    onSuggestionsActiveChange?.(isFocused || name.trim().length > 0);
+  }, [isFocused, name, onSuggestionsActiveChange]);
 
   useEffect(() => {
     if (!isLoading && inputRef.current) {

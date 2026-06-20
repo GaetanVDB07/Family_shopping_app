@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useFamilyStatus, userFamiliesQueryKey } from "@/hooks/use-family-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useLocation } from "wouter";
@@ -20,6 +21,7 @@ import { clearPendingJoinCode, resolveInitialJoinCode } from "@/lib/family-invit
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { allFamilies, familiesLoading } = useFamilyStatus();
   const { updateCurrentFamily } = useCurrentFamily();
   const { toast } = useToast();
   const [joinCode, setJoinCode] = useState("");
@@ -39,11 +41,16 @@ export default function FamiliesOverview() {
     clearPendingJoinCode();
   }, []);
 
-  // Fetch all families the user is a member of
-  const { data: families, isLoading } = useQuery<FamilyWithRole[]>({
-    queryKey: ["/api/user/families"],
-    retry: 1,
-  });
+  const families: FamilyWithRole[] = allFamilies.map((family) => ({
+    id: family.id,
+    name: family.name,
+    code: family.code,
+    role: family.role,
+    memberCount: family.memberCount,
+    createdAt: new Date(family.createdAt),
+    createdBy: family.createdBy,
+  }));
+  const isLoading = familiesLoading;
 
   // Join family mutation
   const joinFamilyMutation = useMutation({
@@ -52,7 +59,7 @@ export default function FamiliesOverview() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setJoinCode("");
       setShowJoinDialog(false);
     },
@@ -70,7 +77,7 @@ export default function FamiliesOverview() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setNewFamilyName("");
       setShowCreateDialog(false);
     },

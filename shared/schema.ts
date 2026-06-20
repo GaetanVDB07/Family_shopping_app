@@ -83,6 +83,12 @@ export interface UserFamilyMembership {
   familyCode: string;
   role: string;
   joinedAt: string;
+  memberCount: number;
+  id: string;
+  name: string;
+  code: string;
+  createdAt: string;
+  createdBy: string;
   isActive?: boolean; // For current active family
 }
 
