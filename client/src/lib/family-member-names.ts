@@ -1,5 +1,7 @@
 import type { GroceryItem } from "@shared/schema";
 
+type GroceryItemsWithOfflineFlag = GroceryItem[] & { isOfflineData?: boolean };
+
 const AUTH_USER_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -39,9 +41,9 @@ export function buildFamilyMemberNameMap(
 }
 
 export function applyMemberNamesToGroceryItems(
-  items: GroceryItem[],
+  items: GroceryItemsWithOfflineFlag,
   nameByUserId: Map<string, string>,
-): GroceryItem[] {
+): GroceryItemsWithOfflineFlag {
   if (nameByUserId.size === 0) {
     return items;
   }
@@ -57,5 +59,5 @@ export function applyMemberNamesToGroceryItems(
     return { ...item, addedBy: resolvedAddedBy };
   });
 
-  return changed ? next : items;
+  return changed ? Object.assign(next, { isOfflineData: items.isOfflineData }) : items;
 }
