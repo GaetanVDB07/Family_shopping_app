@@ -32,6 +32,8 @@ export function useWebSocket({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const wasSubscribedRef = useRef(false);
   const { session, user } = useAuth();
+  const accessToken = session?.access_token;
+  const userId = user?.id;
 
   const onItemAddedRef = useRef(onItemAdded);
   const onItemUpdatedRef = useRef(onItemUpdated);
@@ -47,7 +49,7 @@ export function useWebSocket({
 
   const connect = useCallback(async () => {
     try {
-      if (!user || !session || !familyId) {
+      if (!userId || !accessToken || !familyId) {
         return;
       }
 
@@ -113,7 +115,7 @@ export function useWebSocket({
     } catch (error) {
       console.error('Error connecting to Supabase Realtime:', error);
     }
-  }, [familyId, session, user]);
+  }, [familyId, accessToken, userId]);
 
   useEffect(() => {
     connect();
