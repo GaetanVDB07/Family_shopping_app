@@ -1,0 +1,71 @@
+name: Label untagged issues
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - .github/workflows/label-untagged-issues.yml
+
+permissions:
+  issues: write
+
+jobs:
+  label-performance-backlog:
+    name: Label untagged performance backlog issues
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply labels to untagged issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const mappings = {
+              186: ['bug', 'quick-win'],
+              187: ['bug', 'quick-win'],
+              188: ['enhancement', 'quick-win'],
+              189: ['bug', 'quick-win'],
+              190: ['bug', 'quick-win'],
+              191: ['bug'],
+              192: ['bug'],
+              193: ['enhancement', 'quick-win'],
+              194: ['enhancement', 'quick-win'],
+              195: ['enhancement', 'quick-win'],
+              196: ['enhancement'],
+              197: ['enhancement'],
+              198: ['enhancement'],
+              199: ['enhancement', 'quick-win'],
+              200: ['enhancement', 'quick-win'],
+              201: ['bug'],
+              202: ['bug', 'quick-win'],
+              203: ['enhancement', 'quick-win'],
+              204: ['enhancement'],
+              205: ['enhancement'],
+              206: ['enhancement', 'security'],
+              207: ['enhancement'],
+              208: ['enhancement'],
+            };
+
+            for (const [issueNumber, labels] of Object.entries(mappings)) {
+              const number = Number(issueNumber);
+              const { data: issue } = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+              });
+
+              if (issue.labels.length > 0) {
+                console.log(`#${number} already has labels; skipping.`);
+                continue;
+              }
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                labels,
+              });
+
+              console.log(`Labeled #${number} with ${labels.join(', ')}`);
+            }
