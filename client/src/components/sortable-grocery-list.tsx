@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { GroceryItem } from "@shared/schema";
 import { GroceryItemComponent, type GroceryItemEditValues } from "@/components/grocery-item";
+import { getListItemStaggerAnimation } from "@/lib/list-item-animation";
 
 interface SortableGroceryItemRowProps {
   item: GroceryItem;
@@ -122,11 +123,14 @@ export function SortableGroceryList({
         strategy={verticalListSortingStrategy}
       >
         <div className="space-y-2">
-          {items.map((item, index) => (
+          {items.map((item, index) => {
+            const enterAnimation = getListItemStaggerAnimation(index, items.length);
+
+            return (
             <div
               key={`pending-${item.id}-${item.name}`}
-              className="animate-in slide-in-from-left duration-300"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className={enterAnimation.className}
+              style={enterAnimation.style}
             >
               <SortableGroceryItemRow
                 item={item}
@@ -136,7 +140,8 @@ export function SortableGroceryList({
                 disabled={disabled}
               />
             </div>
-          ))}
+            );
+          })}
         </div>
       </SortableContext>
     </DndContext>
