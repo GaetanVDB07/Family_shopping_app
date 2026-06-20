@@ -67,6 +67,8 @@ These do not require Supabase or Docker:
 
 Hosted Supabase projects use a **built-in SMTP service for demos only**. Sign-up confirmations and password-reset emails sent to invalid, fake, or typo addresses **bounce**, which can trigger Supabase warnings and **temporary email sending restrictions**.
 
+The **issue-worker Cursor automation** (`.cursor/automation/issue-worker.md`) includes these rules in its prompt. Keep that file in sync if you change automation instructions in the Cursor dashboard.
+
 **Agents and automation must follow these rules:**
 
 1. **Prefer local Supabase for auth testing.** `npx supabase@latest start` captures auth emails in **Mailpit** (`npx supabase@latest status` shows the URL). No real outbound mail is sent.
