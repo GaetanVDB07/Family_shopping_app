@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useFamilyStatus, userFamiliesQueryKey } from "@/hooks/use-family-status";
@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import type { FamilyWithRole } from "@shared/schema";
 import { isValidJoinCode, normalizeJoinCodeInput } from "@/lib/family-code";
 import { clearPendingJoinCode, resolveInitialJoinCode } from "@/lib/family-invite";
+import { prefetchGroceryItems } from "@/hooks/use-grocery-items";
+import { prefetchFamilyMemberNames } from "@/hooks/use-family-member-names";
 
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
@@ -103,6 +105,11 @@ export default function FamiliesOverview() {
     updateCurrentFamily(familyId);
     setLocation(`/grocery-list/${familyId}`);
   };
+
+  const prefetchFamilyData = useCallback((familyId: string) => {
+    void prefetchGroceryItems(queryClient, familyId);
+    void prefetchFamilyMemberNames(queryClient, familyId);
+  }, [queryClient]);
 
   const navigateToFamilyManagement = (familyId: string) => {
     updateCurrentFamily(familyId);
@@ -233,7 +240,13 @@ export default function FamiliesOverview() {
         {families && families.length > 0 ? (
           <div className="space-y-4">
             {families.map((family) => (
-              <Card key={family.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={family.id}
+                className="hover:shadow-md transition-shadow"
+                onMouseEnter={() => prefetchFamilyData(family.id)}
+                onFocus={() => prefetchFamilyData(family.id)}
+                onTouchStart={() => prefetchFamilyData(family.id)}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center space-x-2">
@@ -259,6 +272,9 @@ export default function FamiliesOverview() {
                     <Button 
                       className="flex-1" 
                       onClick={() => navigateToFamily(family.id)}
+                      onMouseEnter={() => prefetchFamilyData(family.id)}
+                      onFocus={() => prefetchFamilyData(family.id)}
+                      onTouchStart={() => prefetchFamilyData(family.id)}
                     >
                       Boodschappenlijst
                     </Button>

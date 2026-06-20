@@ -47,13 +47,7 @@ export function useWebSocket({
 
   const connect = useCallback(async () => {
     try {
-      if (!user || !session) {
-        realtimeDevLog('No authenticated user, skipping realtime connection');
-        return;
-      }
-
-      if (!familyId) {
-        realtimeDevLog('No selected family, skipping realtime connection');
+      if (!user || !session || !familyId) {
         return;
       }
 
