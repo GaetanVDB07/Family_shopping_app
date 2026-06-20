@@ -72,9 +72,6 @@ export default function FamilyManagement() {
     enabled: !familiesLoading && isAdmin && !!familyId,
   });
 
-  // Log for debugging
-  console.log("Family management - familiesLoading:", familiesLoading, "role:", userFamily?.role, "isLoading:", isLoading, "error:", error, "family:", family);
-
   // Remove member mutation - MUST be before any conditional returns
   const removeMemberMutation = useMutation({
     mutationFn: async (memberId: string) => {
@@ -142,10 +139,9 @@ export default function FamilyManagement() {
   // Redirect if not admin (only after family data is loaded)
   useEffect(() => {
     if (!familiesLoading && !isAdmin) {
-      console.log("Redirecting non-admin user, role:", userFamily?.role);
       setLocation("/families");
     }
-  }, [familiesLoading, isAdmin, userFamily?.role, setLocation]);
+  }, [familiesLoading, isAdmin, setLocation]);
 
   // Show loading while family membership is being checked
   if (familiesLoading) {

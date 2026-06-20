@@ -365,6 +365,58 @@ function getSupabaseServiceClient() {
   return supabaseService;
 }
 
+const AUTH_CACHE_TTL_MS = 60_000;
+const AUTH_CACHE_MAX_SIZE = 500;
+const authUserCache = new Map();
+
+function parseJwtPayload(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function isJwtStillValid(token) {
+  const payload = parseJwtPayload(token);
+  if (!payload?.exp) {
+    return false;
+  }
+
+  return payload.exp * 1000 > Date.now();
+}
+
+function getCachedAuthUser(token) {
+  const cached = authUserCache.get(token);
+  if (!cached) {
+    return null;
+  }
+
+  if (Date.now() - cached.cachedAt > AUTH_CACHE_TTL_MS || !isJwtStillValid(token)) {
+    authUserCache.delete(token);
+    return null;
+  }
+
+  return cached.user;
+}
+
+function setCachedAuthUser(token, user) {
+  if (authUserCache.size >= AUTH_CACHE_MAX_SIZE) {
+    const oldestToken = authUserCache.keys().next().value;
+    if (oldestToken) {
+      authUserCache.delete(oldestToken);
+    }
+  }
+
+  authUserCache.set(token, { user, cachedAt: Date.now() });
+}
+
 // Authentication helper
 async function authenticateUser(req) {
   const authHeader = req.headers.authorization;
@@ -373,6 +425,11 @@ async function authenticateUser(req) {
   }
 
   const token = authHeader.substring(7);
+  const cachedUser = getCachedAuthUser(token);
+  if (cachedUser) {
+    return cachedUser;
+  }
+
   const supabaseClient = getSupabaseClient();
   const { data: { user }, error } = await supabaseClient.auth.getUser(token);
   
@@ -380,7 +437,7 @@ async function authenticateUser(req) {
     throw new HttpError(401, 'Invalid or expired token');
   }
 
-  return {
+  const authenticatedUser = {
     id: user.id,
     email: user.email,
     name: user.user_metadata?.name
@@ -388,6 +445,9 @@ async function authenticateUser(req) {
       || user.user_metadata?.full_name
       || user.email?.split('@')[0],
   };
+
+  setCachedAuthUser(token, authenticatedUser);
+  return authenticatedUser;
 }
 
 // Helper function to generate unique family codes
@@ -459,6 +519,16 @@ async function handler(req, res) {
       {
         match: (path, mthd) => (path === '/families/join' && mthd === 'POST' ? {} : null),
         handler: handleJoinFamily,
+      },
+      {
+        match: (path, mthd) => {
+          const match = path.match(/^\/family\/([^/]+)\/member-names$/);
+          if (match && mthd === 'GET') {
+            return { familyId: match[1] };
+          }
+          return null;
+        },
+        handler: (req, res, params) => handleGetFamilyMemberNames(req, res, params.familyId),
       },
       {
         match: (path, mthd) => (path === '/family/details' && mthd === 'GET' ? {} : null),
@@ -904,6 +974,44 @@ async function handleGetFamilyDetails(req, res) {
     });
   } catch (error) {
     console.error('Error fetching family details:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+async function handleGetFamilyMemberNames(req, res, familyId) {
+  try {
+    const user = await authenticateUser(req);
+    const database = await getDatabase();
+    const validatedFamilyId = requireFamilyId(familyId);
+
+    const [membership] = await database
+      .select({ userId: familyMembers.userId })
+      .from(familyMembers)
+      .where(and(
+        eq(familyMembers.userId, user.id),
+        eq(familyMembers.familyId, validatedFamilyId),
+      ))
+      .limit(1);
+
+    if (!membership) {
+      return res.status(403).json({ message: 'Access denied: Not a member of this family' });
+    }
+
+    const members = await database
+      .select({
+        userId: familyMembers.userId,
+        userName: familyMembers.userName,
+        userEmail: familyMembers.userEmail,
+      })
+      .from(familyMembers)
+      .where(eq(familyMembers.familyId, validatedFamilyId));
+
+    return res.status(200).json({ members });
+  } catch (error) {
+    console.error('Error fetching family member names:', error);
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
     }
@@ -1480,15 +1588,17 @@ async function handleReorderGroceryItems(req, res) {
       }
     }
 
-    for (let index = 0; index < orderedIds.length; index += 1) {
-      await database
-        .update(groceryItems)
-        .set({ sortOrder: index })
-        .where(and(
-          eq(groceryItems.id, orderedIds[index]),
-          eq(groceryItems.familyId, userFamily.familyId),
-        ));
-    }
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        database
+          .update(groceryItems)
+          .set({ sortOrder: index })
+          .where(and(
+            eq(groceryItems.id, id),
+            eq(groceryItems.familyId, userFamily.familyId),
+          )),
+      ),
+    );
 
     const items = await fetchGroceryItemsForFamily(database, userFamily.familyId);
     return res.status(200).json({ items });
