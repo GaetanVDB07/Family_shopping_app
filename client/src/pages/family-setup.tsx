@@ -13,6 +13,7 @@ import { normalizeJoinCodeInput } from '@/lib/family-code';
 import { clearPendingJoinCode, resolveInitialJoinCode } from '@/lib/family-invite';
 import { getUserDisplayName } from '@/lib/user-display-name';
 import { useToast } from '@/hooks/use-toast';
+import { userFamiliesQueryKey } from '@/hooks/use-family-status';
 import { maxLengthInputProps } from '@/lib/api-error';
 
 export default function FamilySetup() {
@@ -63,8 +64,7 @@ export default function FamilySetup() {
       const { family } = await response.json();
       setSuccess(`Familie "${family.name}" aangemaakt! Familie code: ${family.code}`);
 
-      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
 
       setTimeout(() => {
         setLocation("/families");
@@ -100,8 +100,7 @@ export default function FamilySetup() {
       const { family } = await response.json();
       setSuccess(`Welkom bij familie "${family.name}"!`);
 
-      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
 
       setTimeout(() => {
         setLocation("/families");

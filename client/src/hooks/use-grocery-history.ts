@@ -2,7 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem } from "@shared/schema";
 
-export function useGroceryHistory(familyId: string | null | undefined) {
+type UseGroceryHistoryOptions = {
+  enabled?: boolean;
+};
+
+export function useGroceryHistory(
+  familyId: string | null | undefined,
+  options: UseGroceryHistoryOptions = {},
+) {
+  const suggestionsEnabled = options.enabled ?? false;
+
   const query = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items", familyId, "history"],
     queryFn: async () => {
@@ -16,7 +25,7 @@ export function useGroceryHistory(familyId: string | null | undefined) {
       );
       return (await response.json()) as GroceryItem[];
     },
-    enabled: !!familyId,
+    enabled: !!familyId && suggestionsEnabled,
     staleTime: 60_000,
   });
 

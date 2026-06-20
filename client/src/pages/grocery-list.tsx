@@ -33,6 +33,7 @@ function looksLikeAuthUserId(value: string): boolean {
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [historySuggestionsActive, setHistorySuggestionsActive] = useState(false);
   const [, setLocation] = useLocation();
   const params = useParams();
   const queryClient = useQueryClient();
@@ -67,7 +68,9 @@ export default function GroceryList() {
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
-  const { data: historyItems = [] } = useGroceryHistory(familyId);
+  const { data: historyItems = [] } = useGroceryHistory(familyId, {
+    enabled: historySuggestionsActive,
+  });
   const {
     queuedMutationCount,
     isSyncingQueuedChanges,
@@ -823,6 +826,7 @@ export default function GroceryList() {
         isLoading={addItemMutation.isPending}
         existingItems={items}
         historyItems={historyItems}
+        onSuggestionsActiveChange={setHistorySuggestionsActive}
       />
 
       {/* Delete All Confirmation Dialog */}
