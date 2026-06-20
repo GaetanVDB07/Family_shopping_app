@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import QRCode from 'react-qr-code';
+import { lazy, Suspense, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { buildFamilyInviteUrl } from '@/lib/family-invite';
 import { Check, Copy, Link2 } from 'lucide-react';
+
+const QRCode = lazy(() => import('react-qr-code'));
 
 interface FamilyInviteShareProps {
   familyCode: string;
@@ -77,7 +78,9 @@ export function FamilyInviteShare({ familyCode }: FamilyInviteShareProps) {
       </div>
 
       <div className="flex flex-col items-center rounded-lg border bg-card p-4">
-        <QRCode value={inviteUrl} size={160} />
+        <Suspense fallback={<div className="h-40 w-40 animate-pulse rounded bg-muted" aria-hidden="true" />}>
+          <QRCode value={inviteUrl} size={160} />
+        </Suspense>
         <p className="text-xs text-muted-foreground mt-3 text-center">Scan om direct te joinen</p>
       </div>
     </div>
