@@ -68,4 +68,30 @@ describe("family-member-names", () => {
     expect(updated).not.toBe(items);
     expect(updated[0]?.addedBy).toBe("Lisa");
   });
+
+  it("preserves offline cache metadata when re-applying member names", () => {
+    const items = Object.assign([
+      {
+        id: 1,
+        name: "Melk",
+        quantity: null,
+        unit: null,
+        notes: null,
+        completed: false,
+        addedBy: "22222222-2222-2222-2222-222222222222",
+        familyId: "family-1",
+        addedAt: new Date(),
+        sortOrder: 0,
+        completedAt: null,
+        archivedAt: null,
+        createdAt: new Date(),
+      },
+    ], { isOfflineData: true });
+    const map = new Map([["22222222-2222-2222-2222-222222222222", "Lisa"]]);
+
+    const updated = applyMemberNamesToGroceryItems(items, map);
+
+    expect(updated.isOfflineData).toBe(true);
+    expect(updated[0]?.addedBy).toBe("Lisa");
+  });
 });
