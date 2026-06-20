@@ -59,7 +59,10 @@ vi.mock("@/hooks/use-grocery-history", () => ({
 }));
 
 vi.mock("@/hooks/use-family-member-names", () => ({
-  useFamilyMemberNames: () => new Map([["user-1", "User One"]]),
+  useFamilyMemberNames: () => ({
+    memberNames: new Map([["user-1", "User One"]]),
+    isReady: true,
+  }),
 }));
 
 vi.mock("@/hooks/use-pull-to-refresh", () => ({

@@ -148,7 +148,7 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
 
 async function formatGroceryItemAddedBy(database, familyId, item, userFamily, user) {
   if (item.addedBy === user.id) {
-    return userFamily.userName || user.user_metadata?.name || user.email?.split('@')[0] || 'Onbekend';
+    return userFamily.userName || user.name || user.email?.split('@')[0] || 'Onbekend';
   }
 
   const addedBy = await resolveAddedByDisplayName(database, familyId, item.addedBy);
