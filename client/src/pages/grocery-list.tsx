@@ -5,7 +5,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
-import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
+import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
+import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 import { SortableGroceryList } from "@/components/sortable-grocery-list";
@@ -25,10 +26,6 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOfflineGrocerySync } from "@/hooks/use-offline-grocery-sync";
 import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-function looksLikeAuthUserId(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
 
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,8 +60,18 @@ export default function GroceryList() {
     }
   }, [params.familyId, currentFamilyId, familiesLoading, allFamilies, updateCurrentFamily, setLocation]);
 
-  // Use current family ID, fallback to URL param for direct navigation
   const familyId = currentFamilyId || params.familyId;
+  const { memberNames, isReady: memberNamesReady } = useFamilyMemberNames(familyId);
+
+  useEffect(() => {
+    if (!familyId || !memberNamesReady || memberNames.size === 0) {
+      return;
+    }
+
+    queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => (
+      applyMemberNamesToGroceryItems(old, memberNames)
+    ));
+  }, [familyId, memberNames, memberNamesReady, queryClient]);
 
   // Fetch grocery items for the specific family
   const { data: items = [], isLoading, refetch, isOfflineData } = useGroceryItems(familyId);
@@ -88,9 +95,6 @@ export default function GroceryList() {
     userLabel: user?.user_metadata?.name || user?.email || "Offline",
   });
 
-  // Refetch when the tab becomes visible again (mobile backgrounding)
-  useRefetchOnVisibility(refetch);
-
   // Pull to refresh functionality
   const { isPulling, isRefreshing, pullDistance, shouldShowIndicator } = usePullToRefresh({
     onRefresh: async () => {
@@ -107,39 +111,33 @@ export default function GroceryList() {
     },
     onItemAdded: (item) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemAdded:`, item);
+      const resolvedItem = {
+        ...item,
+        addedBy: resolveAddedByDisplayName(item.addedBy, memberNames),
+      };
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        // Check if item already exists to prevent duplicates (more robust check)
-        const exists = old.some(existingItem => existingItem.id === item.id);
-        console.log(`[${new Date().toISOString()}] Client: WebSocket item exists in cache:`, exists, 'Item ID:', item.id);
+        const exists = old.some((existingItem) => existingItem.id === resolvedItem.id);
+        console.log(`[${new Date().toISOString()}] Client: WebSocket item exists in cache:`, exists, 'Item ID:', resolvedItem.id);
         if (exists) {
-          console.log(`[${new Date().toISOString()}] Client: WebSocket duplicate item prevented:`, item.id);
-          return old; // Return unchanged array to prevent duplicate
+          console.log(`[${new Date().toISOString()}] Client: WebSocket duplicate item prevented:`, resolvedItem.id);
+          return old;
         }
-        return sortGroceryItems([...old, item]);
+        return sortGroceryItems([...old, resolvedItem]);
       });
-      if (looksLikeAuthUserId(item.addedBy)) {
-        void refetch();
-      }
     },
     onItemUpdated: (updatedItem) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemUpdated:`, updatedItem);
+      const resolvedItem = {
+        ...updatedItem,
+        addedBy: resolveAddedByDisplayName(updatedItem.addedBy, memberNames),
+      };
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        const updated = old.map((item) => {
-          if (item.id !== updatedItem.id) {
-            return item;
-          }
-
-          return {
-            ...updatedItem,
-            addedBy: looksLikeAuthUserId(updatedItem.addedBy) ? item.addedBy : updatedItem.addedBy,
-          };
-        });
+        const updated = old.map((item) => (
+          item.id === resolvedItem.id ? resolvedItem : item
+        ));
         console.log(`[${new Date().toISOString()}] Client: WebSocket updated ${old.length} items`);
         return sortGroceryItems(updated);
       });
-      if (looksLikeAuthUserId(updatedItem.addedBy)) {
-        void refetch();
-      }
     },
     onItemDeleted: (id) => {
       console.log(`[${new Date().toISOString()}] Client: WebSocket itemDeleted:`, id);

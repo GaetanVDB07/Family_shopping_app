@@ -146,9 +146,13 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
   return member?.userName ?? userId;
 }
 
-async function formatGroceryItemForResponse(database, familyId, item) {
+async function formatGroceryItemAddedBy(database, familyId, item, userFamily, user) {
+  if (item.addedBy === user.id) {
+    return userFamily.userName || user.name || user.email?.split('@')[0] || 'Onbekend';
+  }
+
   const addedBy = await resolveAddedByDisplayName(database, familyId, item.addedBy);
-  return { ...item, addedBy };
+  return addedBy;
 }
 
 function normalizeNotes(value) {
@@ -1419,9 +1423,15 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    const formattedItem = await formatGroceryItemForResponse(database, userFamily.familyId, item);
+    const addedBy = await formatGroceryItemAddedBy(
+      database,
+      userFamily.familyId,
+      item,
+      userFamily,
+      user,
+    );
 
-    return res.status(200).json(formattedItem);
+    return res.status(200).json({ ...item, addedBy });
   } catch (error) {
     console.error('Error updating grocery item:', error);
     if (error instanceof HttpError || error?.status) {
