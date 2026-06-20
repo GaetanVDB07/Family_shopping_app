@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { useFamilyStatus } from "@/hooks/use-family-status";
+import { useFamilyStatus, userFamiliesQueryKey } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +83,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
     },
     onError: (error) => {
       toastApiError(toast, error, "Kon familielid niet verwijderen.");
@@ -97,8 +97,7 @@ export default function FamilyManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setLocation("/families");
     },
     onError: (error) => {
@@ -114,7 +113,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setIsEditingName(false);
       toast({ title: "Naam gewijzigd", description: "De familienaam is succesvol gewijzigd." });
     },
@@ -131,7 +130,7 @@ export default function FamilyManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/family/details", familyId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setTransferTarget(null);
       toast({ title: "Admin overgedragen", description: "De admin-rol is succesvol overgedragen." });
     },

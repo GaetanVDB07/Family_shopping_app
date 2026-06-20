@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toastApiError } from "@/lib/api-error";
-import { useFamilyStatus } from "@/hooks/use-family-status";
+import { useFamilyStatus, userFamiliesQueryKey } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
@@ -40,15 +40,15 @@ interface UserMenuProps {
 
 export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
   const [, setLocation] = useLocation();
-  const { familyMembership, allFamilies } = useFamilyStatus();
+  const { allFamilies } = useFamilyStatus();
   const { currentFamilyId, currentFamily } = useCurrentFamily();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
 
-  const isAdmin = currentFamily?.role === "admin" || familyMembership?.role === "admin";
+  const isAdmin = currentFamily?.role === "admin";
   const adminFamilies = useMemo(
     () => allFamilies.filter((family) => family.role === "admin"),
     [allFamilies]
@@ -61,8 +61,7 @@ export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/family"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/families"] });
+      queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
       setLocation("/families");
     },
     onError: (error) => {

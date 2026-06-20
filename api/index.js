@@ -729,29 +729,38 @@ async function handleGetUserFamilies(req, res) {
       .where(eq(familyMembers.userId, user.id))
       .orderBy(families.name);
 
-    // For each family, get the member count
-    const userFamilies = await Promise.all(
-      result.map(async (row) => {
-        const [memberCountResult] = await database
-          .select({ count: count(familyMembers.id) })
-          .from(familyMembers)
-          .where(eq(familyMembers.familyId, row.familyId));
+    // Batch member counts in one grouped query instead of N+1 per family.
+    const familyIds = result.map((row) => row.familyId);
+    const memberCountByFamilyId = new Map();
 
-        return {
-          familyId: row.familyId,
-          familyName: row.familyName,
-          familyCode: row.familyCode,
-          role: row.role,
-          joinedAt: row.joinedAt.toISOString(),
-          id: row.familyId,
-          name: row.familyName,
-          code: row.familyCode,
-          createdAt: row.createdAt,
-          createdBy: row.createdBy,
-          memberCount: Number(memberCountResult.count),
-        };
-      })
-    );
+    if (familyIds.length > 0) {
+      const memberCounts = await database
+        .select({
+          familyId: familyMembers.familyId,
+          memberCount: count(familyMembers.id),
+        })
+        .from(familyMembers)
+        .where(inArray(familyMembers.familyId, familyIds))
+        .groupBy(familyMembers.familyId);
+
+      for (const row of memberCounts) {
+        memberCountByFamilyId.set(row.familyId, Number(row.memberCount));
+      }
+    }
+
+    const userFamilies = result.map((row) => ({
+      familyId: row.familyId,
+      familyName: row.familyName,
+      familyCode: row.familyCode,
+      role: row.role,
+      joinedAt: row.joinedAt.toISOString(),
+      id: row.familyId,
+      name: row.familyName,
+      code: row.familyCode,
+      createdAt: row.createdAt,
+      createdBy: row.createdBy,
+      memberCount: memberCountByFamilyId.get(row.familyId) ?? 0,
+    }));
 
     return res.status(200).json(userFamilies);
   } catch (error) {
