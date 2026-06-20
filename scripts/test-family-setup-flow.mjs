@@ -18,10 +18,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
   process.exit(1);
 }
 
+const isLocalSupabase = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(supabaseUrl);
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const supabaseAdmin = serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
   : null;
+
+if (!isLocalSupabase && !supabaseAdmin) {
+  console.error(
+    'Refusing to run against hosted Supabase without SUPABASE_SERVICE_ROLE_KEY.\n' +
+      'signUp() would send confirmation emails to disposable addresses and can cause bounces.\n' +
+      'Use local Supabase (npx supabase start) or set SUPABASE_SERVICE_ROLE_KEY in .env.development.',
+  );
+  process.exit(1);
+}
 
 const testEmail = `cursor-test-${Date.now()}@example.invalid`;
 const testPassword = `Test-${randomBytes(8).toString('hex')}!`;
@@ -64,6 +75,12 @@ async function getAccessToken() {
     });
     if (signInError) throw signInError;
     return { token: signIn.session.access_token, userId: data.user.id };
+  }
+
+  if (!isLocalSupabase) {
+    throw new Error(
+      'Hosted Supabase requires SUPABASE_SERVICE_ROLE_KEY (signUp sends real auth emails).',
+    );
   }
 
   const { data, error } = await supabase.auth.signUp({
