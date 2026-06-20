@@ -12,9 +12,24 @@ interface FamilyMemberNamesResponse {
 
 const EMPTY_MEMBER_NAME_MAP = new Map<string, string>();
 
+export function familyMemberNamesQueryKey(familyId: string | null | undefined) {
+  return ["/api/family", familyId ?? null, "member-names"] as const;
+}
+
+export function invalidateFamilyMemberNames(
+  queryClient: QueryClient,
+  familyId: string | null | undefined,
+) {
+  if (!familyId) {
+    return;
+  }
+
+  void queryClient.invalidateQueries({ queryKey: familyMemberNamesQueryKey(familyId) });
+}
+
 export function familyMemberNamesQueryOptions(familyId: string) {
   return {
-    queryKey: ["/api/family", familyId, "member-names"] as const,
+    queryKey: familyMemberNamesQueryKey(familyId),
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/family/${familyId}/member-names`);
       return (await response.json()) as FamilyMemberNamesResponse;
@@ -32,7 +47,7 @@ export function prefetchFamilyMemberNames(queryClient: QueryClient, familyId: st
 
 export function useFamilyMemberNames(familyId: string | null | undefined) {
   const query = useQuery({
-    queryKey: ["/api/family", familyId ?? null, "member-names"],
+    queryKey: familyMemberNamesQueryKey(familyId),
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/family/${familyId}/member-names`);
       return (await response.json()) as FamilyMemberNamesResponse;
