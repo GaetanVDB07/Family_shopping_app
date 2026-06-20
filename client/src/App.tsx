@@ -5,15 +5,23 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
-import { useCurrentFamily } from "@/hooks/use-current-family";
-import { useEffect } from "react";
-import GroceryList from "@/pages/grocery-list";
-import AuthPage, { ResetPasswordPage } from "@/pages/auth";
-import FamilySetup from "@/pages/family-setup";
-import FamilyManagement from "@/pages/family-management";
-import FamiliesOverview from "@/pages/families-overview";
+import { useEffect, lazy, Suspense, type ReactNode } from "react";
 import { captureInviteCodeFromUrl } from "@/lib/family-invite";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PageLoading } from "@/components/page-loading";
+
+const GroceryList = lazy(() => import("@/pages/grocery-list"));
+const AuthPage = lazy(() => import("@/pages/auth"));
+const ResetPasswordPage = lazy(() =>
+  import("@/pages/auth").then((module) => ({ default: module.ResetPasswordPage })),
+);
+const FamilySetup = lazy(() => import("@/pages/family-setup"));
+const FamilyManagement = lazy(() => import("@/pages/family-management"));
+const FamiliesOverview = lazy(() => import("@/pages/families-overview"));
+
+function LazyPage({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageLoading />}>{children}</Suspense>;
+}
 
 function DefaultRedirect() {
   const [, setLocation] = useLocation();
@@ -34,53 +42,68 @@ function DefaultRedirect() {
     }
   }, [hasFamilies, familiesLoading, setLocation]);
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground mobile-text">Laden...</p>
-      </div>
-    </div>
-  );
+  return <PageLoading />;
 }
 
 function AuthenticatedApp() {
   const { user, loading: authLoading, isPasswordRecovery } = useAuth();
   const { hasFamilies, familiesLoading } = useFamilyStatus();
-  const { isLoading: currentFamilyLoading } = useCurrentFamily();
 
-  if (authLoading || familiesLoading || currentFamilyLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground mobile-text">Laden...</p>
-        </div>
-      </div>
-    );
+  if (authLoading) {
+    return <PageLoading />;
   }
 
   if (!user) {
-    return <AuthPage />;
+    return (
+      <LazyPage>
+        <AuthPage />
+      </LazyPage>
+    );
   }
 
   if (isPasswordRecovery) {
-    return <ResetPasswordPage />;
+    return (
+      <LazyPage>
+        <ResetPasswordPage />
+      </LazyPage>
+    );
   }
 
-  // If user is authenticated but doesn't belong to any family, show family setup
+  if (familiesLoading) {
+    return <PageLoading />;
+  }
+
   if (!hasFamilies) {
-    return <FamilySetup />;
+    return (
+      <LazyPage>
+        <FamilySetup />
+      </LazyPage>
+    );
   }
 
-  // User is authenticated and has families, show the appropriate routes
   return (
     <div className="min-h-screen bg-background">
       <Switch>
-        <Route path="/families" component={FamiliesOverview} />
-        <Route path="/family-setup" component={FamilySetup} />
-        <Route path="/family-management/:familyId" component={FamilyManagement} />
-        <Route path="/grocery-list/:familyId" component={GroceryList} />
+        <Route path="/families">
+          <LazyPage>
+            <FamiliesOverview />
+          </LazyPage>
+        </Route>
+        <Route path="/family-setup">
+          <LazyPage>
+            <FamilySetup />
+          </LazyPage>
+        </Route>
+        <Route path="/family-management/:familyId">
+          <LazyPage>
+            <FamilyManagement />
+          </LazyPage>
+        </Route>
+        <Route path="/grocery-list/:familyId">
+          <LazyPage>
+            <GroceryList />
+          </LazyPage>
+        </Route>
         <Route path="/grocery-list" component={DefaultRedirect} />
         <Route path="/" component={DefaultRedirect} />
         <Route path="*" component={DefaultRedirect} />

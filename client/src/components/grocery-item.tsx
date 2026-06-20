@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, memo } from "react";
 import { GroceryItem } from "@shared/schema";
 import { formatAddedAt } from "@shared/format-added-at";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export interface GroceryItemEditValues {
   notes: string | null;
 }
 
-export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
+export const GroceryItemComponent = memo(function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const [isPressed, setIsPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -306,4 +306,4 @@ export function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragH
       )}
     </div>
   );
-}
+});

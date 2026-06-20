@@ -22,6 +22,7 @@ import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOfflineGrocerySync } from "@/hooks/use-offline-grocery-sync";
 import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
@@ -103,6 +104,9 @@ export default function GroceryList() {
     threshold: 80,
   });
 
+  const handleVisibilityRefetch = useCallback(() => refetch(), [refetch]);
+  useRefetchOnVisibility(handleVisibilityRefetch);
+
   // WebSocket connection for real-time updates
   useWebSocket({
     familyId,
@@ -110,23 +114,19 @@ export default function GroceryList() {
       void refetch();
     },
     onItemAdded: (item) => {
-      console.log(`[${new Date().toISOString()}] Client: WebSocket itemAdded:`, item);
       const resolvedItem = {
         ...item,
         addedBy: resolveAddedByDisplayName(item.addedBy, memberNames),
       };
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const exists = old.some((existingItem) => existingItem.id === resolvedItem.id);
-        console.log(`[${new Date().toISOString()}] Client: WebSocket item exists in cache:`, exists, 'Item ID:', resolvedItem.id);
         if (exists) {
-          console.log(`[${new Date().toISOString()}] Client: WebSocket duplicate item prevented:`, resolvedItem.id);
           return old;
         }
         return sortGroceryItems([...old, resolvedItem]);
       });
     },
     onItemUpdated: (updatedItem) => {
-      console.log(`[${new Date().toISOString()}] Client: WebSocket itemUpdated:`, updatedItem);
       const resolvedItem = {
         ...updatedItem,
         addedBy: resolveAddedByDisplayName(updatedItem.addedBy, memberNames),
@@ -135,54 +135,35 @@ export default function GroceryList() {
         const updated = old.map((item) => (
           item.id === resolvedItem.id ? resolvedItem : item
         ));
-        console.log(`[${new Date().toISOString()}] Client: WebSocket updated ${old.length} items`);
         return sortGroceryItems(updated);
       });
     },
     onItemDeleted: (id) => {
-      console.log(`[${new Date().toISOString()}] Client: WebSocket itemDeleted:`, id);
-      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        const filtered = old.filter((item) => item.id !== id);
-        console.log(`[${new Date().toISOString()}] Client: WebSocket deleted item ${id}, ${old.length} -> ${filtered.length} items`);
-        return filtered;
-      });
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => (
+        old.filter((item) => item.id !== id)
+      ));
     },
     onSync: (syncedItems) => {
-      console.log(`[${new Date().toISOString()}] Client: WebSocket sync with ${syncedItems.length} items`);
-      // Use a more robust sync that prevents duplicates
-      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        console.log(`[${new Date().toISOString()}] Client: WebSocket replacing ${old.length} items with ${syncedItems.length} synced items`);
-        return syncedItems;
-      });
+      queryClient.setQueryData(["/api/grocery-items", familyId], () => syncedItems);
     },
   });
 
   // Add item mutation
   const addItemMutation = useMutation({
     mutationFn: async (data: InsertGroceryItem) => {
-      console.log(`[${new Date().toISOString()}] Client: Starting mutation for item:`, data);
       const response = await apiRequest("POST", "/api/grocery-items", { ...data, familyId });
-      const result = await response.json();
-      console.log(`[${new Date().toISOString()}] Client: Mutation response:`, result);
-      return result;
+      return response.json();
     },
     onSuccess: (newItem: GroceryItem) => {
-      console.log(`[${new Date().toISOString()}] Client: Mutation success`);
-      // Always update cache to ensure UI feedback - with better duplicate prevention
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
-        // Check if item already exists to prevent duplicates
         const exists = old.some(item => item.id === newItem.id);
-        console.log(`[${new Date().toISOString()}] Client: Item exists in cache:`, exists, 'Item ID:', newItem.id, 'Cache size:', old.length);
         if (exists) {
-          console.log(`[${new Date().toISOString()}] Client: Mutation duplicate prevented:`, newItem.id);
-          return old; // Return unchanged to prevent duplicate
+          return old;
         }
-        console.log(`[${new Date().toISOString()}] Client: Adding new item to cache:`, newItem.id);
         return sortGroceryItems([...old, newItem]);
       });
     },
     onError: (error) => {
-      console.log(`[${new Date().toISOString()}] Client: Mutation error`);
       toastApiError(toast, error, "Kon item niet toevoegen. Probeer het opnieuw.");
     },
   });
@@ -466,7 +447,6 @@ export default function GroceryList() {
     addedBy: string,
     options?: { notes?: string; quantity?: string; unit?: string },
   ) => {
-    console.log(`[${new Date().toISOString()}] Client: handleAddItem called with name: "${name}"`);
     if (queueAddItem(name, options)) {
       return;
     }
@@ -762,19 +742,14 @@ export default function GroceryList() {
                   />
                 ) : (
                   <div className="space-y-2">
-                    {filteredItems.pending.map((item, index) => (
-                      <div
+                    {filteredItems.pending.map((item) => (
+                      <GroceryItemComponent
                         key={`pending-${item.id}-${item.name}`}
-                        className="animate-in slide-in-from-left duration-300"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
-                        <GroceryItemComponent
-                          item={item}
-                          onToggle={handleToggleItem}
-                          onDelete={handleDeleteItem}
-                          onUpdate={handleUpdateItem}
-                        />
-                      </div>
+                        item={item}
+                        onToggle={handleToggleItem}
+                        onDelete={handleDeleteItem}
+                        onUpdate={handleUpdateItem}
+                      />
                     ))}
                   </div>
                 )}
@@ -788,19 +763,14 @@ export default function GroceryList() {
                   Afgevinkt ({filteredItems.completed.length})
                 </h2>
                 <div className="space-y-2">
-                  {filteredItems.completed.map((item, index) => (
-                    <div
+                  {filteredItems.completed.map((item) => (
+                    <GroceryItemComponent
                       key={`completed-${item.id}-${item.name}`}
-                      className="animate-in slide-in-from-left duration-300"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <GroceryItemComponent
-                        item={item}
-                        onToggle={handleToggleItem}
-                        onDelete={handleDeleteItem}
-                        onUpdate={handleUpdateItem}
-                      />
-                    </div>
+                      item={item}
+                      onToggle={handleToggleItem}
+                      onDelete={handleDeleteItem}
+                      onUpdate={handleUpdateItem}
+                    />
                   ))}
                 </div>
               </div>
