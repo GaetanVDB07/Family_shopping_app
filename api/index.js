@@ -1549,6 +1549,26 @@ async function handleUpdateGroceryItem(req, res, itemId) {
   }
 }
 
+async function batchUpdateGrocerySortOrder(familyId, orderedIds) {
+  if (!client) {
+    throw new Error('Database client not connected');
+  }
+
+  const sortOrders = orderedIds.map((_, index) => index);
+
+  await client.query(
+    `UPDATE grocery_items AS gi
+     SET sort_order = reorder.new_order
+     FROM (
+       SELECT * FROM unnest($1::int[], $2::int[]) AS t(id, new_order)
+     ) AS reorder
+     WHERE gi.id = reorder.id
+       AND gi.family_id = $3::uuid
+       AND gi.completed = false`,
+    [orderedIds, sortOrders, familyId],
+  );
+}
+
 async function handleReorderGroceryItems(req, res) {
   try {
     const user = await authenticateUser(req);
@@ -1588,17 +1608,7 @@ async function handleReorderGroceryItems(req, res) {
       }
     }
 
-    await Promise.all(
-      orderedIds.map((id, index) =>
-        database
-          .update(groceryItems)
-          .set({ sortOrder: index })
-          .where(and(
-            eq(groceryItems.id, id),
-            eq(groceryItems.familyId, userFamily.familyId),
-          )),
-      ),
-    );
+    await batchUpdateGrocerySortOrder(userFamily.familyId, orderedIds);
 
     const items = await fetchGroceryItemsForFamily(database, userFamily.familyId);
     return res.status(200).json({ items });
