@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Menu, UserX, LogOut, Users, Home, UserMinus, Copy, MessageCircle } from "lucide-react";
 import { ThemeToggleMenu } from "@/components/theme-toggle";
+import { CheckoffFeedbackMenu } from "@/components/checkoff-feedback-menu";
 import type { GroceryItem } from "@shared/schema";
 import {
   buildWhatsAppShareUrl,
@@ -228,6 +229,7 @@ export function UserMenu({ groceryItems, familyName }: UserMenuProps = {}) {
           <DropdownMenuSeparator />
 
           <ThemeToggleMenu />
+          <CheckoffFeedbackMenu />
           
           <DropdownMenuSeparator />
           

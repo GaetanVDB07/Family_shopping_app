@@ -19,6 +19,7 @@ describe('AddItemForm', () => {
     notes: null,
     completed: false,
     addedBy: 'user-1',
+    addedByName: null,
     familyId: 'family-1',
     addedAt: new Date(),
     sortOrder: 0,

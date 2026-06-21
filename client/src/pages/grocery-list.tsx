@@ -6,7 +6,7 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
-import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
+import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, resolveGroceryItemAttribution } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 const SortableGroceryList = lazy(() =>
@@ -25,6 +25,7 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
+import { playCheckoffFeedback } from "@/lib/checkoff-feedback";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -122,10 +123,7 @@ export default function GroceryList() {
       void refetch();
     },
     onItemAdded: (item) => {
-      const resolvedItem = {
-        ...item,
-        addedBy: resolveAddedByDisplayName(item.addedBy, memberNames),
-      };
+      const resolvedItem = resolveGroceryItemAttribution(item, memberNames);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const exists = old.some((existingItem) => existingItem.id === resolvedItem.id);
         if (exists) {
@@ -135,10 +133,7 @@ export default function GroceryList() {
       });
     },
     onItemUpdated: (updatedItem) => {
-      const resolvedItem = {
-        ...updatedItem,
-        addedBy: resolveAddedByDisplayName(updatedItem.addedBy, memberNames),
-      };
+      const resolvedItem = resolveGroceryItemAttribution(updatedItem, memberNames);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const updated = old.map((item) => (
           item.id === resolvedItem.id ? resolvedItem : item
@@ -372,8 +367,17 @@ export default function GroceryList() {
       
       return { previousItems };
     },
-    onSuccess: (response) => {
-      // No toast notification for bulk actions
+    onSuccess: (response: { items?: GroceryItem[] }) => {
+      if (!response.items?.length) {
+        return;
+      }
+
+      const updatedById = new Map(response.items.map((item) => [item.id, item]));
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        sortGroceryItems(
+          old.map((item) => updatedById.get(item.id) ?? item),
+        ),
+      );
     },
     onError: (err, variables, context) => {
       if (context?.previousItems) {
@@ -488,9 +492,15 @@ export default function GroceryList() {
     const item = itemsRef.current.find((entry) => entry.id === id);
     if (item) {
       if (queueToggleItem(item)) {
+        if (!item.completed) {
+          playCheckoffFeedback();
+        }
         return;
       }
 
+      if (!item.completed) {
+        playCheckoffFeedback();
+      }
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
   }, [queueToggleItem, toggleItemMutation]);
@@ -521,6 +531,9 @@ export default function GroceryList() {
   }, [deleteAllItemsMutation]);
 
   const handleMarkAllCompleted = useCallback(() => {
+    if (itemsRef.current.some((item) => !item.completed)) {
+      playCheckoffFeedback();
+    }
     markAllCompletedMutation.mutate();
   }, [markAllCompletedMutation]);
 

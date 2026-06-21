@@ -135,7 +135,7 @@ async function countFamilyMembers(database, familyId, { excludeUserId } = {}) {
 
 async function resolveAddedByDisplayName(database, familyId, userId) {
   const [member] = await database
-    .select({ userName: familyMembers.userName })
+    .select({ userName: familyMembers.userName, userEmail: familyMembers.userEmail })
     .from(familyMembers)
     .where(and(
       eq(familyMembers.familyId, familyId),
@@ -143,12 +143,60 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
     ))
     .limit(1);
 
-  return member?.userName ?? userId;
+  return member?.userName
+    || member?.userEmail?.split('@')[0]
+    || userId;
+}
+
+function looksLikeAuthUserId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function resolveDenormalizedAddedByName(existingName, displayName) {
+  if (existingName) {
+    return existingName;
+  }
+
+  return looksLikeAuthUserId(displayName) ? null : displayName;
+}
+
+function resolveMemberDisplayName(member, user) {
+  return member?.userName
+    || user?.name
+    || user?.email?.split('@')[0]
+    || 'Onbekend';
+}
+
+function mapGroceryItemResponse(row, nameByUserId) {
+  const displayName = row.addedByName
+    ?? nameByUserId.get(row.addedByUserId)
+    ?? row.addedByUserId;
+
+  return {
+    id: row.id,
+    name: row.name,
+    quantity: row.quantity,
+    unit: row.unit,
+    notes: row.notes,
+    completed: row.completed,
+    addedBy: displayName,
+    addedByName: row.addedByName ?? nameByUserId.get(row.addedByUserId) ?? null,
+    familyId: row.familyId,
+    addedAt: row.addedAt,
+    sortOrder: row.sortOrder,
+    completedAt: row.completedAt,
+    archivedAt: row.archivedAt,
+    createdAt: row.createdAt,
+  };
 }
 
 async function formatGroceryItemAddedBy(database, familyId, item, userFamily, user) {
+  if (item.addedByName) {
+    return item.addedByName;
+  }
+
   if (item.addedBy === user.id) {
-    return userFamily.userName || user.name || user.email?.split('@')[0] || 'Onbekend';
+    return resolveMemberDisplayName(userFamily, user);
   }
 
   const addedBy = await resolveAddedByDisplayName(database, familyId, item.addedBy);
@@ -190,6 +238,7 @@ async function fetchGroceryItemsForFamily(database, familyId) {
       notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedByUserId: groceryItems.addedBy,
+      addedByName: groceryItems.addedByName,
       familyId: groceryItems.familyId,
       addedAt: groceryItems.addedAt,
       sortOrder: groceryItems.sortOrder,
@@ -213,6 +262,7 @@ async function fetchGroceryItemsForFamily(database, familyId) {
     .select({
       userId: familyMembers.userId,
       userName: familyMembers.userName,
+      userEmail: familyMembers.userEmail,
     })
     .from(familyMembers)
     .where(and(
@@ -221,24 +271,13 @@ async function fetchGroceryItemsForFamily(database, familyId) {
     ));
 
   const nameByUserId = new Map(
-    members.map((member) => [member.userId, member.userName ?? member.userId]),
+    members.map((member) => [
+      member.userId,
+      member.userName ?? member.userEmail?.split('@')[0] ?? member.userId,
+    ]),
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    quantity: row.quantity,
-    unit: row.unit,
-    notes: row.notes,
-    completed: row.completed,
-    addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
-    familyId: row.familyId,
-    addedAt: row.addedAt,
-    sortOrder: row.sortOrder,
-    completedAt: row.completedAt,
-    archivedAt: row.archivedAt,
-    createdAt: row.createdAt,
-  }));
+  return rows.map((row) => mapGroceryItemResponse(row, nameByUserId));
 }
 
 async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
@@ -251,6 +290,7 @@ async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
       notes: groceryItems.notes,
       completed: groceryItems.completed,
       addedByUserId: groceryItems.addedBy,
+      addedByName: groceryItems.addedByName,
       familyId: groceryItems.familyId,
       addedAt: groceryItems.addedAt,
       sortOrder: groceryItems.sortOrder,
@@ -278,6 +318,7 @@ async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
     .select({
       userId: familyMembers.userId,
       userName: familyMembers.userName,
+      userEmail: familyMembers.userEmail,
     })
     .from(familyMembers)
     .where(and(
@@ -286,24 +327,13 @@ async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
     ));
 
   const nameByUserId = new Map(
-    members.map((member) => [member.userId, member.userName ?? member.userId]),
+    members.map((member) => [
+      member.userId,
+      member.userName ?? member.userEmail?.split('@')[0] ?? member.userId,
+    ]),
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    quantity: row.quantity,
-    unit: row.unit,
-    notes: row.notes,
-    completed: row.completed,
-    addedBy: nameByUserId.get(row.addedByUserId) ?? row.addedByUserId,
-    familyId: row.familyId,
-    addedAt: row.addedAt,
-    sortOrder: row.sortOrder,
-    completedAt: row.completedAt,
-    archivedAt: row.archivedAt,
-    createdAt: row.createdAt,
-  }));
+  return rows.map((row) => mapGroceryItemResponse(row, nameByUserId));
 }
 
 // Database setup for serverless environment
@@ -1433,6 +1463,8 @@ async function handleCreateGroceryItem(req, res) {
       .from(groceryItems)
       .where(eq(groceryItems.familyId, userFamily.familyId));
 
+    const addedByName = resolveMemberDisplayName(userFamily, user);
+
     const [item] = await database
       .insert(groceryItems)
       .values({
@@ -1441,6 +1473,7 @@ async function handleCreateGroceryItem(req, res) {
         unit,
         notes,
         addedBy: user.id,
+        addedByName,
         familyId: userFamily.familyId,
         sortOrder: (maxSortOrder ?? -1) + 1,
       })
@@ -1449,7 +1482,7 @@ async function handleCreateGroceryItem(req, res) {
     // Return the item with the user name instead of user ID
     const itemWithUserName = {
       ...item,
-      addedBy: userFamily.userName || user.name || user.email?.split('@')[0] || 'Onbekend',
+      addedBy: addedByName,
     };
 
     return res.status(201).json(itemWithUserName);
@@ -1514,6 +1547,7 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       if (existingItem?.completed || existingItem?.archivedAt) {
         updates.addedAt = new Date();
         updates.addedBy = user.id;
+        updates.addedByName = resolveMemberDisplayName(userFamily, user);
         updates.archivedAt = null;
       }
     }
@@ -1539,7 +1573,11 @@ async function handleUpdateGroceryItem(req, res, itemId) {
       user,
     );
 
-    return res.status(200).json({ ...item, addedBy });
+    return res.status(200).json({
+      ...item,
+      addedBy,
+      addedByName: resolveDenormalizedAddedByName(item.addedByName, addedBy),
+    });
   } catch (error) {
     console.error('Error updating grocery item:', error);
     if (error instanceof HttpError || error?.status) {
@@ -1795,6 +1833,8 @@ async function handleMarkAllItemsPending(req, res, familyId) {
       return res.status(403).json({ message: 'Access denied: Not a member of this family' });
     }
 
+    const addedByName = resolveMemberDisplayName(userFamilyMembership, user);
+
     // Mark completed items as pending and record who put them back on the list
     const now = new Date();
     const updatedItems = await database
@@ -1804,6 +1844,7 @@ async function handleMarkAllItemsPending(req, res, familyId) {
         completedAt: null,
         addedAt: now,
         addedBy: user.id,
+        addedByName,
       })
       .where(and(
         eq(groceryItems.familyId, familyId),

@@ -33,6 +33,7 @@ export const groceryItems = pgTable("grocery_items", {
   notes: text("notes"),
   completed: boolean("completed").notNull().default(false),
   addedBy: uuid("added_by").notNull(), // user id from auth.users
+  addedByName: text("added_by_name"), // display-name snapshot at write time for Realtime
   familyId: uuid("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
   addedAt: timestamp("added_at").notNull().defaultNow(), // last time item was put on the list
   sortOrder: integer("sort_order").notNull().default(0), // manual order for shopping route

@@ -148,6 +148,7 @@ describe('useWebSocket', () => {
       notes: null,
       completed: false,
       addedBy: 'user-abc',
+      addedByName: null,
       familyId: 'family-1',
       addedAt: new Date('2026-01-15T10:00:00.000Z'),
       sortOrder: 0,

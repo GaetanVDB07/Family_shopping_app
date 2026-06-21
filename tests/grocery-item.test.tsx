@@ -12,6 +12,7 @@ const sampleItem: GroceryItem = {
   notes: null,
   completed: false,
   addedBy: 'tester',
+  addedByName: 'tester',
   familyId: 'fam1',
   addedAt: new Date('2026-06-11T12:00:00.000Z'),
   sortOrder: 0,

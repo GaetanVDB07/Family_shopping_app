@@ -371,6 +371,7 @@ describe('grocery item family scoping', () => {
       notes: null,
       completed: false,
       addedBy: 'User One',
+      addedByName: 'User One',
       familyId: 'family-2',
       addedAt: new Date('2026-01-02T00:00:00.000Z'),
       sortOrder: 0,
@@ -435,6 +436,7 @@ describe('grocery item family scoping', () => {
     expect(res.statusCode).toBe(201);
     expect(fakeDb.insertedValues.familyId).toBe('family-2');
     expect(fakeDb.insertedValues.sortOrder).toBe(1);
+    expect(fakeDb.insertedValues.addedByName).toBe('User One');
   });
 
   it('stores optional notes when creating an item', async () => {
@@ -559,6 +561,7 @@ describe('grocery item family scoping', () => {
         notes: null,
         completed: false,
         addedBy: 'User One',
+        addedByName: 'User One',
         familyId: 'family-1',
         addedAt: new Date('2026-01-03T00:00:00.000Z'),
         sortOrder: 0,
@@ -572,6 +575,7 @@ describe('grocery item family scoping', () => {
         notes: null,
         completed: false,
         addedBy: 'User One',
+        addedByName: 'User One',
         familyId: 'family-1',
         addedAt: new Date('2026-01-01T00:00:00.000Z'),
         sortOrder: 1,

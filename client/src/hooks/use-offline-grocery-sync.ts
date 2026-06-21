@@ -117,6 +117,7 @@ export function useOfflineGrocerySync({
         notes: options?.notes ?? null,
         completed: false,
         addedBy: userLabel,
+        addedByName: userLabel,
         familyId,
         addedAt: new Date(),
         sortOrder: 0,
@@ -138,6 +139,7 @@ export function useOfflineGrocerySync({
           unit: options?.unit ?? null,
           notes: options?.notes ?? null,
           addedBy: userId,
+          addedByName: userLabel,
           completed: false,
         },
       });
