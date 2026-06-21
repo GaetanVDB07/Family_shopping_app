@@ -66,7 +66,9 @@ export function applyMemberNamesToGroceryItems(
   let changed = false;
   const next = items.map((item) => {
     const resolvedAddedBy = getGroceryItemAddedByDisplayName(item, nameByUserId);
-    const resolvedAddedByName = item.addedByName ?? resolvedAddedBy;
+    const resolvedAddedByName = item.addedByName ?? (
+      looksLikeAuthUserId(resolvedAddedBy) ? null : resolvedAddedBy
+    );
     if (resolvedAddedBy === item.addedBy && resolvedAddedByName === item.addedByName) {
       return item;
     }

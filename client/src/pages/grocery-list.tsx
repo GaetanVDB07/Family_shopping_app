@@ -530,7 +530,9 @@ export default function GroceryList() {
   }, [deleteAllItemsMutation]);
 
   const handleMarkAllCompleted = useCallback(() => {
-    playCheckoffFeedback();
+    if (itemsRef.current.some((item) => !item.completed)) {
+      playCheckoffFeedback();
+    }
     markAllCompletedMutation.mutate();
   }, [markAllCompletedMutation]);
 
