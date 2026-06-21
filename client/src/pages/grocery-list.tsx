@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+=======
+import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from "react";
+>>>>>>> origin/develop
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,7 +13,11 @@ import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
 import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
-import { SortableGroceryList } from "@/components/sortable-grocery-list";
+const SortableGroceryList = lazy(() =>
+  import("@/components/sortable-grocery-list").then((module) => ({
+    default: module.SortableGroceryList,
+  })),
+);
 import { sortGroceryItems } from "@/lib/grocery-item-sort";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
 import { UserMenu } from "@/components/user-menu";
@@ -736,14 +744,24 @@ export default function GroceryList() {
                   Nog te kopen ({filteredItems.pending.length})
                 </h2>
                 {canReorderItems ? (
-                  <SortableGroceryList
-                    items={filteredItems.pending}
-                    onReorder={handleReorderItems}
-                    onToggle={handleToggleItem}
-                    onDelete={handleDeleteItem}
-                    onUpdate={handleUpdateItem}
-                    disabled={reorderItemsMutation.isPending}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="space-y-2" aria-busy="true" aria-label="Lijst laden">
+                        {filteredItems.pending.map((item) => (
+                          <Skeleton key={item.id} className="h-16 w-full rounded-xl" />
+                        ))}
+                      </div>
+                    }
+                  >
+                    <SortableGroceryList
+                      items={filteredItems.pending}
+                      onReorder={handleReorderItems}
+                      onToggle={handleToggleItem}
+                      onDelete={handleDeleteItem}
+                      onUpdate={handleUpdateItem}
+                      disabled={reorderItemsMutation.isPending}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="space-y-2">
                     {filteredItems.pending.map((item) => (
