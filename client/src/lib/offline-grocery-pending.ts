@@ -23,7 +23,7 @@ export function applyQueuedGroceryMutations(
             notes: mutation.payload.notes ?? null,
             completed: mutation.payload.completed,
             addedBy: mutation.payload.addedBy ?? "Offline",
-            addedByName: mutation.payload.addedBy ?? "Offline",
+            addedByName: mutation.payload.addedByName ?? null,
             familyId,
             addedAt: now,
             sortOrder: currentItems.length,

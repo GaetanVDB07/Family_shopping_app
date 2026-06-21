@@ -8,7 +8,7 @@ export type OfflineGroceryMutationInput =
       payload: Pick<
         InsertGroceryItem,
         "name" | "quantity" | "unit" | "notes" | "addedBy"
-      > & { tempId: number; completed: boolean };
+      > & { tempId: number; completed: boolean; addedByName?: string | null };
     }
   | {
       type: "toggle";
