@@ -67,7 +67,48 @@ describe("checkoff feedback", () => {
     });
 
     expect(() => playCheckoffHaptic()).not.toThrow();
-    expect(() => playCheckoffSound()).not.toThrow();
+    expect(playCheckoffSound()).resolves.toBeUndefined();
     expect(() => playCheckoffFeedback({ haptic: true, sound: true })).not.toThrow();
+  });
+
+  it("waits for a suspended audio context before scheduling sound", async () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const start = vi.fn();
+    const stop = vi.fn();
+    const setValueAtTime = vi.fn();
+    const exponentialRampToValueAtTime = vi.fn();
+    const connect = vi.fn();
+
+    class MockAudioContext {
+      state = "suspended";
+      currentTime = 0;
+      destination = {};
+      resume = resume;
+      createOscillator() {
+        return {
+          connect,
+          frequency: { value: 0 },
+          type: "sine",
+          start,
+          stop,
+        };
+      }
+      createGain() {
+        return {
+          connect,
+          gain: { setValueAtTime, exponentialRampToValueAtTime },
+        };
+      }
+    }
+
+    Object.defineProperty(globalThis, "AudioContext", {
+      configurable: true,
+      value: MockAudioContext,
+    });
+
+    await playCheckoffSound();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
   });
 });

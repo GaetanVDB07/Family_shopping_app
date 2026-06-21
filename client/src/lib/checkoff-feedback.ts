@@ -59,7 +59,7 @@ export function playCheckoffHaptic(): void {
   }
 }
 
-export function playCheckoffSound(): void {
+export async function playCheckoffSound(): Promise<void> {
   try {
     const AudioContextClass =
       globalThis.AudioContext
@@ -76,7 +76,7 @@ export function playCheckoffSound(): void {
 
     const context = audioContext;
     if (context.state === "suspended") {
-      void context.resume();
+      await context.resume();
     }
 
     const oscillator = context.createOscillator();
@@ -102,6 +102,6 @@ export function playCheckoffFeedback(
   }
 
   if (preferences.sound) {
-    playCheckoffSound();
+    void playCheckoffSound();
   }
 }

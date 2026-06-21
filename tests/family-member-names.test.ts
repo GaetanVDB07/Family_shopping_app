@@ -80,6 +80,32 @@ describe("family-member-names", () => {
     expect(updated[0]?.addedByName).toBe("Lisa");
   });
 
+  it("does not cache raw auth user ids in addedByName", () => {
+    const items = [
+      {
+        id: 1,
+        name: "Melk",
+        quantity: null,
+        unit: null,
+        notes: null,
+        completed: false,
+        addedBy: "22222222-2222-2222-2222-222222222222",
+        familyId: "family-1",
+        addedAt: new Date(),
+        sortOrder: 0,
+        completedAt: null,
+        archivedAt: null,
+        createdAt: new Date(),
+      },
+    ];
+    const map = new Map([["33333333-3333-3333-3333-333333333333", "Papa"]]);
+
+    const updated = applyMemberNamesToGroceryItems(items, map);
+
+    expect(updated[0]?.addedBy).toBe("22222222-2222-2222-2222-222222222222");
+    expect(updated[0]?.addedByName).toBeNull();
+  });
+
   it("preserves offline cache metadata when re-applying member names", () => {
     const items = Object.assign([
       {
