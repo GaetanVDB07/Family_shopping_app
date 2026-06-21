@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -69,6 +69,10 @@ export default function GroceryList() {
   const { data: historyItems = [] } = useGroceryHistory(familyId, {
     enabled: historySuggestionsActive,
   });
+  const itemsRef = useRef(items);
+  const historyItemsRef = useRef(historyItems);
+  itemsRef.current = items;
+  historyItemsRef.current = historyItems;
 
   useEffect(() => {
     if (!familyId || !memberNamesReady || memberNames.size === 0) {
@@ -462,8 +466,8 @@ export default function GroceryList() {
   }, [addItemMutation, queueAddItem, user?.id]);
 
   const handleReactivateItem = useCallback((id: number) => {
-    const activeItem = items.find((entry) => entry.id === id);
-    const historyItem = historyItems.find((entry) => entry.id === id);
+    const activeItem = itemsRef.current.find((entry) => entry.id === id);
+    const historyItem = historyItemsRef.current.find((entry) => entry.id === id);
 
     if (!activeItem && !historyItem) {
       return;
@@ -474,10 +478,10 @@ export default function GroceryList() {
     }
 
     toggleItemMutation.mutate({ id, completed: false });
-  }, [historyItems, items, queueToggleItem, toggleItemMutation]);
+  }, [queueToggleItem, toggleItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
-    const item = items.find((item) => item.id === id);
+    const item = itemsRef.current.find((entry) => entry.id === id);
     if (item) {
       if (queueToggleItem(item)) {
         return;
@@ -485,7 +489,7 @@ export default function GroceryList() {
 
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
-  }, [items, queueToggleItem, toggleItemMutation]);
+  }, [queueToggleItem, toggleItemMutation]);
 
   const handleUpdateItem = useCallback(async (id: number, updates: GroceryItemEditValues) => {
     if (queueUpdateItem(id, updates)) {

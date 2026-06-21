@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -27,7 +28,7 @@ interface SortableGroceryItemRowProps {
   disabled?: boolean;
 }
 
-function SortableGroceryItemRow({
+const SortableGroceryItemRow = memo(function SortableGroceryItemRow({
   item,
   onToggle,
   onDelete,
@@ -42,6 +43,11 @@ function SortableGroceryItemRow({
     transition,
     isDragging,
   } = useSortable({ id: item.id, disabled });
+
+  const dragHandleProps = useMemo(
+    () => (disabled ? undefined : { ...attributes, ...listeners }),
+    [attributes, disabled, listeners],
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -60,11 +66,11 @@ function SortableGroceryItemRow({
         onToggle={onToggle}
         onDelete={onDelete}
         onUpdate={onUpdate}
-        dragHandleProps={disabled ? undefined : { ...attributes, ...listeners }}
+        dragHandleProps={dragHandleProps}
       />
     </div>
   );
-}
+});
 
 interface SortableGroceryListProps {
   items: GroceryItem[];
