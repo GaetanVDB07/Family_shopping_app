@@ -139,6 +139,7 @@ export function useOfflineGrocerySync({
           unit: options?.unit ?? null,
           notes: options?.notes ?? null,
           addedBy: userId,
+          addedByName: userLabel,
           completed: false,
         },
       });

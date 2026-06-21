@@ -148,6 +148,18 @@ async function resolveAddedByDisplayName(database, familyId, userId) {
     || userId;
 }
 
+function looksLikeAuthUserId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function resolveDenormalizedAddedByName(existingName, displayName) {
+  if (existingName) {
+    return existingName;
+  }
+
+  return looksLikeAuthUserId(displayName) ? null : displayName;
+}
+
 function resolveMemberDisplayName(member, user) {
   return member?.userName
     || user?.name
@@ -1564,7 +1576,7 @@ async function handleUpdateGroceryItem(req, res, itemId) {
     return res.status(200).json({
       ...item,
       addedBy,
-      addedByName: item.addedByName ?? addedBy,
+      addedByName: resolveDenormalizedAddedByName(item.addedByName, addedBy),
     });
   } catch (error) {
     console.error('Error updating grocery item:', error);
