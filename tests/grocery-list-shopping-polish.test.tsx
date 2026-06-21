@@ -120,6 +120,7 @@ function groceryItem(overrides: Partial<GroceryItem>): GroceryItem {
     notes: null,
     completed: false,
     addedBy: "tester",
+    addedByName: null,
     familyId: "family-1",
     addedAt: new Date("2026-06-11T12:00:00.000Z"),
     sortOrder: 0,

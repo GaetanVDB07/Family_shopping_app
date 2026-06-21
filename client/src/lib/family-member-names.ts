@@ -20,6 +20,21 @@ export function resolveAddedByDisplayName(
   return nameByUserId.get(addedBy) ?? addedBy;
 }
 
+export function getGroceryItemAddedByDisplayName(
+  item: Pick<GroceryItem, "addedBy" | "addedByName">,
+  nameByUserId?: Map<string, string>,
+): string {
+  if (item.addedByName?.trim()) {
+    return item.addedByName;
+  }
+
+  if (nameByUserId) {
+    return resolveAddedByDisplayName(item.addedBy, nameByUserId);
+  }
+
+  return item.addedBy;
+}
+
 export function buildFamilyMemberNameMap(
   members: Array<{
     userId: string;
@@ -50,13 +65,18 @@ export function applyMemberNamesToGroceryItems(
 
   let changed = false;
   const next = items.map((item) => {
-    const resolvedAddedBy = resolveAddedByDisplayName(item.addedBy, nameByUserId);
-    if (resolvedAddedBy === item.addedBy) {
+    const resolvedAddedBy = getGroceryItemAddedByDisplayName(item, nameByUserId);
+    const resolvedAddedByName = item.addedByName ?? resolvedAddedBy;
+    if (resolvedAddedBy === item.addedBy && resolvedAddedByName === item.addedByName) {
       return item;
     }
 
     changed = true;
-    return { ...item, addedBy: resolvedAddedBy };
+    return {
+      ...item,
+      addedBy: resolvedAddedBy,
+      addedByName: resolvedAddedByName,
+    };
   });
 
   return changed ? Object.assign(next, { isOfflineData: items.isOfflineData }) : items;

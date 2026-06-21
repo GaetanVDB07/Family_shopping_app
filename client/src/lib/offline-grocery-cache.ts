@@ -46,6 +46,7 @@ function parseCachedItem(value: unknown): GroceryItem | null {
     notes: typeof item.notes === "string" ? item.notes : null,
     completed: item.completed,
     addedBy: item.addedBy,
+    addedByName: typeof item.addedByName === "string" ? item.addedByName : null,
     familyId: item.familyId,
     addedAt,
     sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : 0,

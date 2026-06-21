@@ -76,6 +76,7 @@ export class MemStorage implements IStorage {
       notes: insertItem.notes ?? null,
       completed: insertItem.completed !== undefined ? insertItem.completed : false,
       addedBy: insertItem.addedBy || "demo-user",
+      addedByName: insertItem.addedByName ?? null,
       familyId: insertItem.familyId || "demo-family-123",
       addedAt: new Date(),
       sortOrder: 0,
