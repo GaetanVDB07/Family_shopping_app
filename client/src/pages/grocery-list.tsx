@@ -25,6 +25,7 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useCurrentFamily } from "@/hooks/use-current-family";
 import { useToast } from "@/hooks/use-toast";
 import { toastApiError } from "@/lib/api-error";
+import { playCheckoffFeedback } from "@/lib/checkoff-feedback";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -490,9 +491,15 @@ export default function GroceryList() {
     const item = itemsRef.current.find((entry) => entry.id === id);
     if (item) {
       if (queueToggleItem(item)) {
+        if (!item.completed) {
+          playCheckoffFeedback();
+        }
         return;
       }
 
+      if (!item.completed) {
+        playCheckoffFeedback();
+      }
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
   }, [queueToggleItem, toggleItemMutation]);
@@ -523,6 +530,7 @@ export default function GroceryList() {
   }, [deleteAllItemsMutation]);
 
   const handleMarkAllCompleted = useCallback(() => {
+    playCheckoffFeedback();
     markAllCompletedMutation.mutate();
   }, [markAllCompletedMutation]);
 
