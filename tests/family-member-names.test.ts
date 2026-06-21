@@ -5,6 +5,7 @@ import {
   getGroceryItemAddedByDisplayName,
   looksLikeAuthUserId,
   resolveAddedByDisplayName,
+  resolveGroceryItemAttribution,
 } from "@/lib/family-member-names";
 
 describe("family-member-names", () => {
@@ -104,6 +105,18 @@ describe("family-member-names", () => {
 
     expect(updated[0]?.addedBy).toBe("22222222-2222-2222-2222-222222222222");
     expect(updated[0]?.addedByName).toBeNull();
+  });
+
+  it("leaves addedByName unset for realtime items until a display name is known", () => {
+    const item = {
+      addedBy: "22222222-2222-2222-2222-222222222222",
+      addedByName: null,
+    };
+
+    const resolved = resolveGroceryItemAttribution(item, new Map());
+
+    expect(resolved.addedBy).toBe("22222222-2222-2222-2222-222222222222");
+    expect(resolved.addedByName).toBeNull();
   });
 
   it("preserves offline cache metadata when re-applying member names", () => {
