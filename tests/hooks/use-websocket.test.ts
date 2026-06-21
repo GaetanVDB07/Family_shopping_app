@@ -186,6 +186,74 @@ describe('useWebSocket', () => {
     expect(onItemDeleted).toHaveBeenCalledWith(7);
   });
 
+  it('does not reconnect when auth object identity changes but token and user id stay the same', async () => {
+    const { rerender } = renderHook(() =>
+      useWebSocket({
+        familyId: 'family-1',
+        onItemAdded,
+        onItemUpdated,
+        onItemDeleted,
+        onSync,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    mockedUseAuth.mockReturnValue({
+      user: { id: 'user-1', email: 'user1@test.dev' } as any,
+      session: { access_token: 'token' } as any,
+      loading: false,
+      isPasswordRecovery: false,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      updatePassword: vi.fn(),
+    });
+
+    rerender();
+
+    expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
+    expect(mockChannel.unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('reconnects when the access token changes', async () => {
+    const { rerender } = renderHook(() =>
+      useWebSocket({
+        familyId: 'family-1',
+        onItemAdded,
+        onItemUpdated,
+        onItemDeleted,
+        onSync,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    mockedUseAuth.mockReturnValue({
+      user: { id: 'user-1', email: 'user1@test.dev' } as any,
+      session: { access_token: 'new-token' } as any,
+      loading: false,
+      isPasswordRecovery: false,
+      signUp: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      updatePassword: vi.fn(),
+    });
+
+    rerender();
+
+    await waitFor(() => {
+      expect(mockChannel.unsubscribe).toHaveBeenCalled();
+      expect(mockChannel.subscribe).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('unsubscribes from the previous channel when the family changes', async () => {
     const { rerender } = renderHook(
       ({ familyId }) =>
