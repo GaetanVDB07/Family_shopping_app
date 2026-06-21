@@ -6,7 +6,7 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
-import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
+import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, getGroceryItemAddedByDisplayName } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 const SortableGroceryList = lazy(() =>
@@ -124,7 +124,8 @@ export default function GroceryList() {
     onItemAdded: (item) => {
       const resolvedItem = {
         ...item,
-        addedBy: resolveAddedByDisplayName(item.addedBy, memberNames),
+        addedBy: getGroceryItemAddedByDisplayName(item, memberNames),
+        addedByName: item.addedByName ?? getGroceryItemAddedByDisplayName(item, memberNames),
       };
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const exists = old.some((existingItem) => existingItem.id === resolvedItem.id);
@@ -137,7 +138,8 @@ export default function GroceryList() {
     onItemUpdated: (updatedItem) => {
       const resolvedItem = {
         ...updatedItem,
-        addedBy: resolveAddedByDisplayName(updatedItem.addedBy, memberNames),
+        addedBy: getGroceryItemAddedByDisplayName(updatedItem, memberNames),
+        addedByName: updatedItem.addedByName ?? getGroceryItemAddedByDisplayName(updatedItem, memberNames),
       };
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const updated = old.map((item) => (

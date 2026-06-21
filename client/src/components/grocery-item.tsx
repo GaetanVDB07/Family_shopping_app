@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Check, Pencil, X, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getGroceryItemAddedByDisplayName } from "@/lib/family-member-names";
 
 function formatQuantityLine(quantity: string | null, unit: string | null): string | null {
   if (quantity && unit) {
@@ -59,6 +60,7 @@ export function groceryItemPropsAreEqual(
     && prevItem.notes === nextItem.notes
     && prevItem.completed === nextItem.completed
     && prevItem.addedBy === nextItem.addedBy
+    && prevItem.addedByName === nextItem.addedByName
     && prevItem.addedAt === nextItem.addedAt
     && prevItem.sortOrder === nextItem.sortOrder
   );
@@ -66,6 +68,7 @@ export function groceryItemPropsAreEqual(
 
 export const GroceryItemComponent = memo(function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
+  const addedByDisplay = getGroceryItemAddedByDisplayName(item);
   const [isPressed, setIsPressed] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -287,7 +290,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
                   ? "text-muted-foreground bg-muted"
                   : "text-muted-foreground bg-muted"
               )}>
-                door {item.addedBy} · {formatAddedAt(item.addedAt)}
+                door {addedByDisplay} · {formatAddedAt(item.addedAt)}
               </span>
             </div>
           </div>

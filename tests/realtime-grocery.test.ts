@@ -24,6 +24,7 @@ describe("mapRealtimeGroceryRow", () => {
       notes: "halfvol",
       completed: false,
       addedBy: "user-abc",
+      addedByName: null,
       familyId: "family-xyz",
       addedAt: new Date("2026-01-15T10:00:00.000Z"),
       sortOrder: 0,
@@ -82,7 +83,23 @@ describe("mapRealtimeGroceryRow", () => {
     expect(item.sortOrder).toBe(4);
   });
 
-  it("maps realtime user ids as ids because realtime payloads do not include member names", () => {
+  it("maps added_by_name from realtime payloads", () => {
+    const item = mapRealtimeGroceryRow({
+      id: 5,
+      name: "Bananen",
+      completed: false,
+      added_by: "fddc0f4f-6ea3-4ef9-89d0-b2d01ad25156",
+      added_by_name: "Lisa",
+      family_id: "family-1",
+      added_at: "2026-01-15T10:00:00.000Z",
+      created_at: "2026-01-15T10:00:00.000Z",
+    });
+
+    expect(item.addedBy).toBe("fddc0f4f-6ea3-4ef9-89d0-b2d01ad25156");
+    expect(item.addedByName).toBe("Lisa");
+  });
+
+  it("maps realtime user ids as ids when added_by_name is absent", () => {
     const item = mapRealtimeGroceryRow({
       id: 5,
       name: "Bananen",
@@ -94,5 +111,6 @@ describe("mapRealtimeGroceryRow", () => {
     });
 
     expect(item.addedBy).toBe("fddc0f4f-6ea3-4ef9-89d0-b2d01ad25156");
+    expect(item.addedByName).toBeNull();
   });
 });

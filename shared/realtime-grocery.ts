@@ -34,6 +34,10 @@ export function mapRealtimeGroceryRow(row: Record<string, unknown>): GroceryItem
     notes: row.notes == null ? null : String(row.notes),
     completed: Boolean(row.completed),
     addedBy: String(row.added_by ?? row.addedBy ?? ""),
+    addedByName:
+      row.added_by_name == null && row.addedByName == null
+        ? null
+        : String(row.added_by_name ?? row.addedByName ?? ""),
     familyId: String(row.family_id ?? row.familyId ?? ""),
     addedAt,
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),

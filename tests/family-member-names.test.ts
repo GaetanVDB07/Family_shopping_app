@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyMemberNamesToGroceryItems,
   buildFamilyMemberNameMap,
+  getGroceryItemAddedByDisplayName,
   looksLikeAuthUserId,
   resolveAddedByDisplayName,
 } from "@/lib/family-member-names";
@@ -43,6 +44,15 @@ describe("family-member-names", () => {
     ).toBe("Lisa");
   });
 
+  it("prefers denormalized addedByName for display", () => {
+    expect(
+      getGroceryItemAddedByDisplayName({
+        addedBy: "22222222-2222-2222-2222-222222222222",
+        addedByName: "Lisa",
+      }),
+    ).toBe("Lisa");
+  });
+
   it("re-applies member names to cached grocery items", () => {
     const items = [
       {
@@ -67,6 +77,7 @@ describe("family-member-names", () => {
 
     expect(updated).not.toBe(items);
     expect(updated[0]?.addedBy).toBe("Lisa");
+    expect(updated[0]?.addedByName).toBe("Lisa");
   });
 
   it("preserves offline cache metadata when re-applying member names", () => {
