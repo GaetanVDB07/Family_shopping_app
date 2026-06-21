@@ -35,6 +35,35 @@ export interface GroceryItemEditValues {
   notes: string | null;
 }
 
+export function groceryItemPropsAreEqual(
+  prev: GroceryItemProps,
+  next: GroceryItemProps,
+): boolean {
+  if (
+    prev.onToggle !== next.onToggle
+    || prev.onDelete !== next.onDelete
+    || prev.onUpdate !== next.onUpdate
+    || prev.dragHandleProps !== next.dragHandleProps
+  ) {
+    return false;
+  }
+
+  const prevItem = prev.item;
+  const nextItem = next.item;
+
+  return (
+    prevItem.id === nextItem.id
+    && prevItem.name === nextItem.name
+    && prevItem.quantity === nextItem.quantity
+    && prevItem.unit === nextItem.unit
+    && prevItem.notes === nextItem.notes
+    && prevItem.completed === nextItem.completed
+    && prevItem.addedBy === nextItem.addedBy
+    && prevItem.addedAt === nextItem.addedAt
+    && prevItem.sortOrder === nextItem.sortOrder
+  );
+}
+
 export const GroceryItemComponent = memo(function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const [isPressed, setIsPressed] = useState(false);
@@ -306,4 +335,4 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
       )}
     </div>
   );
-});
+}, groceryItemPropsAreEqual);
