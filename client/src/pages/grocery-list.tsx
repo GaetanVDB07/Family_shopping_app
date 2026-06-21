@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-=======
-import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from "react";
->>>>>>> origin/develop
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
