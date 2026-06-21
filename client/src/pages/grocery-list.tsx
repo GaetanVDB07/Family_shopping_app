@@ -6,7 +6,7 @@ import { GroceryItem, InsertGroceryItem } from "@shared/schema";
 import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
-import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, getGroceryItemAddedByDisplayName } from "@/lib/family-member-names";
+import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, resolveGroceryItemAttribution } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 const SortableGroceryList = lazy(() =>
@@ -123,11 +123,7 @@ export default function GroceryList() {
       void refetch();
     },
     onItemAdded: (item) => {
-      const resolvedItem = {
-        ...item,
-        addedBy: getGroceryItemAddedByDisplayName(item, memberNames),
-        addedByName: item.addedByName ?? getGroceryItemAddedByDisplayName(item, memberNames),
-      };
+      const resolvedItem = resolveGroceryItemAttribution(item, memberNames);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const exists = old.some((existingItem) => existingItem.id === resolvedItem.id);
         if (exists) {
@@ -137,11 +133,7 @@ export default function GroceryList() {
       });
     },
     onItemUpdated: (updatedItem) => {
-      const resolvedItem = {
-        ...updatedItem,
-        addedBy: getGroceryItemAddedByDisplayName(updatedItem, memberNames),
-        addedByName: updatedItem.addedByName ?? getGroceryItemAddedByDisplayName(updatedItem, memberNames),
-      };
+      const resolvedItem = resolveGroceryItemAttribution(updatedItem, memberNames);
       queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) => {
         const updated = old.map((item) => (
           item.id === resolvedItem.id ? resolvedItem : item
@@ -375,8 +367,17 @@ export default function GroceryList() {
       
       return { previousItems };
     },
-    onSuccess: (response) => {
-      // No toast notification for bulk actions
+    onSuccess: (response: { items?: GroceryItem[] }) => {
+      if (!response.items?.length) {
+        return;
+      }
+
+      const updatedById = new Map(response.items.map((item) => [item.id, item]));
+      queryClient.setQueryData(["/api/grocery-items", familyId], (old: GroceryItem[] = []) =>
+        sortGroceryItems(
+          old.map((item) => updatedById.get(item.id) ?? item),
+        ),
+      );
     },
     onError: (err, variables, context) => {
       if (context?.previousItems) {
