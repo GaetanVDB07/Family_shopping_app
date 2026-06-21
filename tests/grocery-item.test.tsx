@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { GroceryItemComponent } from '../client/src/components/grocery-item'
+import { GroceryItemComponent, groceryItemPropsAreEqual } from '../client/src/components/grocery-item'
 import type { GroceryItem } from '../shared/schema'
 
 const sampleItem: GroceryItem = {
@@ -99,5 +99,41 @@ describe('GroceryItemComponent', () => {
         notes: 'Ongezoet',
       })
     })
+  })
+
+  it('groceryItemPropsAreEqual treats unchanged items as equal', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    const props = { item: sampleItem, onToggle, onDelete }
+
+    expect(groceryItemPropsAreEqual(props, props)).toBe(true)
+    expect(groceryItemPropsAreEqual(props, {
+      ...props,
+      item: { ...sampleItem, completed: true },
+    })).toBe(false)
+    expect(groceryItemPropsAreEqual(props, {
+      ...props,
+      onToggle: vi.fn(),
+    })).toBe(false)
+    expect(groceryItemPropsAreEqual(props, {
+      ...props,
+      item: { ...sampleItem, name: 'Cheese' },
+    })).toBe(false)
+  })
+
+  it('memo comparator allows rerender when only unrelated item fields change', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    const baseProps = { item: sampleItem, onToggle, onDelete }
+    const nextProps = {
+      ...baseProps,
+      item: {
+        ...sampleItem,
+        familyId: 'other-family',
+        createdAt: new Date('2026-02-01T00:00:00.000Z'),
+      },
+    }
+
+    expect(groceryItemPropsAreEqual(baseProps, nextProps)).toBe(true)
   })
 })

@@ -21,12 +21,18 @@ vi.mock('pg', () => ({
   Client: vi.fn(function Client() {
     return {
       connect: vi.fn(async () => undefined),
-      query: vi.fn(async () => undefined),
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (pgQueryHandler) {
+          return pgQueryHandler(sql, params);
+        }
+        return undefined;
+      }),
     };
   }),
 }));
 
 let fakeDb: ReturnType<typeof createFakeDb>;
+let pgQueryHandler: ((sql: string, params?: unknown[]) => Promise<unknown>) | undefined;
 let fakeDbConfig: {
   memberFamilyIds: string[];
   groceryItems: Record<string, Array<Record<string, unknown>>>;
@@ -338,6 +344,19 @@ describe('grocery item family scoping', () => {
       existingItemCompleted: true,
     };
     fakeDb = createFakeDb();
+    pgQueryHandler = async (sql, params) => {
+      if (sql.includes('unnest') && sql.includes('sort_order')) {
+        const [orderedIds, sortOrders, familyId] = params as [number[], number[], string];
+        const items = fakeDbConfig.groceryItems[familyId] ?? [];
+        orderedIds.forEach((id, index) => {
+          const target = items.find((item) => item.id === id);
+          if (target) {
+            target.sortOrder = sortOrders[index];
+          }
+        });
+      }
+      return undefined;
+    };
   });
 
   it('returns grocery items for a family the user belongs to', async () => {
@@ -559,6 +578,22 @@ describe('grocery item family scoping', () => {
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
     ]);
+  });
+
+  it('persists reorder with a single batch SQL update', async () => {
+    const { Client } = await import('pg');
+    const clientInstance = vi.mocked(Client).mock.results.at(-1)?.value as {
+      query: ReturnType<typeof vi.fn>;
+    };
+
+    await request('PATCH', '/api/grocery-items/reorder', {
+      familyId: 'family-1',
+      orderedIds: [3, 1],
+    });
+
+    expect(clientInstance.query).toHaveBeenCalledTimes(1);
+    expect(String(clientInstance.query.mock.calls[0][0])).toContain('unnest');
+    expect(fakeDb.update).not.toHaveBeenCalled();
   });
 
   it('rejects reorder requests that omit pending items', async () => {

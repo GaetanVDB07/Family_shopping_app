@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,7 +9,11 @@ import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
 import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
-import { SortableGroceryList } from "@/components/sortable-grocery-list";
+const SortableGroceryList = lazy(() =>
+  import("@/components/sortable-grocery-list").then((module) => ({
+    default: module.SortableGroceryList,
+  })),
+);
 import { sortGroceryItems } from "@/lib/grocery-item-sort";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
 import { UserMenu } from "@/components/user-menu";
@@ -69,6 +73,10 @@ export default function GroceryList() {
   const { data: historyItems = [] } = useGroceryHistory(familyId, {
     enabled: historySuggestionsActive,
   });
+  const itemsRef = useRef(items);
+  const historyItemsRef = useRef(historyItems);
+  itemsRef.current = items;
+  historyItemsRef.current = historyItems;
 
   useEffect(() => {
     if (!familyId || !memberNamesReady || memberNames.size === 0) {
@@ -462,8 +470,8 @@ export default function GroceryList() {
   }, [addItemMutation, queueAddItem, user?.id]);
 
   const handleReactivateItem = useCallback((id: number) => {
-    const activeItem = items.find((entry) => entry.id === id);
-    const historyItem = historyItems.find((entry) => entry.id === id);
+    const activeItem = itemsRef.current.find((entry) => entry.id === id);
+    const historyItem = historyItemsRef.current.find((entry) => entry.id === id);
 
     if (!activeItem && !historyItem) {
       return;
@@ -474,10 +482,10 @@ export default function GroceryList() {
     }
 
     toggleItemMutation.mutate({ id, completed: false });
-  }, [historyItems, items, queueToggleItem, toggleItemMutation]);
+  }, [queueToggleItem, toggleItemMutation]);
 
   const handleToggleItem = useCallback((id: number) => {
-    const item = items.find((item) => item.id === id);
+    const item = itemsRef.current.find((entry) => entry.id === id);
     if (item) {
       if (queueToggleItem(item)) {
         return;
@@ -485,7 +493,7 @@ export default function GroceryList() {
 
       toggleItemMutation.mutate({ id, completed: !item.completed });
     }
-  }, [items, queueToggleItem, toggleItemMutation]);
+  }, [queueToggleItem, toggleItemMutation]);
 
   const handleUpdateItem = useCallback(async (id: number, updates: GroceryItemEditValues) => {
     if (queueUpdateItem(id, updates)) {
@@ -732,14 +740,24 @@ export default function GroceryList() {
                   Nog te kopen ({filteredItems.pending.length})
                 </h2>
                 {canReorderItems ? (
-                  <SortableGroceryList
-                    items={filteredItems.pending}
-                    onReorder={handleReorderItems}
-                    onToggle={handleToggleItem}
-                    onDelete={handleDeleteItem}
-                    onUpdate={handleUpdateItem}
-                    disabled={reorderItemsMutation.isPending}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="space-y-2" aria-busy="true" aria-label="Lijst laden">
+                        {filteredItems.pending.map((item) => (
+                          <Skeleton key={item.id} className="h-16 w-full rounded-xl" />
+                        ))}
+                      </div>
+                    }
+                  >
+                    <SortableGroceryList
+                      items={filteredItems.pending}
+                      onReorder={handleReorderItems}
+                      onToggle={handleToggleItem}
+                      onDelete={handleDeleteItem}
+                      onUpdate={handleUpdateItem}
+                      disabled={reorderItemsMutation.isPending}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="space-y-2">
                     {filteredItems.pending.map((item) => (

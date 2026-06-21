@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -18,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { GroceryItem } from "@shared/schema";
 import { GroceryItemComponent, type GroceryItemEditValues } from "@/components/grocery-item";
+import { getListItemStaggerAnimation } from "@/lib/list-item-animation";
 
 interface SortableGroceryItemRowProps {
   item: GroceryItem;
@@ -27,7 +29,7 @@ interface SortableGroceryItemRowProps {
   disabled?: boolean;
 }
 
-function SortableGroceryItemRow({
+const SortableGroceryItemRow = memo(function SortableGroceryItemRow({
   item,
   onToggle,
   onDelete,
@@ -42,6 +44,11 @@ function SortableGroceryItemRow({
     transition,
     isDragging,
   } = useSortable({ id: item.id, disabled });
+
+  const dragHandleProps = useMemo(
+    () => (disabled ? undefined : { ...attributes, ...listeners }),
+    [attributes, disabled, listeners],
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -60,11 +67,11 @@ function SortableGroceryItemRow({
         onToggle={onToggle}
         onDelete={onDelete}
         onUpdate={onUpdate}
-        dragHandleProps={disabled ? undefined : { ...attributes, ...listeners }}
+        dragHandleProps={dragHandleProps}
       />
     </div>
   );
-}
+});
 
 interface SortableGroceryListProps {
   items: GroceryItem[];
@@ -122,11 +129,14 @@ export function SortableGroceryList({
         strategy={verticalListSortingStrategy}
       >
         <div className="space-y-2">
-          {items.map((item, index) => (
+          {items.map((item, index) => {
+            const enterAnimation = getListItemStaggerAnimation(index, items.length);
+
+            return (
             <div
               key={`pending-${item.id}-${item.name}`}
-              className="animate-in slide-in-from-left duration-300"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className={enterAnimation.className}
+              style={enterAnimation.style}
             >
               <SortableGroceryItemRow
                 item={item}
@@ -136,7 +146,8 @@ export function SortableGroceryList({
                 disabled={disabled}
               />
             </div>
-          ))}
+            );
+          })}
         </div>
       </SortableContext>
     </DndContext>
