@@ -76,8 +76,23 @@ export default function GroceryList() {
   });
   const itemsRef = useRef(items);
   const historyItemsRef = useRef(historyItems);
+  const lastOfflineRefetchFamilyRef = useRef<string | null>(null);
   itemsRef.current = items;
   historyItemsRef.current = historyItems;
+
+  useEffect(() => {
+    if (!isOnline || !isOfflineData) {
+      lastOfflineRefetchFamilyRef.current = null;
+      return;
+    }
+
+    if (!familyId || lastOfflineRefetchFamilyRef.current === familyId) {
+      return;
+    }
+
+    lastOfflineRefetchFamilyRef.current = familyId;
+    void refetch();
+  }, [familyId, isOfflineData, isOnline, refetch]);
 
   useEffect(() => {
     if (!familyId || !memberNamesReady || memberNames.size === 0) {
@@ -656,8 +671,11 @@ export default function GroceryList() {
         <div className="px-6 py-3 border-b border-amber-500/30 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-200">
           {isSyncingQueuedChanges ? "Wij synchroniseren je wijzigingen..." : null}
           {!isSyncingQueuedChanges && syncFailed ? "Sommige wijzigingen konden nog niet worden gesynchroniseerd." : null}
-          {!isSyncingQueuedChanges && !syncFailed && (!isOnline || isOfflineData)
+          {!isSyncingQueuedChanges && !syncFailed && !isOnline
             ? "Je bent offline. Wij synchroniseren je wijzigingen zodra je weer online bent."
+            : null}
+          {!isSyncingQueuedChanges && !syncFailed && isOnline && isOfflineData
+            ? "We kunnen de server niet bereiken. Je ziet opgeslagen gegevens; wijzigingen worden later gesynchroniseerd."
             : null}
           {!isSyncingQueuedChanges && !syncFailed && isOnline && !isOfflineData && queuedMutationCount > 0
             ? "Er staan wijzigingen klaar om te synchroniseren."
