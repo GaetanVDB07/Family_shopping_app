@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import GroceryList from "@/pages/grocery-list";
 import type { GroceryItem } from "@shared/schema";
@@ -8,6 +8,7 @@ import { getQueuedGroceryMutations } from "@/lib/offline-grocery-queue";
 let mockItems: GroceryItem[] = [];
 let mockIsOfflineData = false;
 let mockIsOnline = true;
+const refetchGroceryItems = vi.fn();
 const setLocation = vi.fn();
 const memberNames = new Map([["22222222-2222-2222-2222-222222222222", "Lisa"]]);
 const setQueryData = vi.fn((queryKey, updater) => {
@@ -49,7 +50,7 @@ vi.mock("@/hooks/use-grocery-items", () => ({
     data: mockItems,
     isOfflineData: mockIsOfflineData,
     isLoading: false,
-    refetch: vi.fn(),
+    refetch: refetchGroceryItems,
   }),
 }));
 
@@ -174,7 +175,7 @@ describe("GroceryList shopping-friendly polish", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows when the visible list comes from offline cache", () => {
+  it("shows when the visible list comes from offline cache while the server is unreachable", () => {
     mockIsOnline = true;
     mockIsOfflineData = true;
     mockItems.push(groceryItem({ id: 1, name: "Melk" }));
@@ -183,12 +184,29 @@ describe("GroceryList shopping-friendly polish", () => {
 
     expect(
       screen.getByText(
-        "Je bent offline. Wij synchroniseren je wijzigingen zodra je weer online bent.",
+        "We kunnen de server niet bereiken. Je ziet opgeslagen gegevens; wijzigingen worden later gesynchroniseerd.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Alles afvinken/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Nog te kopen/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Wis alles/i })).toBeDisabled();
+  });
+
+  it("refetches cached offline data when the browser reports online again", async () => {
+    mockIsOnline = false;
+    mockIsOfflineData = true;
+    mockItems.push(groceryItem({ id: 1, name: "Melk" }));
+
+    const { rerender } = render(<GroceryList />);
+
+    expect(refetchGroceryItems).not.toHaveBeenCalled();
+
+    mockIsOnline = true;
+    rerender(<GroceryList />);
+
+    await waitFor(() => {
+      expect(refetchGroceryItems).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("re-applies member names when grocery items load after member names", () => {

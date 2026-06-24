@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { useAuth } from '@/hooks/use-auth';
 import type { GroceryItem } from '@shared/schema';
@@ -59,6 +59,10 @@ describe('useWebSocket', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('stays disconnected without an authenticated session', async () => {
     mockedUseAuth.mockReturnValue({
       user: null,
@@ -111,6 +115,33 @@ describe('useWebSocket', () => {
 
     await waitFor(() => {
       expect(onResync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('reconnects the realtime channel after transient subscription failures', async () => {
+    renderHook(() =>
+      useWebSocket({
+        familyId: 'family-1',
+        onItemAdded,
+        onItemUpdated,
+        onItemDeleted,
+        onSync,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    vi.useFakeTimers();
+    subscribeStatusCallback?.('CHANNEL_ERROR');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(mockChannel.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(mockChannel.subscribe).toHaveBeenCalledTimes(2);
     });
   });
 
