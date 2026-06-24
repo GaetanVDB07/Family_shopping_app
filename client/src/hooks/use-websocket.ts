@@ -30,6 +30,9 @@ export function useWebSocket({
   onResync,
 }: UseWebSocketProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const connectRef = useRef<() => Promise<void>>();
   const wasSubscribedRef = useRef(false);
   const { session, user } = useAuth();
   const accessToken = session?.access_token;
@@ -47,11 +50,35 @@ export function useWebSocket({
   onSyncRef.current = onSync;
   onResyncRef.current = onResync;
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = null;
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      return;
+    }
+
+    const delayMs = Math.min(1_000 * 2 ** reconnectAttemptsRef.current, 10_000);
+    reconnectAttemptsRef.current += 1;
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      void connectRef.current?.();
+    }, delayMs);
+  }, []);
+
   const connect = useCallback(async () => {
     try {
       if (!userId || !accessToken || !familyId) {
         return;
       }
+
+      clearReconnectTimer();
 
       if (channelRef.current) {
         realtimeDevLog('Closing existing WebSocket channel to prevent duplicates');
@@ -104,10 +131,16 @@ export function useWebSocket({
         .subscribe((status) => {
           realtimeDevLog('Realtime subscription status:', status);
           if (status === 'SUBSCRIBED') {
+            reconnectAttemptsRef.current = 0;
             if (wasSubscribedRef.current) {
               onResyncRef.current?.();
             }
             wasSubscribedRef.current = true;
+            return;
+          }
+
+          if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            scheduleReconnect();
           }
         });
 
@@ -115,18 +148,21 @@ export function useWebSocket({
     } catch (error) {
       console.error('Error connecting to Supabase Realtime:', error);
     }
-  }, [familyId, accessToken, userId]);
+  }, [familyId, accessToken, userId, clearReconnectTimer, scheduleReconnect]);
+
+  connectRef.current = connect;
 
   useEffect(() => {
     connect();
 
     return () => {
       realtimeDevLog('Cleaning up WebSocket connection');
+      clearReconnectTimer();
       wasSubscribedRef.current = false;
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         channelRef.current = null;
       }
     };
-  }, [connect]);
+  }, [clearReconnectTimer, connect]);
 }
