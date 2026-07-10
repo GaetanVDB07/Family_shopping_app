@@ -117,9 +117,9 @@ export default function FamilySetup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex items-start justify-center p-3 py-4 sm:items-center sm:p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+        <CardHeader className="p-4 text-center sm:p-6">
           <div className="flex justify-center mb-4">
             <div className="bg-primary text-white p-3 rounded-full">
               <Users className="w-8 h-8" />
@@ -129,25 +129,25 @@ export default function FamilySetup() {
           <CardDescription>
             Maak een nieuwe familie aan of sluit je aan bij een bestaande familie
           </CardDescription>
-          <div className="flex justify-between items-center mt-4 pt-4 border-t">
-            <span className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-2 mt-4 pt-4 border-t min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
+            <span className="min-w-0 break-words text-sm text-muted-foreground">
               Ingelogd als: {getUserDisplayName(user)}
             </span>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <Button variant="ghost" className="min-h-11 self-center min-[380px]:self-auto" onClick={handleSignOut}>
               <LogOut className="w-4 h-4 mr-2" />
               Uitloggen
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="create">
-                <Plus className="w-4 h-4 mr-2" />
+            <TabsList className="grid h-auto min-h-11 w-full grid-cols-2">
+              <TabsTrigger value="create" className="min-w-0 px-2 text-xs min-[380px]:text-sm">
+                <Plus className="w-4 h-4 mr-1 min-[380px]:mr-2" />
                 Nieuwe Familie
               </TabsTrigger>
-              <TabsTrigger value="join">
-                <Key className="w-4 h-4 mr-2" />
+              <TabsTrigger value="join" className="min-w-0 px-2 text-xs min-[380px]:text-sm">
+                <Key className="w-4 h-4 mr-1 min-[380px]:mr-2" />
                 Familie Joinen
               </TabsTrigger>
             </TabsList>

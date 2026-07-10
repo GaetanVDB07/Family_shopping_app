@@ -1800,6 +1800,7 @@ async function handleMarkAllItemsCompleted(req, res, familyId) {
       .set({ completed: true, completedAt: now })
       .where(and(
         eq(groceryItems.familyId, familyId),
+        eq(groceryItems.completed, false),
         isNull(groceryItems.archivedAt),
       ))
       .returning();

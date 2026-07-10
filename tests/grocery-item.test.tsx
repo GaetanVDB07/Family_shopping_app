@@ -102,6 +102,77 @@ describe('GroceryItemComponent', () => {
     })
   })
 
+  it('configures the reorder handle for touch dragging', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(
+      <GroceryItemComponent
+        item={sampleItem}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        dragHandleProps={{ role: 'button', tabIndex: 0 }}
+      />
+    )
+
+    const handle = screen.getByRole('button', { name: 'Milk verslepen' })
+
+    expect(handle).toHaveAttribute('data-grocery-drag-handle', 'true')
+    expect((handle as HTMLElement).style.touchAction).toBe('none')
+  })
+
+  it('does not treat touches on the reorder handle as swipe-to-delete gestures', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(
+      <GroceryItemComponent
+        item={sampleItem}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        dragHandleProps={{ role: 'button', tabIndex: 0 }}
+      />
+    )
+
+    const handle = screen.getByRole('button', { name: 'Milk verslepen' })
+
+    fireEvent.touchStart(handle, {
+      touches: [{ clientX: 120, clientY: 20 }],
+    })
+    fireEvent.touchMove(handle, {
+      touches: [{ clientX: 20, clientY: 20 }],
+    })
+    fireEvent.touchEnd(handle)
+
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it('keeps desktop delete available while placing the drag handle at the end', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    const onUpdate = vi.fn()
+
+    render(
+      <GroceryItemComponent
+        item={sampleItem}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+        dragHandleProps={{ role: 'button', tabIndex: 0 }}
+      />
+    )
+
+    const editButton = screen.getByRole('button', { name: 'Milk bewerken' })
+    const deleteButton = screen.getByRole('button', { name: 'Milk verwijderen' })
+    const dragHandle = screen.getByRole('button', { name: 'Milk verslepen' })
+
+    expect(deleteButton).toHaveClass('hidden', 'sm:inline-flex')
+    expect(
+      editButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      deleteButton.compareDocumentPosition(dragHandle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   it('groceryItemPropsAreEqual treats unchanged items as equal', () => {
     const onToggle = vi.fn()
     const onDelete = vi.fn()

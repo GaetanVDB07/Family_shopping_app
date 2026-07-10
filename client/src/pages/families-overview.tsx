@@ -150,7 +150,7 @@ export default function FamiliesOverview() {
 
       <div className="p-4 space-y-6">
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
@@ -248,12 +248,12 @@ export default function FamiliesOverview() {
                 onTouchStart={() => prefetchFamilyData(family.id)}
               >
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center space-x-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="flex min-w-0 items-start gap-2">
                       <Users className="w-5 h-5" />
-                      <span>{family.name}</span>
+                      <span className="min-w-0 break-words">{family.name}</span>
                     </CardTitle>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex shrink-0 items-center space-x-2">
                       <Badge variant={family.role === "admin" ? "default" : "secondary"}>
                         {family.role === "admin" ? (
                           <><Crown className="w-3 h-3 mr-1" />Admin</>
@@ -281,8 +281,10 @@ export default function FamiliesOverview() {
                     {family.role === "admin" && (
                       <Button 
                         variant="outline" 
-                        size="sm"
+                        size="icon"
+                        className="h-11 w-11 shrink-0"
                         onClick={() => navigateToFamilyManagement(family.id)}
+                        aria-label={`${family.name} beheren`}
                       >
                         <Settings className="w-4 h-4" />
                       </Button>

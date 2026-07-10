@@ -611,7 +611,7 @@ export default function GroceryList() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg relative">
+    <div className="max-w-md mx-auto bg-background min-h-screen min-h-[100dvh] shadow-lg relative">
       {/* Pull to refresh indicator */}
       {shouldShowIndicator && (
         <div 
@@ -629,16 +629,14 @@ export default function GroceryList() {
 
       {/* Header with better mobile spacing */}
       <header 
-        className="bg-primary text-white p-6 sticky top-0 z-50 shadow-md"
-        style={{ paddingTop: 'max(24px, env(safe-area-inset-top))' }}
+        className="bg-primary text-white px-4 pb-4 sticky top-0 z-50 shadow-md sm:px-6 sm:pb-6"
+        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <ShoppingCart className="text-2xl" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold leading-tight">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <ShoppingCart className="h-6 w-6 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="break-words text-lg font-semibold leading-tight sm:text-xl">
                 {currentFamily?.familyName || 'Familie Boodschappenlijst'}
               </h1>
               {allFamilies.length > 1 && (
@@ -649,12 +647,12 @@ export default function GroceryList() {
               )}
             </div>
           </div>
-          <UserMenu groceryItems={items} familyName={currentFamily?.familyName} />
+          <UserMenu />
         </div>
       </header>
 
       {/* Search Bar with better mobile design */}
-      <div className="p-6 bg-card border-b border-border">
+      <div className="p-4 bg-card border-b border-border sm:p-6">
         <div className="relative">
           <Input
             type="text"
@@ -668,7 +666,7 @@ export default function GroceryList() {
       </div>
 
       {(!isOnline || isOfflineData || queuedMutationCount > 0 || isSyncingQueuedChanges || syncFailed) ? (
-        <div className="px-6 py-3 border-b border-amber-500/30 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-200">
+        <div className="px-4 py-3 border-b border-amber-500/30 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-200 sm:px-6">
           {isSyncingQueuedChanges ? "Wij synchroniseren je wijzigingen..." : null}
           {!isSyncingQueuedChanges && syncFailed ? "Sommige wijzigingen konden nog niet worden gesynchroniseerd." : null}
           {!isSyncingQueuedChanges && !syncFailed && !isOnline
@@ -684,10 +682,10 @@ export default function GroceryList() {
       ) : null}
 
       {/* Quick Stats with better mobile layout */}
-      <div className="px-6 py-4 bg-card border-b border-border">
+      <div className="px-4 py-4 bg-card border-b border-border sm:px-6">
         {items.length > 0 ? (
           <div className="mb-4 rounded-2xl border border-primary/20 bg-primary/10 p-4">
-            <div className="flex items-center justify-between gap-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-semibold text-foreground">
                 {stats.completed} van {stats.total} klaar
               </span>
@@ -717,7 +715,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleMarkAllCompleted}
               disabled={markAllCompletedMutation.isPending || !isOnline || isOfflineData}
-              className="text-green-600 border-green-500/30 hover:bg-green-500/10 hover:border-green-500/50 rounded-lg px-3 py-2 w-full"
+              className="min-h-11 text-green-600 border-green-500/30 hover:bg-green-500/10 hover:border-green-500/50 rounded-lg px-3 py-2 w-full"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               Alles afvinken
@@ -727,7 +725,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleMarkAllPending}
               disabled={markAllPendingMutation.isPending || !isOnline || isOfflineData}
-              className="text-orange-600 border-orange-500/30 hover:bg-orange-500/10 hover:border-orange-500/50 rounded-lg px-3 py-2 w-full"
+              className="min-h-11 text-orange-600 border-orange-500/30 hover:bg-orange-500/10 hover:border-orange-500/50 rounded-lg px-3 py-2 w-full"
             >
               <Circle className="w-4 h-4 mr-2" />
               Nog te kopen
@@ -737,7 +735,7 @@ export default function GroceryList() {
               size="sm"
               onClick={handleDeleteAll}
               disabled={!isOnline || isOfflineData}
-              className="text-red-600 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg px-3 py-2 w-full"
+              className="min-h-11 text-red-600 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg px-3 py-2 w-full"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Wis alles
@@ -749,7 +747,7 @@ export default function GroceryList() {
       {/* Main Content with better mobile spacing */}
       <main className="pb-32"> {/* Increased bottom padding for better FAB spacing */}
         {items.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">
+          <div className="p-8 text-center text-muted-foreground sm:p-12">
             <ShoppingCart className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
             <h3 className="text-xl font-medium mb-3">Geen boodschappen</h3>
             <p className="text-base">Voeg je eerste item toe om te beginnen</p>
@@ -757,7 +755,7 @@ export default function GroceryList() {
         ) : (
           <>
             {stats.remaining === 0 && items.length > 0 && !searchQuery ? (
-              <div className="mx-6 mt-6 rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center">
+              <div className="mx-4 mt-6 rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center sm:mx-6">
                 <CheckCircle className="mx-auto mb-3 h-9 w-9 text-primary" />
                 <h2 className="text-lg font-semibold text-foreground">Alles afgevinkt</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Je boodschappenlijst is klaar.</p>
@@ -766,7 +764,7 @@ export default function GroceryList() {
 
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
-              <div className="px-6 py-4">
+              <div className="px-4 py-4 sm:px-6">
                 <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
                   Nog te kopen ({filteredItems.pending.length})
                 </h2>
@@ -807,7 +805,7 @@ export default function GroceryList() {
 
             {/* Completed Items */}
             {filteredItems.completed.length > 0 && (
-              <div className="px-6 py-4 border-t border-border">
+              <div className="px-4 py-4 border-t border-border sm:px-6">
                 <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
                   Afgevinkt ({filteredItems.completed.length})
                 </h2>
@@ -826,7 +824,7 @@ export default function GroceryList() {
             )}
 
             {searchQuery && filteredItems.pending.length === 0 && filteredItems.completed.length === 0 && (
-              <div className="p-12 text-center text-muted-foreground">
+              <div className="p-8 text-center text-muted-foreground sm:p-12">
                 <Search className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
                 <h3 className="text-xl font-medium mb-3">Geen resultaten</h3>
                 <p className="text-base">Geen items gevonden voor "{searchQuery}"</p>

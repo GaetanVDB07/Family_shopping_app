@@ -16,14 +16,14 @@ describe("dark mode theme wiring", () => {
     expect(providerSource).toContain("enableSystem");
   });
 
-  it("exposes light, dark, and system options in the user menu", () => {
-    const toggleSource = readFileSync(resolve("client/src/components/theme-toggle.tsx"), "utf8");
-    expect(toggleSource).toContain('setTheme("light")');
-    expect(toggleSource).toContain('setTheme("dark")');
-    expect(toggleSource).toContain('setTheme("system")');
-    expect(toggleSource).toContain("Licht");
-    expect(toggleSource).toContain("Donker");
-    expect(toggleSource).toContain("Systeem");
+  it("exposes light, dark, and system options on the settings page", () => {
+    const settingsSource = readFileSync(resolve("client/src/pages/settings.tsx"), "utf8");
+    expect(settingsSource).toContain('value: "light"');
+    expect(settingsSource).toContain('value: "dark"');
+    expect(settingsSource).toContain('value: "system"');
+    expect(settingsSource).toContain("Licht");
+    expect(settingsSource).toContain("Donker");
+    expect(settingsSource).toContain("Systeem");
   });
 
   it("defines dark mode CSS variables", () => {
@@ -41,6 +41,7 @@ describe("dark mode theme wiring", () => {
       "client/src/pages/families-overview.tsx",
       "client/src/pages/family-management.tsx",
       "client/src/pages/family-setup.tsx",
+      "client/src/pages/settings.tsx",
       "client/src/components/family-invite-share.tsx",
       "client/src/components/user-menu.tsx",
       "client/src/pages/not-found.tsx",
