@@ -139,6 +139,11 @@ export default function FamiliesOverview() {
       <header className="bg-primary text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
+            <img
+              src={`/favicon.svg?v=${__APP_VERSION__}`}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-xl shadow-sm ring-1 ring-white/25"
+            />
             <div>
               <h1 className="text-lg font-semibold leading-tight">Mijn Families</h1>
               <span className="text-xs opacity-75">V{__APP_VERSION__}</span>
