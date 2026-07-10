@@ -114,7 +114,9 @@ export function AddItemForm({
   }, [isFocused, name, onSuggestionsActiveChange]);
 
   useEffect(() => {
-    if (!isLoading && inputRef.current) {
+    const canAutoFocus = typeof window.matchMedia === "function"
+      && window.matchMedia("(min-width: 769px) and (hover: hover) and (pointer: fine)").matches;
+    if (!isLoading && canAutoFocus && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isLoading]);
@@ -224,7 +226,7 @@ export function AddItemForm({
   return (
     <div
       className={`
-        fixed left-0 right-0 bg-background border-t border-border
+        fixed left-0 right-0 z-[60] max-h-[calc(100dvh-0.5rem)] overflow-y-auto overscroll-contain bg-background border-t border-border
         max-w-md mx-auto transition-all duration-200 ease-out
         ${isFocused || showDetailsSection || matchingExistingItems.length > 0 ? "shadow-2xl border-primary/20" : "shadow-lg"}
       `}
@@ -236,8 +238,8 @@ export function AddItemForm({
     >
       <div className="p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="flex space-x-3">
-            <div className="flex-1">
+          <div className="flex gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1">
               <Input
                 ref={inputRef}
                 type="text"
@@ -266,7 +268,8 @@ export function AddItemForm({
                 bg-primary hover:bg-green-700 text-white font-medium
                 rounded-xl transition-all duration-200 text-base
                 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
-                ${canSubmit ? "px-4" : "px-5 min-w-[64px]"}
+                min-h-11 shrink-0
+                ${canSubmit ? "px-3 sm:px-4" : "px-4 min-w-12 sm:min-w-16"}
                 py-4
                 ${(isLoading || isSubmitting) ? "animate-pulse" : ""}
               `}
@@ -295,7 +298,16 @@ export function AddItemForm({
                       event.preventDefault();
                       handleSelectExisting(match);
                     }}
-                    className="px-3 py-1.5 text-sm bg-muted hover:bg-primary/10 rounded-full border border-border transition-colors"
+                    onTouchStart={(event) => {
+                      event.preventDefault();
+                      handleSelectExisting(match);
+                    }}
+                    onClick={() => {
+                      if (name.trim()) {
+                        handleSelectExisting(match);
+                      }
+                    }}
+                    className="min-h-11 px-3 py-2 text-sm bg-muted hover:bg-primary/10 rounded-full border border-border transition-colors"
                   >
                     {match.displayName}
                   </button>
@@ -314,7 +326,7 @@ export function AddItemForm({
             <button
               type="button"
               onClick={() => setShowDetails((current) => !current)}
-              className="flex items-center gap-1 text-sm font-medium text-primary hover:text-green-700 transition-colors"
+              className="min-h-11 flex items-center gap-1 text-sm font-medium text-primary hover:text-green-700 transition-colors"
               aria-expanded={showDetailsSection}
             >
               {showDetailsSection ? (
@@ -333,7 +345,7 @@ export function AddItemForm({
 
           {showDetailsSection ? (
             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <div className="flex space-x-3">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
                 <Input
                   type="text"
                   placeholder="Aantal (optioneel), bijv. 2"

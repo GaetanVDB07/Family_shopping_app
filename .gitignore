@@ -65,6 +65,7 @@ temp/
 .codex/
 .codex-remote-attachments/
 .agents/
+.playwright-mcp/
 
 # Debug and test scripts in root (keep organized scripts in scripts/ directory)
 /check-*.mjs
