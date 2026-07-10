@@ -40,6 +40,7 @@ const SortableGroceryItemRow = memo(function SortableGroceryItemRow({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -68,6 +69,7 @@ const SortableGroceryItemRow = memo(function SortableGroceryItemRow({
         onDelete={onDelete}
         onUpdate={onUpdate}
         dragHandleProps={dragHandleProps}
+        dragHandleRef={disabled ? undefined : setActivatorNodeRef}
       />
     </div>
   );

@@ -10,6 +10,7 @@ const routePages = [
   "family-setup",
   "family-management",
   "families-overview",
+  "settings",
 ] as const;
 
 describe("route-level code splitting (#196)", () => {

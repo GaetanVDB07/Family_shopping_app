@@ -17,28 +17,45 @@ export function usePullToRefresh({
   
   const startY = useRef(0);
   const startX = useRef(0);
-  const currentY = useRef(0);
   const isScrolledToTop = useRef(false);
+  const isPullingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+  const pullDistanceRef = useRef(0);
+  const onRefreshRef = useRef(onRefresh);
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   const checkScrollPosition = () => {
-    isScrolledToTop.current = window.scrollY === 0;
+    isScrolledToTop.current = window.scrollY <= 0;
+  };
+
+  const resetPull = () => {
+    isPullingRef.current = false;
+    pullDistanceRef.current = 0;
+    setIsPulling(false);
+    setPullDistance(0);
   };
 
   const handleTouchStart = (e: TouchEvent) => {
     checkScrollPosition();
-    if (isScrolledToTop.current) {
-      startY.current = e.touches[0].clientY;
-      startX.current = e.touches[0].clientX;
+    if (!isScrolledToTop.current || e.touches.length !== 1) {
+      resetPull();
+      return;
     }
+
+    startY.current = e.touches[0].clientY;
+    startX.current = e.touches[0].clientX;
   };
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (!isScrolledToTop.current || isRefreshing) return;
+    if (!isScrolledToTop.current || isRefreshingRef.current || e.touches.length !== 1) return;
 
-    currentY.current = e.touches[0].clientY;
+    const currentY = e.touches[0].clientY;
     const currentX = e.touches[0].clientX;
     
-    const diffY = currentY.current - startY.current;
+    const diffY = currentY - startY.current;
     const diffX = Math.abs(currentX - startX.current);
 
     // Only trigger pull-to-refresh if:
@@ -50,27 +67,38 @@ export function usePullToRefresh({
       e.preventDefault();
       
       const distance = Math.min(diffY / resistance, threshold * 1.5);
+      pullDistanceRef.current = distance;
+      isPullingRef.current = distance > 10;
       setPullDistance(distance);
-      setIsPulling(distance > 10);
+      setIsPulling(isPullingRef.current);
     }
   };
 
   const handleTouchEnd = async () => {
-    if (!isPulling || isRefreshing) return;
+    if (isRefreshingRef.current) return;
+    if (!isPullingRef.current) {
+      resetPull();
+      return;
+    }
 
-    if (pullDistance >= threshold) {
+    if (pullDistanceRef.current >= threshold) {
+      isRefreshingRef.current = true;
       setIsRefreshing(true);
       try {
-        await onRefresh();
+        await onRefreshRef.current();
       } catch (error) {
         console.error('Pull to refresh failed:', error);
       } finally {
+        isRefreshingRef.current = false;
         setIsRefreshing(false);
       }
     }
 
-    setIsPulling(false);
-    setPullDistance(0);
+    resetPull();
+  };
+
+  const handleTouchCancel = () => {
+    resetPull();
   };
 
   useEffect(() => {
@@ -79,15 +107,17 @@ export function usePullToRefresh({
     target.addEventListener('touchstart', handleTouchStart, { passive: false });
     target.addEventListener('touchmove', handleTouchMove, { passive: false });
     target.addEventListener('touchend', handleTouchEnd);
+    target.addEventListener('touchcancel', handleTouchCancel);
     window.addEventListener('scroll', checkScrollPosition);
 
     return () => {
       target.removeEventListener('touchstart', handleTouchStart);
       target.removeEventListener('touchmove', handleTouchMove);
       target.removeEventListener('touchend', handleTouchEnd);
+      target.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('scroll', checkScrollPosition);
     };
-  }, [isPulling, isRefreshing, pullDistance, threshold, resistance]);
+  }, [threshold, resistance]);
 
   return {
     isPulling,

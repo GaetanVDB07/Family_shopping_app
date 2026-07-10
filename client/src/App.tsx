@@ -18,6 +18,7 @@ const ResetPasswordPage = lazy(() =>
 const FamilySetup = lazy(() => import("@/pages/family-setup"));
 const FamilyManagement = lazy(() => import("@/pages/family-management"));
 const FamiliesOverview = lazy(() => import("@/pages/families-overview"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
 
 function LazyPage({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoading />}>{children}</Suspense>;
@@ -102,6 +103,11 @@ function AuthenticatedApp() {
         <Route path="/grocery-list/:familyId">
           <LazyPage>
             <GroceryList />
+          </LazyPage>
+        </Route>
+        <Route path="/settings/:familyId">
+          <LazyPage>
+            <SettingsPage />
           </LazyPage>
         </Route>
         <Route path="/grocery-list" component={DefaultRedirect} />

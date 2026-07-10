@@ -26,7 +26,8 @@ interface GroceryItemProps {
   onToggle: (id: number) => void;
   onDelete: (item: GroceryItem) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+  dragHandleRef?: React.Ref<HTMLButtonElement>;
 }
 
 export interface GroceryItemEditValues {
@@ -45,6 +46,7 @@ export function groceryItemPropsAreEqual(
     || prev.onDelete !== next.onDelete
     || prev.onUpdate !== next.onUpdate
     || prev.dragHandleProps !== next.dragHandleProps
+    || prev.dragHandleRef !== next.dragHandleRef
   ) {
     return false;
   }
@@ -66,7 +68,20 @@ export function groceryItemPropsAreEqual(
   );
 }
 
-export const GroceryItemComponent = memo(function GroceryItemComponent({ item, onToggle, onDelete, onUpdate, dragHandleProps }: GroceryItemProps) {
+const DRAG_HANDLE_SELECTOR = "[data-grocery-drag-handle='true']";
+
+function isDragHandleEventTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(DRAG_HANDLE_SELECTOR) !== null;
+}
+
+export const GroceryItemComponent = memo(function GroceryItemComponent({
+  item,
+  onToggle,
+  onDelete,
+  onUpdate,
+  dragHandleProps,
+  dragHandleRef,
+}: GroceryItemProps) {
   const quantityLine = formatQuantityLine(item.quantity, item.unit);
   const addedByDisplay = getGroceryItemAddedByDisplayName(item);
   const [isPressed, setIsPressed] = useState(false);
@@ -83,14 +98,14 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
   const currentX = useRef(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isEditing) return;
+    if (isEditing || isDragHandleEventTarget(e.target)) return;
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isEditing) return;
+    if (isEditing || isDragHandleEventTarget(e.target)) return;
     if (!isDragging) return;
     
     currentX.current = e.touches[0].clientX;
@@ -108,8 +123,12 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
     }
   };
 
-  const handleTouchEnd = () => {
-    if (isEditing) return;
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isEditing || isDragHandleEventTarget(e.target)) {
+      setIsDragging(false);
+      setSwipeOffset(0);
+      return;
+    }
     setIsDragging(false);
     
     // If swiped more than 60px (increased threshold), trigger delete
@@ -121,7 +140,10 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
     setSwipeOffset(0);
   };
 
-  const handleMouseDown = () => setIsPressed(true);
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isDragHandleEventTarget(e.target)) return;
+    setIsPressed(true);
+  };
   const handleMouseUp = () => setIsPressed(false);
   const handleMouseLeave = () => setIsPressed(false);
 
@@ -235,9 +257,9 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
           </div>
         </form>
       ) : (
-        <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4 flex-1">
+        <div className="p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
             {/* Enhanced checkbox button */}
             <Button
               variant="ghost"
@@ -260,7 +282,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
             {/* Item text with better typography */}
             <div className="flex-1 min-w-0">
               <span className={cn(
-                "font-medium text-base leading-relaxed block",
+                "font-medium text-base leading-relaxed block break-words",
                 item.completed
                   ? "text-muted-foreground line-through"
                   : "text-foreground"
@@ -269,7 +291,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
               </span>
               {quantityLine ? (
                 <span className={cn(
-                  "text-sm mt-1 block",
+                  "text-sm mt-1 block break-words",
                   item.completed ? "text-muted-foreground/70" : "text-muted-foreground"
                 )}>
                   {quantityLine}
@@ -277,7 +299,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
               ) : null}
               {item.notes ? (
                 <span className={cn(
-                  "text-sm mt-1 block",
+                  "text-sm mt-1 block break-words whitespace-pre-wrap",
                   item.completed ? "text-muted-foreground/70" : "text-muted-foreground"
                 )}>
                   {item.notes}
@@ -285,7 +307,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
               ) : null}
               {/* Added by info */}
               <span className={cn(
-                "text-sm mt-1 inline-block px-2 py-0.5 rounded-full",
+                "max-w-full break-words text-xs sm:text-sm mt-1 inline-block px-2 py-1 rounded-lg",
                 item.completed
                   ? "text-muted-foreground bg-muted"
                   : "text-muted-foreground bg-muted"
@@ -295,43 +317,47 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
             </div>
           </div>
           
-          <div className="flex flex-shrink-0 items-center gap-1 ml-2">
-            {dragHandleProps && !item.completed ? (
-              <button
-                type="button"
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted touch-manipulation cursor-grab active:cursor-grabbing"
-                aria-label={`${item.name} verslepen`}
-                {...dragHandleProps}
-              >
-                <GripVertical className="w-5 h-5" />
-              </button>
-            ) : null}
+          <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-1">
             {onUpdate ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-2 rounded-lg transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:bg-muted"
+                className="min-h-11 min-w-11 p-2 rounded-lg transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground hover:bg-muted"
                 onClick={startEdit}
                 aria-label={`${item.name} bewerken`}
               >
                 <Pencil className="w-5 h-5" />
               </Button>
             ) : null}
-            {/* Enhanced delete button */}
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                "p-2 rounded-lg transition-all duration-200",
+                "hidden sm:inline-flex p-2 rounded-lg transition-all duration-200",
                 "active:scale-95", // Touch feedback
                 item.completed
                   ? "text-red-500 hover:text-red-600 hover:bg-red-500/10"
                   : "text-red-500 hover:text-red-600 hover:bg-red-500/10"
               )}
               onClick={() => onDelete(item)}
+              aria-label={`${item.name} verwijderen`}
             >
               <Trash2 className="w-5 h-5" />
             </Button>
+            {dragHandleProps && !item.completed ? (
+              <button
+                type="button"
+                {...dragHandleProps}
+                ref={dragHandleRef}
+                data-grocery-drag-handle="true"
+                className="min-h-11 min-w-11 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-grab active:cursor-grabbing"
+                aria-label={`${item.name} verslepen`}
+                title="Versleep om te verplaatsen"
+                style={{ ...dragHandleProps.style, touchAction: "none" }}
+              >
+                <GripVertical className="w-5 h-5" />
+              </button>
+            ) : null}
           </div>
         </div>
         </div>
