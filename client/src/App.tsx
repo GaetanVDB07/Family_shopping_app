@@ -9,6 +9,7 @@ import { useEffect, lazy, Suspense, type ReactNode } from "react";
 import { captureInviteCodeFromUrl } from "@/lib/family-invite";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PageLoading } from "@/components/page-loading";
+import { ServiceWorkerUpdatePrompt } from "@/components/service-worker-update-prompt";
 
 const GroceryList = lazy(() => import("@/pages/grocery-list"));
 const AuthPage = lazy(() => import("@/pages/auth"));
@@ -130,6 +131,7 @@ function App() {
           <TooltipProvider>
             <div className="min-h-screen bg-background">
               <Toaster />
+              <ServiceWorkerUpdatePrompt />
               <AuthenticatedApp />
             </div>
           </TooltipProvider>

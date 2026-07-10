@@ -40,6 +40,8 @@ export function useFamilyStatus() {
       throw new Error('Failed to fetch user families');
     },
     enabled: !!user && !!session,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 

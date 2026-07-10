@@ -71,6 +71,10 @@ export function useGroceryItems(familyId: string | null | undefined) {
       return fetchGroceryItems(familyId);
     },
     enabled: !!familyId,
+    // Realtime and the visibility-resync hook keep this high-traffic query fresh
+    // without adding a second focus-triggered request.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   return {

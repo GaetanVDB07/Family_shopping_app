@@ -160,6 +160,26 @@ describe("GroceryList shopping-friendly polish", () => {
     expect(progressBar).toHaveAttribute("aria-valuemax", "3");
   });
 
+  it("loads drag-and-drop controls only after reorder mode is requested", async () => {
+    mockItems.push(
+      groceryItem({ id: 1, name: "Melk", sortOrder: 0 }),
+      groceryItem({ id: 2, name: "Brood", sortOrder: 1 }),
+    );
+
+    render(<GroceryList />);
+
+    expect(screen.queryByRole("button", { name: "Melk verslepen" })).not.toBeInTheDocument();
+
+    const reorderButton = screen.getByRole("button", { name: "Volgorde" });
+    expect(reorderButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(reorderButton);
+
+    expect(
+      await screen.findByRole("button", { name: "Melk verslepen" }, { timeout: 5_000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Klaar" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("shows a done state when every item is completed", () => {
     mockItems.push(
       groceryItem({ id: 1, name: "Melk", completed: true }),
