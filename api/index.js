@@ -1,7 +1,7 @@
 // Central API router that handles all API routes
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Client } from "pg";
+import { Pool } from "pg";
 import { eq, and, count, inArray, asc, desc, max, isNull, or, isNotNull, ne } from "drizzle-orm";
 import {
   generateFamilyCode,
@@ -98,6 +98,27 @@ function applyCorsHeaders(req, res) {
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function getRequestId(req) {
+  return req.headers['x-vercel-id'] || req.headers['x-request-id'] || null;
+}
+
+function getRequestRoute(req) {
+  return new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname;
+}
+
+function logApiStage(req, stage, startedAt, details = {}) {
+  console.log(JSON.stringify({
+    level: 'info',
+    message: 'api_stage_completed',
+    requestId: getRequestId(req),
+    route: getRequestRoute(req),
+    stage,
+    duration_ms: Date.now() - startedAt,
+    region: process.env.VERCEL_REGION || null,
+    ...details,
+  }));
 }
 
 async function countFamilyAdmins(database, familyId, { excludeUserId } = {}) {
@@ -338,33 +359,33 @@ async function fetchGroceryHistoryForFamily(database, familyId, limit = 100) {
 
 // Database setup for serverless environment
 let db = null;
-let client = null;
-let connectPromise = null;
+let pool = null;
 
 async function getDatabase() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required");
   }
 
-  if (!connectPromise) {
-    client = new Client({
+  if (!db) {
+    pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      max: 3,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
+      allowExitOnIdle: true,
     });
-
-    connectPromise = client.connect()
-      .catch((error) => {
-        connectPromise = null;
-        client = null;
-        db = null;
-        throw error;
-      })
-      .then(() => {
-        db = drizzle(client);
-        return db;
-      });
+    pool.on('error', (error) => {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: 'database_pool_error',
+        error: error.message,
+        region: process.env.VERCEL_REGION || null,
+      }));
+    });
+    db = drizzle(pool);
   }
 
-  return connectPromise;
+  return db;
 }
 
 // Supabase setup
@@ -449,6 +470,7 @@ function setCachedAuthUser(token, user) {
 
 // Authentication helper
 async function authenticateUser(req) {
+  const authStartedAt = Date.now();
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new HttpError(401, 'No authorization token provided');
@@ -457,26 +479,37 @@ async function authenticateUser(req) {
   const token = authHeader.substring(7);
   const cachedUser = getCachedAuthUser(token);
   if (cachedUser) {
+    logApiStage(req, 'auth', authStartedAt, { cache: 'hit' });
     return cachedUser;
   }
 
   const supabaseClient = getSupabaseClient();
-  const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+  const { data, error } = await supabaseClient.auth.getClaims(token);
+  const claims = data?.claims;
   
-  if (error || !user) {
+  if (error || !claims?.sub) {
     throw new HttpError(401, 'Invalid or expired token');
   }
 
+  const email = typeof claims.email === 'string' ? claims.email : null;
+  const metadata = claims.user_metadata && typeof claims.user_metadata === 'object'
+    ? claims.user_metadata
+    : {};
+
   const authenticatedUser = {
-    id: user.id,
-    email: user.email,
-    name: user.user_metadata?.name
-      || user.user_metadata?.user_name
-      || user.user_metadata?.full_name
-      || user.email?.split('@')[0],
+    id: claims.sub,
+    email,
+    name: metadata.name
+      || metadata.user_name
+      || metadata.full_name
+      || email?.split('@')[0],
   };
 
   setCachedAuthUser(token, authenticatedUser);
+  logApiStage(req, 'auth', authStartedAt, {
+    cache: 'miss',
+    algorithm: data.header?.alg || null,
+  });
   return authenticatedUser;
 }
 
@@ -509,6 +542,7 @@ async function generateUniqueFamilyCode() {
 
 // Main handler function
 async function handler(req, res) {
+  const requestStartedAt = Date.now();
   try {
     applyCorsHeaders(req, res);
 
@@ -522,8 +556,30 @@ async function handler(req, res) {
     
     // Remove /api prefix if present
     const apiPath = pathname.replace(/^\/api/, '');
-    
-    console.log(`[API] ${method} ${apiPath}`);
+
+    console.log(JSON.stringify({
+      level: 'info',
+      message: 'api_request_started',
+      requestId: getRequestId(req),
+      method,
+      route: apiPath,
+      region: process.env.VERCEL_REGION || null,
+    }));
+
+    if (typeof res.once === 'function') {
+      res.once('finish', () => {
+        console.log(JSON.stringify({
+          level: 'info',
+          message: 'api_request_completed',
+          requestId: getRequestId(req),
+          method,
+          route: apiPath,
+          status: res.statusCode,
+          duration_ms: Date.now() - requestStartedAt,
+          region: process.env.VERCEL_REGION || null,
+        }));
+      });
+    }
     
     const routes = [
       {
@@ -788,8 +844,8 @@ async function handleKeepalive(req, res) {
 
     // Ensure DB client is initialized and touch Postgres
     await getDatabase();
-    if (client) {
-      await client.query('select 1');
+    if (pool) {
+      await pool.query('select 1');
     }
 
     // Optionally touch Supabase (harmless head-count on a small table)
@@ -815,9 +871,12 @@ async function handleKeepalive(req, res) {
 async function handleGetUserFamilies(req, res) {
   try {
     const user = await authenticateUser(req);
+    const databaseStartedAt = Date.now();
     const database = await getDatabase();
+    logApiStage(req, 'database_ready', databaseStartedAt);
 
     // Get all families the user is a member of
+    const familiesQueryStartedAt = Date.now();
     const result = await database
       .select({
         familyId: families.id,
@@ -832,12 +891,16 @@ async function handleGetUserFamilies(req, res) {
       .innerJoin(families, eq(familyMembers.familyId, families.id))
       .where(eq(familyMembers.userId, user.id))
       .orderBy(families.name);
+    logApiStage(req, 'families_query', familiesQueryStartedAt, {
+      rowCount: result.length,
+    });
 
     // Batch member counts in one grouped query instead of N+1 per family.
     const familyIds = result.map((row) => row.familyId);
     const memberCountByFamilyId = new Map();
 
     if (familyIds.length > 0) {
+      const memberCountsStartedAt = Date.now();
       const memberCounts = await database
         .select({
           familyId: familyMembers.familyId,
@@ -850,6 +913,9 @@ async function handleGetUserFamilies(req, res) {
       for (const row of memberCounts) {
         memberCountByFamilyId.set(row.familyId, Number(row.memberCount));
       }
+      logApiStage(req, 'family_member_counts_query', memberCountsStartedAt, {
+        rowCount: memberCounts.length,
+      });
     }
 
     const userFamilies = result.map((row) => ({
@@ -1367,19 +1433,29 @@ async function handleGetGroceryItems(req, res) {
 async function handleGetGroceryItemsByFamily(req, res, familyId) {
   try {
     const user = await authenticateUser(req);
+    const databaseStartedAt = Date.now();
     const database = await getDatabase();
+    logApiStage(req, 'database_ready', databaseStartedAt);
 
     // Verify user is a member of the requested family
+    const membershipStartedAt = Date.now();
     const [userFamilyMembership] = await database
       .select()
       .from(familyMembers)
       .where(and(eq(familyMembers.userId, user.id), eq(familyMembers.familyId, familyId)));
+    logApiStage(req, 'membership_query', membershipStartedAt, {
+      found: Boolean(userFamilyMembership),
+    });
 
     if (!userFamilyMembership) {
       return res.status(403).json({ message: 'Access denied: Not a member of this family' });
     }
 
+    const groceryItemsStartedAt = Date.now();
     const items = await fetchGroceryItemsForFamily(database, familyId);
+    logApiStage(req, 'grocery_items_query', groceryItemsStartedAt, {
+      rowCount: items.length,
+    });
 
     return res.status(200).json(items);
   } catch (error) {
@@ -1588,13 +1664,13 @@ async function handleUpdateGroceryItem(req, res, itemId) {
 }
 
 async function batchUpdateGrocerySortOrder(familyId, orderedIds) {
-  if (!client) {
-    throw new Error('Database client not connected');
+  if (!pool) {
+    throw new Error('Database pool not initialized');
   }
 
   const sortOrders = orderedIds.map((_, index) => index);
 
-  await client.query(
+  await pool.query(
     `UPDATE grocery_items AS gi
      SET sort_order = reorder.new_order
      FROM (

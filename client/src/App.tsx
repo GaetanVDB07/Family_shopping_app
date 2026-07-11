@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PageLoading } from "@/components/page-loading";
 import { ServiceWorkerUpdatePrompt } from "@/components/service-worker-update-prompt";
 import { Button } from "@/components/ui/button";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const GroceryList = lazy(() => import("@/pages/grocery-list"));
 const AuthPage = lazy(() => import("@/pages/auth"));
@@ -164,6 +165,7 @@ function App() {
               <Toaster />
               <ServiceWorkerUpdatePrompt />
               <AuthenticatedApp />
+              <SpeedInsights />
             </div>
           </TooltipProvider>
         </AuthProvider>

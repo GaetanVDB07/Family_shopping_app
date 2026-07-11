@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     auth: {
-      getUser: vi.fn(async () => ({
-        data: { user: null },
+      getClaims: vi.fn(async () => ({
+        data: null,
         error: { message: 'Invalid token' },
       })),
     },
@@ -14,9 +14,9 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 vi.mock('pg', () => ({
-  Client: vi.fn(function Client() {
+  Pool: vi.fn(function Pool() {
     return {
-      connect: vi.fn(async () => undefined),
+      on: vi.fn(),
       query: vi.fn(async () => undefined),
     };
   }),
