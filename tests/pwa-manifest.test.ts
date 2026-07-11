@@ -16,7 +16,7 @@ describe("PWA manifest", () => {
       scope: "/",
       display: "standalone",
       background_color: "#ffffff",
-      theme_color: "#22c55e",
+      theme_color: "#38803a",
     });
     expect(manifest.icons).toEqual(
       expect.arrayContaining([

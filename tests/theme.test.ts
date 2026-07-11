@@ -32,6 +32,12 @@ describe("dark mode theme wiring", () => {
     expect(cssSource).toContain("--background:");
   });
 
+  it("uses a primary green with sufficient contrast for white text", () => {
+    const cssSource = readFileSync(resolve("client/src/index.css"), "utf8");
+    expect(cssSource).toContain("--primary: hsl(122, 39%, 36%);");
+    expect(cssSource).not.toContain("--primary: hsl(122, 39%, 49%);");
+  });
+
   it("keeps primary app surfaces on theme-aware color tokens", () => {
     const themedFiles = [
       "client/src/pages/auth.tsx",

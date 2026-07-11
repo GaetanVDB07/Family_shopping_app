@@ -1,4 +1,5 @@
-const CACHE_NAME = 'family-shopping-app-v2';
+const SERVICE_WORKER_VERSION = new URL(self.location.href).searchParams.get('v') || 'unknown';
+const CACHE_NAME = `family-shopping-app-v${SERVICE_WORKER_VERSION}`;
 const APP_SHELL = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest'];
 
 async function cacheDiscoveredAssets(cache) {

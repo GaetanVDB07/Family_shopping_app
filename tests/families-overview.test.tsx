@@ -35,7 +35,10 @@ vi.mock('wouter', () => ({
 }));
 
 vi.mock('@/hooks/use-auth', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
+  useAuth: () => ({
+    user: { id: 'user-1' },
+    session: { access_token: 'test-token' },
+  }),
 }));
 
 vi.mock('@/hooks/use-current-family', () => ({
