@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     auth: {
-      getUser: vi.fn(async () => ({
+      getClaims: vi.fn(async () => ({
         data: {
-          user: {
-            id: 'user-1',
+          claims: {
+            sub: 'user-1',
             email: 'user1@test.dev',
             user_metadata: { name: 'User One' },
           },
+          header: { alg: 'RS256' },
         },
         error: null,
       })),
@@ -18,9 +19,9 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 vi.mock('pg', () => ({
-  Client: vi.fn(function Client() {
+  Pool: vi.fn(function Pool() {
     return {
-      connect: vi.fn(async () => undefined),
+      on: vi.fn(),
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (pgQueryHandler) {
           return pgQueryHandler(sql, params);
@@ -585,8 +586,8 @@ describe('grocery item family scoping', () => {
   });
 
   it('persists reorder with a single batch SQL update', async () => {
-    const { Client } = await import('pg');
-    const clientInstance = vi.mocked(Client).mock.results.at(-1)?.value as {
+    const { Pool } = await import('pg');
+    const poolInstance = vi.mocked(Pool).mock.results.at(-1)?.value as {
       query: ReturnType<typeof vi.fn>;
     };
 
@@ -595,8 +596,8 @@ describe('grocery item family scoping', () => {
       orderedIds: [3, 1],
     });
 
-    expect(clientInstance.query).toHaveBeenCalledTimes(1);
-    expect(String(clientInstance.query.mock.calls[0][0])).toContain('unnest');
+    expect(poolInstance.query).toHaveBeenCalledTimes(1);
+    expect(String(poolInstance.query.mock.calls[0][0])).toContain('unnest');
     expect(fakeDb.update).not.toHaveBeenCalled();
   });
 

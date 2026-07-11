@@ -23,6 +23,7 @@ vi.mock('@tanstack/react-query', () => ({
   }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
+    prefetchQuery: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 

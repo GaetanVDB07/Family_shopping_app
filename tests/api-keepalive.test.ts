@@ -13,9 +13,9 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 vi.mock('pg', () => ({
-  Client: vi.fn(function Client() {
+  Pool: vi.fn(function Pool() {
     return {
-      connect: vi.fn(async () => undefined),
+      on: vi.fn(),
       query: pgQuery,
     };
   }),

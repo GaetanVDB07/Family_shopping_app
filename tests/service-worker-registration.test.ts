@@ -73,7 +73,7 @@ describe("registerServiceWorker", () => {
     registerServiceWorker({ enabled: true });
 
     expect(addEventListener).toHaveBeenCalledWith("load", expect.any(Function));
-    expect(register).toHaveBeenCalledWith("/sw.js?v=1.8.8");
+    expect(register).toHaveBeenCalledWith("/sw.js?v=1.8.9");
     expect(serviceWorkerAddEventListener).toHaveBeenCalledWith(
       "controllerchange",
       expect.any(Function),

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, timestamp, uuid, unique, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp, uuid, unique, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -22,6 +22,7 @@ export const familyMembers = pgTable("family_members", {
   role: text("role").notNull().default("member"), // 'admin' or 'member'
 }, (table) => ({
   familyUserUnique: unique("family_members_family_user_unique").on(table.familyId, table.userId),
+  userFamilyIndex: index("family_members_user_family_idx").on(table.userId, table.familyId),
 }));
 
 // Updated grocery items table
@@ -40,7 +41,20 @@ export const groceryItems = pgTable("grocery_items", {
   completedAt: timestamp("completed_at"), // when item was last checked off
   archivedAt: timestamp("archived_at"), // soft-removed from active list, kept for history
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  activeListIndex: index("grocery_items_active_list_idx").on(
+    table.familyId,
+    table.archivedAt,
+    table.sortOrder,
+    table.addedAt,
+  ),
+  historyIndex: index("grocery_items_history_idx").on(
+    table.familyId,
+    table.completedAt,
+    table.archivedAt,
+    table.addedAt,
+  ),
+}));
 
 // Schemas for validation
 export const insertFamilySchema = createInsertSchema(families).omit({

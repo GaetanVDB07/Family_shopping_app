@@ -115,6 +115,23 @@ describe("useGroceryItems", () => {
     expect(result.current.isOfflineData).toBe(false);
   });
 
+  it("renders persisted items immediately and revalidates them in the background", () => {
+    const cached = [groceryItem({ name: "Snelle melk" })];
+    localStorage.setItem(
+      "grocery-items-cache:v1:family-1",
+      JSON.stringify(cached),
+    );
+
+    renderHook(() => useGroceryItems("family-1"));
+
+    const options = mockedUseQuery.mock.calls[0][0];
+    const initialData = options.initialData as () => GroceryItem[];
+
+    expect(Array.from(initialData())).toEqual(cached);
+    expect(options.initialDataUpdatedAt).toBe(0);
+    expect(options.staleTime).toBe(60_000);
+  });
+
   it("caches successful network responses per family", async () => {
     const items = [groceryItem({ name: "Brood" })];
     mockedApiRequest.mockResolvedValue({

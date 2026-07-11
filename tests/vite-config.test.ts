@@ -12,4 +12,14 @@ describe('vite config', () => {
     expect(viteConfigSource).toContain('postcss.config.js');
     expect(viteConfigSource).toMatch(/css:\s*\{/);
   });
+
+  it('lets route-level imports split naturally instead of preloading heavy manual chunks', () => {
+    const viteConfigSource = readFileSync(
+      path.resolve(__dirname, '../vite.config.ts'),
+      'utf-8',
+    );
+
+    expect(viteConfigSource).not.toContain('manualChunks');
+    expect(viteConfigSource).not.toContain('@dnd-kit');
+  });
 });
