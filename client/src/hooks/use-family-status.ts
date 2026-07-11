@@ -12,8 +12,10 @@ export function useFamilyStatus() {
 
   const {
     data: allFamilies,
-    isLoading: familiesLoading,
+    isLoading: queryLoading,
+    isSuccess,
     error,
+    refetch,
   } = useQuery<UserFamilyMembership[]>({
     queryKey: userFamiliesQueryKey(userId),
     queryFn: async () => {
@@ -33,11 +35,11 @@ export function useFamilyStatus() {
         return data || [];
       }
 
-      if (response.status === 404 || response.status === 401) {
-        return [];
-      }
-
-      throw new Error('Failed to fetch user families');
+      throw new Error(
+        response.status === 401
+          ? 'Je sessie kon niet worden gecontroleerd'
+          : 'Families konden niet worden opgehaald',
+      );
     },
     enabled: !!user && !!session,
     staleTime: 60_000,
@@ -45,6 +47,9 @@ export function useFamilyStatus() {
     retry: 1,
   });
 
+  const waitingForSession = Boolean(user && !session);
+  const familiesLoading = waitingForSession || queryLoading;
+  const familyDataReady = !user || (!waitingForSession && isSuccess);
   const families = allFamilies || [];
   const primaryFamily = families[0] ?? null;
 
@@ -60,6 +65,9 @@ export function useFamilyStatus() {
       : null,
     loading: familiesLoading,
     error: error?.message || null,
+    familyError: error?.message || null,
+    familyDataReady,
+    refetchFamilies: refetch,
     hasFamily: families.length > 0,
     allFamilies: families,
     familiesLoading,

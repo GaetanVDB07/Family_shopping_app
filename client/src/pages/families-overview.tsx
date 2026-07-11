@@ -140,7 +140,7 @@ export default function FamiliesOverview() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <img
-              src={`/favicon.svg?v=${__APP_VERSION__}`}
+              src={`/favicon.svg?v=${__APP_VERSION__}&mark=empty-cart`}
               alt=""
               className="h-10 w-10 shrink-0 rounded-xl shadow-sm ring-1 ring-white/25"
             />

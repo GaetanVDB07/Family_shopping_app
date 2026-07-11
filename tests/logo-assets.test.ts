@@ -16,6 +16,7 @@ describe("Shopy logo assets", () => {
     expect(source).toContain('viewBox="0 0 64 64"');
     expect(source).toContain("Shopy shopping cart");
     expect(source).toContain("#38803a");
-    expect(source.match(/<circle/g)).toHaveLength(3);
+    expect(source.match(/<circle/g)).toHaveLength(2);
+    expect(source).not.toContain("#fbbf24");
   });
 });
