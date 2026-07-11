@@ -21,6 +21,8 @@
     "db:push": "drizzle-kit push",
     "db:push:dev": "cp .env.development .env && drizzle-kit push",
     "db:push:prod": "cp .env.production .env && drizzle-kit push",
+    "db:indexes:prod:verify": "node scripts/apply-performance-indexes.mjs --verify-only",
+    "db:indexes:prod": "node scripts/apply-performance-indexes.mjs",
     "test": "vitest"
   },
   "dependencies": {
