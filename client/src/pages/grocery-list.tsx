@@ -30,13 +30,14 @@ import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOfflineGrocerySync } from "@/hooks/use-offline-grocery-sync";
-import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle } from "lucide-react";
+import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle, GripVertical } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [historySuggestionsActive, setHistorySuggestionsActive] = useState(false);
+  const [isReorderMode, setIsReorderMode] = useState(false);
   const [, setLocation] = useLocation();
   const params = useParams();
   const queryClient = useQueryClient();
@@ -566,6 +567,12 @@ export default function GroceryList() {
 
   const canReorderItems = isOnline && !isOfflineData && !searchQuery;
 
+  useEffect(() => {
+    if (!canReorderItems) {
+      setIsReorderMode(false);
+    }
+  }, [canReorderItems]);
+
   if (isLoading) {
     return (
       <div className="max-w-md mx-auto bg-background min-h-screen shadow-lg">
@@ -765,10 +772,26 @@ export default function GroceryList() {
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
               <div className="px-4 py-4 sm:px-6">
-                <h2 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
-                  Nog te kopen ({filteredItems.pending.length})
-                </h2>
-                {canReorderItems ? (
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    Nog te kopen ({filteredItems.pending.length})
+                  </h2>
+                  {filteredItems.pending.length > 1 && !searchQuery ? (
+                    <Button
+                      type="button"
+                      variant={isReorderMode ? "secondary" : "ghost"}
+                      size="sm"
+                      className="min-h-11 shrink-0 px-3"
+                      onClick={() => setIsReorderMode((active) => !active)}
+                      disabled={!canReorderItems || reorderItemsMutation.isPending}
+                      aria-pressed={isReorderMode}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                      {isReorderMode ? "Klaar" : "Volgorde"}
+                    </Button>
+                  ) : null}
+                </div>
+                {isReorderMode && canReorderItems ? (
                   <Suspense
                     fallback={
                       <div className="space-y-2" aria-busy="true" aria-label="Lijst laden">
@@ -791,7 +814,7 @@ export default function GroceryList() {
                   <div className="space-y-2">
                     {filteredItems.pending.map((item) => (
                       <GroceryItemComponent
-                        key={`pending-${item.id}-${item.name}`}
+                        key={item.id}
                         item={item}
                         onToggle={handleToggleItem}
                         onDelete={handleDeleteItem}
@@ -812,7 +835,7 @@ export default function GroceryList() {
                 <div className="space-y-2">
                   {filteredItems.completed.map((item) => (
                     <GroceryItemComponent
-                      key={`completed-${item.id}-${item.name}`}
+                      key={item.id}
                       item={item}
                       onToggle={handleToggleItem}
                       onDelete={handleDeleteItem}

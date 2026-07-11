@@ -9,6 +9,8 @@ import { useEffect, lazy, Suspense, type ReactNode } from "react";
 import { captureInviteCodeFromUrl } from "@/lib/family-invite";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PageLoading } from "@/components/page-loading";
+import { ServiceWorkerUpdatePrompt } from "@/components/service-worker-update-prompt";
+import { Button } from "@/components/ui/button";
 
 const GroceryList = lazy(() => import("@/pages/grocery-list"));
 const AuthPage = lazy(() => import("@/pages/auth"));
@@ -26,10 +28,10 @@ function LazyPage({ children }: { children: ReactNode }) {
 
 function DefaultRedirect() {
   const [, setLocation] = useLocation();
-  const { hasFamilies, familiesLoading } = useFamilyStatus();
+  const { hasFamilies, familiesLoading, familyDataReady } = useFamilyStatus();
 
   useEffect(() => {
-    if (familiesLoading) {
+    if (familiesLoading || !familyDataReady) {
       return;
     }
 
@@ -41,14 +43,36 @@ function DefaultRedirect() {
     if (!hasFamilies && !familiesLoading) {
       setLocation("/family-setup");
     }
-  }, [hasFamilies, familiesLoading, setLocation]);
+  }, [familyDataReady, hasFamilies, familiesLoading, setLocation]);
 
   return <PageLoading />;
 }
 
+function FamilyStatusError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm rounded-xl border bg-card p-6 text-center shadow-sm">
+        <h1 className="text-lg font-semibold">Families konden niet worden geladen</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Je bent nog ingelogd. Controleer je verbinding en probeer het opnieuw.
+        </p>
+        <Button className="mt-5 w-full" onClick={onRetry}>
+          Opnieuw proberen
+        </Button>
+      </div>
+    </main>
+  );
+}
+
 function AuthenticatedApp() {
   const { user, loading: authLoading, isPasswordRecovery } = useAuth();
-  const { hasFamilies, familiesLoading } = useFamilyStatus();
+  const {
+    hasFamilies,
+    familiesLoading,
+    familyDataReady,
+    familyError,
+    refetchFamilies,
+  } = useFamilyStatus();
 
   if (authLoading) {
     return <PageLoading />;
@@ -71,6 +95,14 @@ function AuthenticatedApp() {
   }
 
   if (familiesLoading) {
+    return <PageLoading />;
+  }
+
+  if (familyError) {
+    return <FamilyStatusError onRetry={() => void refetchFamilies()} />;
+  }
+
+  if (!familyDataReady) {
     return <PageLoading />;
   }
 
@@ -130,6 +162,7 @@ function App() {
           <TooltipProvider>
             <div className="min-h-screen bg-background">
               <Toaster />
+              <ServiceWorkerUpdatePrompt />
               <AuthenticatedApp />
             </div>
           </TooltipProvider>
