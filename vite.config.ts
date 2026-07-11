@@ -30,31 +30,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) {
-            return;
-          }
-
-          if (id.includes("@dnd-kit")) {
-            return "dnd";
-          }
-          if (id.includes("@supabase")) {
-            return "supabase";
-          }
-          if (id.includes("@tanstack/react-query")) {
-            return "query";
-          }
-          if (id.includes("@radix-ui") || id.includes("lucide-react")) {
-            return "ui";
-          }
-          if (id.includes("react-dom") || id.includes("/react/")) {
-            return "vendor";
-          }
-        },
-      },
-    },
   },
   esbuild: {
     drop: mode === "production" ? ["console", "debugger"] : [],

@@ -71,9 +71,27 @@ export function useGroceryItems(familyId: string | null | undefined) {
       return fetchGroceryItems(familyId);
     },
     enabled: !!familyId,
+    initialData: () => {
+      if (!familyId) {
+        return undefined;
+      }
+
+      const cachedItems = getCachedGroceryItems(familyId);
+      if (!cachedItems) {
+        return undefined;
+      }
+
+      return withOfflineFlag(
+        applyQueuedGroceryMutations(familyId, cachedItems),
+        false,
+      );
+    },
+    // Treat persisted data as a fast visual snapshot, then refresh it in the
+    // background instead of blocking the list behind the network request.
+    initialDataUpdatedAt: 0,
     // Realtime and the visibility-resync hook keep this high-traffic query fresh
     // without adding a second focus-triggered request.
-    staleTime: Infinity,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 

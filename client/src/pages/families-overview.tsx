@@ -19,6 +19,7 @@ import { isValidJoinCode, normalizeJoinCodeInput } from "@/lib/family-code";
 import { clearPendingJoinCode, resolveInitialJoinCode } from "@/lib/family-invite";
 import { prefetchGroceryItems } from "@/hooks/use-grocery-items";
 import { prefetchFamilyMemberNames } from "@/hooks/use-family-member-names";
+import { preloadGroceryListPage } from "@/lib/page-preload";
 
 export default function FamiliesOverview() {
   const [, setLocation] = useLocation();
@@ -107,9 +108,35 @@ export default function FamiliesOverview() {
   };
 
   const prefetchFamilyData = useCallback((familyId: string) => {
+    preloadGroceryListPage();
     void prefetchGroceryItems(queryClient, familyId);
     void prefetchFamilyMemberNames(queryClient, familyId);
   }, [queryClient]);
+
+  const primaryFamilyId = families[0]?.id;
+
+  useEffect(() => {
+    if (!primaryFamilyId) {
+      return;
+    }
+
+    const preloadPrimaryFamily = () => prefetchFamilyData(primaryFamilyId);
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: Window["requestIdleCallback"];
+      cancelIdleCallback?: Window["cancelIdleCallback"];
+    };
+
+    if (idleWindow.requestIdleCallback && idleWindow.cancelIdleCallback) {
+      const idleCallbackId = idleWindow.requestIdleCallback(preloadPrimaryFamily, {
+        timeout: 1_500,
+      });
+      return () => idleWindow.cancelIdleCallback?.(idleCallbackId);
+    }
+
+    const timeoutId = window.setTimeout(preloadPrimaryFamily, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [prefetchFamilyData, primaryFamilyId]);
 
   const navigateToFamilyManagement = (familyId: string) => {
     updateCurrentFamily(familyId);
