@@ -49,6 +49,7 @@ describe("first-load performance safeguards", () => {
     const monitoringGuide = source("docs/PERFORMANCE_MONITORING.md");
 
     expect(apiSource).toContain("Server-Timing");
+    expect(apiSource).toContain("X-API-Timing");
     expect(apiSource).toContain("X-Request-Id");
     expect(monitoringGuide).toContain("Speed Insights");
     expect(monitoringGuide).toContain("analyze:api-timings");

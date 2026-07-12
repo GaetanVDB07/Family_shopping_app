@@ -3,7 +3,9 @@
 Vercel Speed Insights tracks real-user web vitals. The API emits structured
 `api_request_completed` and `api_stage_completed` events with the request ID,
 route, Vercel region, duration, and stage details. API responses also expose
-`Server-Timing` and `X-Request-Id` headers for browser-side correlation.
+`Server-Timing`, `X-API-Timing`, and `X-Request-Id` headers for browser-side
+correlation. Vercel can consume `Server-Timing` at its proxy, so
+`X-API-Timing` is the stable production fallback.
 
 After enough production traffic has accumulated, export the last seven days of
 API timing events and rank the slowest p95 stages:
