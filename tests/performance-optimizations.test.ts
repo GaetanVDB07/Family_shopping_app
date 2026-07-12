@@ -31,4 +31,15 @@ describe("first-load performance safeguards", () => {
     expect(overviewSource).toContain("preloadGroceryListPage");
     expect(overviewSource).toContain("prefetchGroceryItems");
   });
+
+  it("keeps toast and update infrastructure outside the critical app module", () => {
+    const appSource = source("client/src/App.tsx");
+    const deferredSource = source("client/src/components/deferred-app-enhancements.tsx");
+
+    expect(appSource).not.toContain('from "@/components/ui/toaster"');
+    expect(appSource).not.toContain('from "@/components/ui/tooltip"');
+    expect(appSource).not.toContain('from "@/components/ui/button"');
+    expect(deferredSource).toContain('lazy(() =>');
+    expect(deferredSource).toContain('import("@/components/ui/toaster")');
+  });
 });
