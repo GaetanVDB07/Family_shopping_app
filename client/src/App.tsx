@@ -1,17 +1,14 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
 import { useEffect, lazy, Suspense, type ReactNode } from "react";
 import { captureInviteCodeFromUrl } from "@/lib/family-invite";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PageLoading } from "@/components/page-loading";
-import { ServiceWorkerUpdatePrompt } from "@/components/service-worker-update-prompt";
-import { Button } from "@/components/ui/button";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { DeferredAppEnhancements } from "@/components/deferred-app-enhancements";
 
 const GroceryList = lazy(() => import("@/pages/grocery-list"));
 const AuthPage = lazy(() => import("@/pages/auth"));
@@ -57,9 +54,13 @@ function FamilyStatusError({ onRetry }: { onRetry: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Je bent nog ingelogd. Controleer je verbinding en probeer het opnieuw.
         </p>
-        <Button className="mt-5 w-full" onClick={onRetry}>
+        <button
+          type="button"
+          className="mt-5 min-h-11 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onClick={onRetry}
+        >
           Opnieuw proberen
-        </Button>
+        </button>
       </div>
     </main>
   );
@@ -160,14 +161,11 @@ function App() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-background">
-              <Toaster />
-              <ServiceWorkerUpdatePrompt />
-              <AuthenticatedApp />
-              <SpeedInsights />
-            </div>
-          </TooltipProvider>
+          <div className="min-h-screen bg-background">
+            <AuthenticatedApp />
+            <DeferredAppEnhancements />
+            <SpeedInsights />
+          </div>
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
