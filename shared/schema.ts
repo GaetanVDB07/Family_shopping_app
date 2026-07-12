@@ -107,6 +107,12 @@ export interface UserFamilyMembership {
   isActive?: boolean; // For current active family
 }
 
+export interface AppBootstrapData {
+  families: UserFamilyMembership[];
+  primaryFamilyId: string | null;
+  groceryItems: GroceryItem[];
+}
+
 export interface FamilyWithRole extends Family {
   role: string;
   memberCount: number;
