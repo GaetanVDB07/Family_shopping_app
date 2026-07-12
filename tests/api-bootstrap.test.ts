@@ -124,6 +124,7 @@ describe('authenticated app bootstrap', () => {
     });
     expect(res.headers['Server-Timing']).toContain('auth;dur=');
     expect(res.headers['Server-Timing']).toContain('total;dur=');
+    expect(res.headers['X-API-Timing']).toBe(res.headers['Server-Timing']);
     expect(res.headers['X-Request-Id']).toMatch(/^local-/);
   });
 
@@ -139,5 +140,6 @@ describe('authenticated app bootstrap', () => {
       groceryItems: [{ id: 1, familyId: 'family-1', name: 'Melk', addedBy: 'User One' }],
     });
     expect(res.headers['Server-Timing']).toContain('primary_grocery_items_query;dur=');
+    expect(res.headers['X-API-Timing']).toContain('primary_grocery_items_query;dur=');
   });
 });
