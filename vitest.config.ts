@@ -13,6 +13,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   test: {
+    exclude: ['tests/e2e/**', 'node_modules/**'],
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
