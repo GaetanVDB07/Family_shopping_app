@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './use-auth';
-import type { UserFamilyMembership } from '@shared/schema';
+import { seedBootstrapGroceryItems } from '@/lib/bootstrap-cache';
+import type { AppBootstrapData } from '@shared/schema';
 
 export function userFamiliesQueryKey(userId: string | null) {
   return ['/api/user/families', userId] as const;
@@ -8,22 +9,29 @@ export function userFamiliesQueryKey(userId: string | null) {
 
 export function useFamilyStatus() {
   const { user, session } = useAuth();
+  const queryClient = useQueryClient();
   const userId = user?.id ?? null;
+  const preferredFamilyId = userId && 'localStorage' in globalThis
+    ? globalThis.localStorage.getItem(`currentFamilyId:${userId}`)
+    : null;
 
   const {
-    data: allFamilies,
+    data: bootstrapData,
     isLoading: queryLoading,
     isSuccess,
     error,
     refetch,
-  } = useQuery<UserFamilyMembership[]>({
+  } = useQuery<AppBootstrapData>({
     queryKey: userFamiliesQueryKey(userId),
     queryFn: async () => {
       if (!user || !session) {
-        return [];
+        return { families: [], primaryFamilyId: null, groceryItems: [] };
       }
 
-      const response = await fetch('/api/user/families', {
+      const bootstrapUrl = preferredFamilyId
+        ? `/api/bootstrap?familyId=${encodeURIComponent(preferredFamilyId)}`
+        : '/api/bootstrap';
+      const response = await fetch(bootstrapUrl, {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
@@ -31,8 +39,19 @@ export function useFamilyStatus() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        return data || [];
+        const data = await response.json() as AppBootstrapData;
+        if (data.primaryFamilyId) {
+          seedBootstrapGroceryItems(
+            queryClient,
+            data.primaryFamilyId,
+            data.groceryItems ?? [],
+          );
+        }
+        return {
+          families: data.families ?? [],
+          primaryFamilyId: data.primaryFamilyId ?? null,
+          groceryItems: data.groceryItems ?? [],
+        };
       }
 
       throw new Error(
@@ -50,7 +69,7 @@ export function useFamilyStatus() {
   const waitingForSession = Boolean(user && !session);
   const familiesLoading = waitingForSession || queryLoading;
   const familyDataReady = !user || (!waitingForSession && isSuccess);
-  const families = allFamilies || [];
+  const families = bootstrapData?.families ?? [];
   const primaryFamily = families[0] ?? null;
 
   return {

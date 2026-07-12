@@ -98,10 +98,17 @@ function applyCorsHeaders(req, res) {
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Server-Timing, X-Request-Id');
 }
 
 function getRequestId(req) {
-  return req.headers['x-vercel-id'] || req.headers['x-request-id'] || null;
+  if (!req.apiRequestId) {
+    req.apiRequestId = req.headers['x-vercel-id']
+      || req.headers['x-request-id']
+      || `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  return req.apiRequestId;
 }
 
 function getRequestRoute(req) {
@@ -109,16 +116,52 @@ function getRequestRoute(req) {
 }
 
 function logApiStage(req, stage, startedAt, details = {}) {
+  const durationMs = Date.now() - startedAt;
+  req.apiTimings ??= [];
+  req.apiTimings.push({ stage, durationMs });
+
   console.log(JSON.stringify({
     level: 'info',
     message: 'api_stage_completed',
     requestId: getRequestId(req),
     route: getRequestRoute(req),
     stage,
-    duration_ms: Date.now() - startedAt,
+    duration_ms: durationMs,
     region: process.env.VERCEL_REGION || null,
     ...details,
   }));
+}
+
+function applyApiTimingHeaders(req, res, totalStartedAt) {
+  if (req.apiTimingHeadersApplied) {
+    return;
+  }
+  req.apiTimingHeadersApplied = true;
+
+  const timings = [...(req.apiTimings ?? [])];
+  timings.push({ stage: 'total', durationMs: Date.now() - totalStartedAt });
+
+  res.setHeader('X-Request-Id', getRequestId(req));
+  res.setHeader(
+    'Server-Timing',
+    timings
+      .map(({ stage, durationMs }) => `${stage.replace(/[^a-zA-Z0-9_-]/g, '_')};dur=${durationMs}`)
+      .join(', '),
+  );
+}
+
+function instrumentApiResponse(req, res, requestStartedAt) {
+  const originalJson = res.json.bind(res);
+  const originalEnd = res.end.bind(res);
+
+  res.json = (body) => {
+    applyApiTimingHeaders(req, res, requestStartedAt);
+    return originalJson(body);
+  };
+  res.end = (...args) => {
+    applyApiTimingHeaders(req, res, requestStartedAt);
+    return originalEnd(...args);
+  };
 }
 
 async function countFamilyAdmins(database, familyId, { excludeUserId } = {}) {
@@ -545,6 +588,7 @@ async function handler(req, res) {
   const requestStartedAt = Date.now();
   try {
     applyCorsHeaders(req, res);
+    instrumentApiResponse(req, res, requestStartedAt);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -597,6 +641,10 @@ async function handler(req, res) {
       {
         match: (path, mthd) => (path === '/user/families' && mthd === 'GET' ? {} : null),
         handler: handleGetUserFamilies,
+      },
+      {
+        match: (path, mthd) => (path === '/bootstrap' && mthd === 'GET' ? {} : null),
+        handler: handleBootstrap,
       },
       {
         match: (path, mthd) => (path === '/families' && mthd === 'POST' ? {} : null),
@@ -875,9 +923,21 @@ async function handleGetUserFamilies(req, res) {
     const database = await getDatabase();
     logApiStage(req, 'database_ready', databaseStartedAt);
 
-    // Get all families the user is a member of
-    const familiesQueryStartedAt = Date.now();
-    const result = await database
+    const userFamilies = await fetchUserFamilies(database, user.id, req);
+
+    return res.status(200).json(userFamilies);
+  } catch (error) {
+    console.error('Error fetching user families:', error);
+    if (error instanceof HttpError || error?.status) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: 'Kon families niet ophalen' });
+  }
+}
+
+async function selectUserFamilyRows(database, userId, req) {
+  const familiesQueryStartedAt = Date.now();
+  const rows = await database
       .select({
         familyId: families.id,
         familyName: families.name,
@@ -889,36 +949,48 @@ async function handleGetUserFamilies(req, res) {
       })
       .from(familyMembers)
       .innerJoin(families, eq(familyMembers.familyId, families.id))
-      .where(eq(familyMembers.userId, user.id))
+      .where(eq(familyMembers.userId, userId))
       .orderBy(families.name);
+  if (req) {
     logApiStage(req, 'families_query', familiesQueryStartedAt, {
-      rowCount: result.length,
+      rowCount: rows.length,
     });
+  }
 
-    // Batch member counts in one grouped query instead of N+1 per family.
-    const familyIds = result.map((row) => row.familyId);
-    const memberCountByFamilyId = new Map();
+  return rows;
+}
 
-    if (familyIds.length > 0) {
-      const memberCountsStartedAt = Date.now();
-      const memberCounts = await database
-        .select({
-          familyId: familyMembers.familyId,
-          memberCount: count(familyMembers.id),
-        })
-        .from(familyMembers)
-        .where(inArray(familyMembers.familyId, familyIds))
-        .groupBy(familyMembers.familyId);
+async function fetchFamilyMemberCounts(database, familyIds, req) {
+  const memberCountByFamilyId = new Map();
 
-      for (const row of memberCounts) {
-        memberCountByFamilyId.set(row.familyId, Number(row.memberCount));
-      }
+  if (familyIds.length === 0) {
+    return memberCountByFamilyId;
+  }
+
+  const memberCountsStartedAt = Date.now();
+  const memberCounts = await database
+    .select({
+      familyId: familyMembers.familyId,
+      memberCount: count(familyMembers.id),
+    })
+    .from(familyMembers)
+    .where(inArray(familyMembers.familyId, familyIds))
+    .groupBy(familyMembers.familyId);
+
+  for (const row of memberCounts) {
+    memberCountByFamilyId.set(row.familyId, Number(row.memberCount));
+  }
+  if (req) {
       logApiStage(req, 'family_member_counts_query', memberCountsStartedAt, {
         rowCount: memberCounts.length,
       });
-    }
+  }
 
-    const userFamilies = result.map((row) => ({
+  return memberCountByFamilyId;
+}
+
+function mapUserFamilies(rows, memberCountByFamilyId) {
+  return rows.map((row) => ({
       familyId: row.familyId,
       familyName: row.familyName,
       familyCode: row.familyCode,
@@ -930,15 +1002,58 @@ async function handleGetUserFamilies(req, res) {
       createdAt: row.createdAt,
       createdBy: row.createdBy,
       memberCount: memberCountByFamilyId.get(row.familyId) ?? 0,
-    }));
+  }));
+}
 
-    return res.status(200).json(userFamilies);
+async function fetchUserFamilies(database, userId, req) {
+  const rows = await selectUserFamilyRows(database, userId, req);
+  const memberCountByFamilyId = await fetchFamilyMemberCounts(
+    database,
+    rows.map((row) => row.familyId),
+    req,
+  );
+  return mapUserFamilies(rows, memberCountByFamilyId);
+}
+
+async function handleBootstrap(req, res) {
+  try {
+    const user = await authenticateUser(req);
+    const databaseStartedAt = Date.now();
+    const database = await getDatabase();
+    logApiStage(req, 'database_ready', databaseStartedAt);
+
+    const familyRows = await selectUserFamilyRows(database, user.id, req);
+    const requestedFamilyId = new URL(req.url, `http://${req.headers.host}`).searchParams.get('familyId');
+    const preferredFamilyId = requestedFamilyId ? requireFamilyId(requestedFamilyId) : null;
+    const primaryFamilyId = familyRows.some((row) => row.familyId === preferredFamilyId)
+      ? preferredFamilyId
+      : familyRows[0]?.familyId ?? null;
+
+    const [memberCountByFamilyId, primaryGroceryItems] = await Promise.all([
+      fetchFamilyMemberCounts(database, familyRows.map((row) => row.familyId), req),
+      primaryFamilyId
+        ? (async () => {
+            const groceryItemsStartedAt = Date.now();
+            const items = await fetchGroceryItemsForFamily(database, primaryFamilyId);
+            logApiStage(req, 'primary_grocery_items_query', groceryItemsStartedAt, {
+              rowCount: items.length,
+            });
+            return items;
+          })()
+        : Promise.resolve([]),
+    ]);
+
+    return res.status(200).json({
+      families: mapUserFamilies(familyRows, memberCountByFamilyId),
+      primaryFamilyId,
+      groceryItems: primaryGroceryItems,
+    });
   } catch (error) {
-    console.error('Error fetching user families:', error);
+    console.error('Error fetching bootstrap data:', error);
     if (error instanceof HttpError || error?.status) {
       return res.status(error.status || 500).json({ message: error.message });
     }
-    return res.status(500).json({ message: 'Kon families niet ophalen' });
+    return res.status(500).json({ message: 'Kon startgegevens niet ophalen' });
   }
 }
 

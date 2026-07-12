@@ -32,6 +32,28 @@ describe("first-load performance safeguards", () => {
     expect(overviewSource).toContain("prefetchGroceryItems");
   });
 
+  it("bootstraps family membership and the primary grocery list in one request", () => {
+    const apiSource = source("api/index.js");
+    const familyStatusSource = source("client/src/hooks/use-family-status.ts");
+    const bootstrapCacheSource = source("client/src/lib/bootstrap-cache.ts");
+
+    expect(apiSource).toContain("path === '/bootstrap'");
+    expect(apiSource).toContain("primaryGroceryItems");
+    expect(familyStatusSource).toContain("/api/bootstrap");
+    expect(familyStatusSource).toContain("seedBootstrapGroceryItems");
+    expect(bootstrapCacheSource).toContain("setQueryData");
+  });
+
+  it("exposes correlated server timings for production analysis", () => {
+    const apiSource = source("api/index.js");
+    const monitoringGuide = source("docs/PERFORMANCE_MONITORING.md");
+
+    expect(apiSource).toContain("Server-Timing");
+    expect(apiSource).toContain("X-Request-Id");
+    expect(monitoringGuide).toContain("Speed Insights");
+    expect(monitoringGuide).toContain("analyze:api-timings");
+  });
+
   it("keeps toast and update infrastructure outside the critical app module", () => {
     const appSource = source("client/src/App.tsx");
     const deferredSource = source("client/src/components/deferred-app-enhancements.tsx");
