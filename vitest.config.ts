@@ -21,6 +21,9 @@ export default defineConfig({
     },
     globals: true,
     setupFiles: './tests/setup.ts',
+    // API test modules are intentionally isolated and can take more than the
+    // Vitest default on a cold Windows filesystem or constrained CI runner.
+    testTimeout: 10_000,
   },
   resolve: {
     alias: {
