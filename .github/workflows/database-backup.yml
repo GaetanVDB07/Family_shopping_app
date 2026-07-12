@@ -1,0 +1,80 @@
+name: Encrypted database backup
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  backup-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Create encrypted backup and verify isolated restore
+        id: backup
+        continue-on-error: true
+        env:
+          SOURCE_DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          BACKUP_OUTPUT: output/backups/production-public.dump.enc
+        run: |
+          mkdir -p output/backups
+          node scripts/backup-restore-drill.mjs
+
+      - name: Upload encrypted backup
+        if: steps.backup.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-public-backup-${{ github.run_id }}
+          path: output/backups/production-public.dump.enc
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Open or resolve backup issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          BACKUP_OUTCOME: ${{ steps.backup.outcome }}
+        with:
+          script: |
+            const title = '[monitoring] Encrypted production backup failing';
+            const failed = process.env.BACKUP_OUTCOME !== 'success';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (failed && !existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: `Backup or restore verification failed. Review ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`,
+              });
+            } else if (!failed && existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
+
+      - name: Fail when backup verification failed
+        if: steps.backup.outcome != 'success'
+        run: exit 1

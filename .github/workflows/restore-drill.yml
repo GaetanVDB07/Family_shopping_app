@@ -1,0 +1,41 @@
+name: Verify retained backup restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: Run ID of the encrypted database backup workflow
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Download encrypted backup
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.backup_run_id }}
+          pattern: production-public-backup-*
+          path: output/restore-drill
+          merge-multiple: true
+
+      - name: Restore into an isolated temporary Postgres database
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: node scripts/backup-restore-drill.mjs --encrypted-input output/restore-drill/production-public.dump.enc

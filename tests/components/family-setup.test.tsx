@@ -74,6 +74,29 @@ describe('FamilySetup', () => {
     );
   });
 
+  it('cancels the delayed redirect when setup unmounts', async () => {
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        family: { id: 'f1', name: 'Snelle Familie', code: '482917' },
+      }),
+    } as Response);
+
+    const { unmount } = render(<FamilySetup />);
+    fireEvent.change(screen.getByLabelText('Familie Naam'), {
+      target: { value: 'Snelle Familie' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Familie Aanmaken' }));
+
+    await screen.findByText(/Familie code: 482917/);
+    unmount();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(setLocation).not.toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
+  });
+
   async function openJoinTab() {
     const user = userEvent.setup();
     await user.click(screen.getByRole('tab', { name: /Familie Joinen/i }));

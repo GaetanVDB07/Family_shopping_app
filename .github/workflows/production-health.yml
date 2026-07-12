@@ -1,0 +1,86 @@
+name: Production health
+
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run synthetic health checks
+        id: health
+        continue-on-error: true
+        env:
+          PROD_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          MAX_API_P95_MS: '1500'
+        run: node scripts/check-production-health.mjs
+
+      - name: Inspect Vercel error rates when credentials are configured
+        id: runtime
+        if: env.VERCEL_TOKEN != ''
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@54.11.1 logs \
+            --project family-shopping-app \
+            --environment production \
+            --since 35m \
+            --json \
+            --no-branch \
+            --token "$VERCEL_TOKEN" > runtime-logs.jsonl
+          node scripts/check-runtime-log-alerts.mjs runtime-logs.jsonl
+
+      - name: Open or resolve monitoring issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          HEALTH_OUTCOME: ${{ steps.health.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        with:
+          script: |
+            const title = '[monitoring] Production health check failing';
+            const failed = process.env.HEALTH_OUTCOME === 'failure'
+              || process.env.RUNTIME_OUTCOME === 'failure';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (failed && !existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: `Production monitoring failed. Review ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`,
+              });
+            } else if (!failed && existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
+
+      - name: Fail when monitoring detected a problem
+        if: steps.health.outcome == 'failure' || steps.runtime.outcome == 'failure'
+        run: exit 1
