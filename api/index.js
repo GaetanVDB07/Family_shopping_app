@@ -98,7 +98,7 @@ function applyCorsHeaders(req, res) {
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Expose-Headers', 'Server-Timing, X-Request-Id');
+  res.setHeader('Access-Control-Expose-Headers', 'Server-Timing, X-API-Timing, X-Request-Id');
 }
 
 function getRequestId(req) {
@@ -142,12 +142,13 @@ function applyApiTimingHeaders(req, res, totalStartedAt) {
   timings.push({ stage: 'total', durationMs: Date.now() - totalStartedAt });
 
   res.setHeader('X-Request-Id', getRequestId(req));
-  res.setHeader(
-    'Server-Timing',
-    timings
-      .map(({ stage, durationMs }) => `${stage.replace(/[^a-zA-Z0-9_-]/g, '_')};dur=${durationMs}`)
-      .join(', '),
-  );
+  const timingHeader = timings
+    .map(({ stage, durationMs }) => `${stage.replace(/[^a-zA-Z0-9_-]/g, '_')};dur=${durationMs}`)
+    .join(', ');
+  res.setHeader('Server-Timing', timingHeader);
+  // Vercel may consume Server-Timing at its proxy. Keep a namespaced mirror
+  // so browser diagnostics can still correlate API stages in production.
+  res.setHeader('X-API-Timing', timingHeader);
 }
 
 function instrumentApiResponse(req, res, requestStartedAt) {
