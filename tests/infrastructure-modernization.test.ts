@@ -32,4 +32,17 @@ describe("infrastructure modernization", () => {
     expect(backlog).toContain("end-to-end release tests");
     expect(backlog).toContain("Supabase backups");
   });
+
+  it("pins reviewed security patches and documents the residual Vercel build risk", () => {
+    const packageJson = JSON.parse(source("package.json"));
+    const securityReview = source("docs/DEPENDENCY_SECURITY.md");
+
+    expect(packageJson.dependencies["@vercel/node"]).toBeUndefined();
+    expect(packageJson.devDependencies["@vercel/node"]).toBe("^5.8.23");
+    expect(packageJson.devDependencies.esbuild).toBe("^0.28.1");
+    expect(packageJson.overrides["form-data"]).toBe("^4.0.6");
+    expect(packageJson.overrides.undici).toBe("^6.27.0");
+    expect(securityReview).toContain("Four moderate findings remain");
+    expect(securityReview).toContain("no Python build");
+  });
 });

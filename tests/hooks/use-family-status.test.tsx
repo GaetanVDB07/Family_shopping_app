@@ -5,10 +5,18 @@ import { useFamilyStatus } from "@/hooks/use-family-status";
 const mocks = vi.hoisted(() => ({
   useAuth: vi.fn(),
   useQuery: vi.fn(),
+  useQueryClient: vi.fn(),
+  seedBootstrapGroceryItems: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({ useAuth: mocks.useAuth }));
-vi.mock("@tanstack/react-query", () => ({ useQuery: mocks.useQuery }));
+vi.mock("@/lib/bootstrap-cache", () => ({
+  seedBootstrapGroceryItems: mocks.seedBootstrapGroceryItems,
+}));
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: mocks.useQuery,
+  useQueryClient: mocks.useQueryClient,
+}));
 
 function queryResult(overrides: Record<string, unknown> = {}) {
   return {
@@ -27,6 +35,7 @@ describe("useFamilyStatus readiness", () => {
       user: { id: "user-1" },
       session: { access_token: "token" },
     });
+    mocks.useQueryClient.mockReturnValue({ setQueryData: vi.fn() });
     mocks.useQuery.mockReturnValue(queryResult());
   });
 
@@ -46,7 +55,10 @@ describe("useFamilyStatus readiness", () => {
   });
 
   it("distinguishes a successful empty family list from data that is not ready", () => {
-    mocks.useQuery.mockReturnValue(queryResult({ data: [], isSuccess: true }));
+    mocks.useQuery.mockReturnValue(queryResult({
+      data: { families: [], primaryFamilyId: null, groceryItems: [] },
+      isSuccess: true,
+    }));
 
     const { result } = renderHook(() => useFamilyStatus());
 
@@ -79,6 +91,38 @@ describe("useFamilyStatus readiness", () => {
 
     await expect(queryOptions?.queryFn()).rejects.toThrow(
       "Je sessie kon niet worden gecontroleerd",
+    );
+  });
+
+  it("loads bootstrap data and seeds the primary grocery-list query", async () => {
+    let queryOptions: { queryFn: () => Promise<unknown> } | undefined;
+    mocks.useQuery.mockImplementation((options) => {
+      queryOptions = options;
+      return queryResult();
+    });
+    const bootstrapData = {
+      families: [{ familyId: "family-1" }],
+      primaryFamilyId: "family-1",
+      groceryItems: [{ id: 1, name: "Melk" }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(bootstrapData),
+    }));
+
+    renderHook(() => useFamilyStatus());
+    await expect(queryOptions?.queryFn()).resolves.toMatchObject(bootstrapData);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/bootstrap",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer token" }),
+      }),
+    );
+    expect(mocks.seedBootstrapGroceryItems).toHaveBeenCalledWith(
+      expect.anything(),
+      "family-1",
+      bootstrapData.groceryItems,
     );
   });
 });
