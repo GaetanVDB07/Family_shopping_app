@@ -1,6 +1,6 @@
 {
   "name": "family-shopping-app",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -24,6 +24,10 @@
     "db:indexes:prod:verify": "node scripts/apply-performance-indexes.mjs --verify-only",
     "db:indexes:prod": "node scripts/apply-performance-indexes.mjs",
     "analyze:api-timings": "node scripts/analyze-api-timings.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:local": "node scripts/run-local-e2e.mjs",
+    "resilience:health": "node scripts/check-production-health.mjs",
+    "resilience:restore-drill": "node scripts/backup-restore-drill.mjs",
     "test": "vitest"
   },
   "dependencies": {
@@ -98,6 +102,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^6.0.0",

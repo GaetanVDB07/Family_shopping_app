@@ -10,5 +10,7 @@ These follow-up improvements were intentionally deferred from the v1.9.0 region,
 
 ## Next candidates
 
-1. Add end-to-end release tests for login, family selection, list loading, item changes, settings, and logout against local Supabase.
-2. Verify automated Supabase backups, document a restore drill, and add alerts for API latency and elevated 401/500 responses.
+All previously deferred v1.9.0 follow-ups are now implemented, including
+end-to-end release tests and encrypted, restore-verified Supabase backups.
+Continue using Speed Insights, structured logs, and the resilience runbook to
+identify the next evidence-backed improvements.

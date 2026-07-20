@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Plus, Key, LogOut } from 'lucide-react';
@@ -25,9 +25,26 @@ export default function FamilySetup() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('create');
+  const redirectTimerRef = useRef<number | null>(null);
 
   const [familyName, setFamilyName] = useState('');
   const [familyCode, setFamilyCode] = useState('');
+
+  useEffect(() => () => {
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+    }
+  }, []);
+
+  const scheduleFamiliesRedirect = () => {
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+    }
+    redirectTimerRef.current = window.setTimeout(() => {
+      redirectTimerRef.current = null;
+      setLocation("/families");
+    }, 1500);
+  };
 
   useEffect(() => {
     const code = resolveInitialJoinCode();
@@ -66,9 +83,7 @@ export default function FamilySetup() {
 
       queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
 
-      setTimeout(() => {
-        setLocation("/families");
-      }, 1500);
+      scheduleFamiliesRedirect();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
     } finally {
@@ -102,9 +117,7 @@ export default function FamilySetup() {
 
       queryClient.invalidateQueries({ queryKey: userFamiliesQueryKey(user?.id ?? null) });
 
-      setTimeout(() => {
-        setLocation("/families");
-      }, 1500);
+      scheduleFamiliesRedirect();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er ging iets mis');
     } finally {
@@ -125,7 +138,7 @@ export default function FamilySetup() {
               <Users className="w-8 h-8" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Familie Setup</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight">Familie Setup</h1>
           <CardDescription>
             Maak een nieuwe familie aan of sluit je aan bij een bestaande familie
           </CardDescription>

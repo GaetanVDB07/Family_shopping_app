@@ -18,13 +18,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { GroceryItem } from "@shared/schema";
-import { GroceryItemComponent, type GroceryItemEditValues } from "@/components/grocery-item";
+import { GroceryItemComponent, type GroceryItemDeleteSource, type GroceryItemEditValues } from "@/components/grocery-item";
 import { getListItemStaggerAnimation } from "@/lib/list-item-animation";
 
 interface SortableGroceryItemRowProps {
   item: GroceryItem;
   onToggle: (id: number) => void;
-  onDelete: (item: GroceryItem) => void;
+  onDelete: (item: GroceryItem, source: GroceryItemDeleteSource) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
   disabled?: boolean;
 }
@@ -79,7 +79,7 @@ interface SortableGroceryListProps {
   items: GroceryItem[];
   onReorder: (orderedIds: number[]) => void;
   onToggle: (id: number) => void;
-  onDelete: (item: GroceryItem) => void;
+  onDelete: (item: GroceryItem, source: GroceryItemDeleteSource) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
   disabled?: boolean;
 }
