@@ -173,6 +173,29 @@ describe('GroceryItemComponent', () => {
     ).toBeTruthy()
   })
 
+  it('reports a left swipe as a "swipe" delete', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(<GroceryItemComponent item={sampleItem} onToggle={onToggle} onDelete={onDelete} />)
+
+    const name = screen.getByText('Milk')
+    fireEvent.touchStart(name, { touches: [{ clientX: 120, clientY: 20 }] })
+    fireEvent.touchMove(name, { touches: [{ clientX: 20, clientY: 20 }] })
+    fireEvent.touchEnd(name)
+
+    expect(onDelete).toHaveBeenCalledWith(sampleItem, 'swipe')
+  })
+
+  it('reports a trash button click as a "button" delete', () => {
+    const onToggle = vi.fn()
+    const onDelete = vi.fn()
+    render(<GroceryItemComponent item={sampleItem} onToggle={onToggle} onDelete={onDelete} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Milk verwijderen' }))
+
+    expect(onDelete).toHaveBeenCalledWith(sampleItem, 'button')
+  })
+
   it('groceryItemPropsAreEqual treats unchanged items as equal', () => {
     const onToggle = vi.fn()
     const onDelete = vi.fn()
