@@ -35,7 +35,7 @@ export function DeleteConfirmationDialog({
           </div>
           <AlertDialogTitle className="text-lg">Item verwijderen?</AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
-            Weet je zeker dat je "<span className="font-medium">{item?.name}</span>" wilt verwijderen?
+            Je veegde "<span className="font-medium">{item?.name}</span>" weg. Weet je zeker dat je dit item wilt verwijderen? Deze waarschuwing tonen we maximaal één keer per uur.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex space-x-3">

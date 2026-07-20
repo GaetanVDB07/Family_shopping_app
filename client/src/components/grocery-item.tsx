@@ -21,10 +21,12 @@ function formatQuantityLine(quantity: string | null, unit: string | null): strin
   return null;
 }
 
+export type GroceryItemDeleteSource = "swipe" | "button";
+
 interface GroceryItemProps {
   item: GroceryItem;
   onToggle: (id: number) => void;
-  onDelete: (item: GroceryItem) => void;
+  onDelete: (item: GroceryItem, source: GroceryItemDeleteSource) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
   dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
   dragHandleRef?: React.Ref<HTMLButtonElement>;
@@ -133,7 +135,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({
     
     // If swiped more than 60px (increased threshold), trigger delete
     if (swipeOffset < -60) {
-      onDelete(item);
+      onDelete(item, "swipe");
     }
     
     // Reset swipe offset
@@ -306,12 +308,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({
                 </span>
               ) : null}
               {/* Added by info */}
-              <span className={cn(
-                "max-w-full break-words text-xs sm:text-sm mt-1 inline-block px-2 py-1 rounded-lg",
-                item.completed
-                  ? "text-muted-foreground bg-muted"
-                  : "text-muted-foreground bg-muted"
-              )}>
+              <span className="max-w-full break-words text-xs sm:text-sm mt-1 inline-block px-2 py-1 rounded-lg text-muted-foreground bg-muted">
                 door {addedByDisplay} · {formatAddedAt(item.addedAt)}
               </span>
             </div>
@@ -332,14 +329,8 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                "hidden sm:inline-flex p-2 rounded-lg transition-all duration-200",
-                "active:scale-95", // Touch feedback
-                item.completed
-                  ? "text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                  : "text-red-500 hover:text-red-600 hover:bg-red-500/10"
-              )}
-              onClick={() => onDelete(item)}
+              className="hidden sm:inline-flex p-2 rounded-lg transition-all duration-200 active:scale-95 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+              onClick={() => onDelete(item, "button")}
               aria-label={`${item.name} verwijderen`}
             >
               <Trash2 className="w-5 h-5" />
