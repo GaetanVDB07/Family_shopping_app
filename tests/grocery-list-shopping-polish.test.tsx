@@ -1,5 +1,6 @@
 import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import GroceryList from "@/pages/grocery-list";
 import type { GroceryItem } from "@shared/schema";
@@ -8,8 +9,10 @@ import { getQueuedGroceryMutations } from "@/lib/offline-grocery-queue";
 let mockItems: GroceryItem[] = [];
 let mockIsOfflineData = false;
 let mockIsOnline = true;
+let mockFamilies = [{ familyId: "family-1", familyName: "Test Family" }];
 const refetchGroceryItems = vi.fn();
 const setLocation = vi.fn();
+const updateCurrentFamily = vi.fn();
 const memberNames = new Map([["22222222-2222-2222-2222-222222222222", "Lisa"]]);
 const setQueryData = vi.fn((queryKey, updater) => {
   const next =
@@ -91,7 +94,7 @@ vi.mock("@/hooks/use-auth", () => ({
 
 vi.mock("@/hooks/use-family-status", () => ({
   useFamilyStatus: () => ({
-    allFamilies: [{ familyId: "family-1", familyName: "Test Family" }],
+    allFamilies: mockFamilies,
     familiesLoading: false,
   }),
 }));
@@ -99,8 +102,9 @@ vi.mock("@/hooks/use-family-status", () => ({
 vi.mock("@/hooks/use-current-family", () => ({
   useCurrentFamily: () => ({
     currentFamilyId: "family-1",
-    currentFamily: { familyId: "family-1", familyName: "Test Family" },
-    updateCurrentFamily: vi.fn(),
+    currentFamily:
+      mockFamilies.find((family) => family.familyId === "family-1") ?? null,
+    updateCurrentFamily,
   }),
 }));
 
@@ -138,6 +142,7 @@ describe("GroceryList shopping-friendly polish", () => {
     mockItems = [];
     mockIsOfflineData = false;
     mockIsOnline = true;
+    mockFamilies = [{ familyId: "family-1", familyName: "Test Family" }];
     vi.clearAllMocks();
   });
 
@@ -189,13 +194,96 @@ describe("GroceryList shopping-friendly polish", () => {
     render(<GroceryList />);
 
     expect(screen.getByText("2 van 2 klaar")).toBeInTheDocument();
-    expect(screen.getAllByText("Alles afgevinkt").length).toBeGreaterThan(0);
+    // The stats card is the single place that announces the done state;
+    // a second celebration card would be redundant.
+    expect(screen.getAllByText("Alles afgevinkt")).toHaveLength(1);
     expect(
-      screen.getByText("Je boodschappenlijst is klaar."),
-    ).toBeInTheDocument();
+      screen.queryByText("Je boodschappenlijst is klaar."),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows when the visible list comes from offline cache while the server is unreachable", () => {
+  it("tucks bulk actions into a single Acties menu", async () => {
+    const user = userEvent.setup();
+    mockItems.push(groceryItem({ id: 1, name: "Melk" }));
+
+    render(<GroceryList />);
+
+    expect(screen.queryByRole("button", { name: /Alles afvinken/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Acties/i }));
+
+    expect(screen.getByRole("menuitem", { name: /Alles afvinken/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Nog te kopen/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Wis alles/i })).toBeInTheDocument();
+  });
+
+  it("clears the search query with the clear button", async () => {
+    const user = userEvent.setup();
+    mockItems.push(
+      groceryItem({ id: 1, name: "Melk" }),
+      groceryItem({ id: 2, name: "Brood" }),
+    );
+
+    render(<GroceryList />);
+
+    const search = screen.getByPlaceholderText("Zoek in boodschappenlijst...");
+    await user.type(search, "melk");
+
+    expect(screen.queryByText("Brood")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Zoekopdracht wissen" }));
+
+    expect(search).toHaveValue("");
+    expect(screen.getByText("Brood")).toBeInTheDocument();
+  });
+
+  it("offers to clear the search when nothing matches", async () => {
+    const user = userEvent.setup();
+    mockItems.push(groceryItem({ id: 1, name: "Melk" }));
+
+    render(<GroceryList />);
+
+    const search = screen.getByPlaceholderText("Zoek in boodschappenlijst...");
+    await user.type(search, "xyz");
+
+    expect(screen.getByText('Geen items gevonden voor "xyz"')).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Wis zoekopdracht" }));
+
+    expect(search).toHaveValue("");
+    expect(screen.getByText("Melk")).toBeInTheDocument();
+  });
+
+  it("focuses the add-item input from the empty-state call to action", async () => {
+    const user = userEvent.setup();
+
+    render(<GroceryList />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Voeg je eerste item toe/i }),
+    );
+
+    expect(screen.getByPlaceholderText("Voeg een item toe...")).toHaveFocus();
+  });
+
+  it("switches families from the header dropdown", async () => {
+    const user = userEvent.setup();
+    mockFamilies = [
+      { familyId: "family-1", familyName: "Test Family" },
+      { familyId: "family-2", familyName: "Second Family" },
+    ];
+
+    render(<GroceryList />);
+
+    await user.click(screen.getByRole("button", { name: /Wissel van familie/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Second Family" }));
+
+    expect(updateCurrentFamily).toHaveBeenCalledWith("family-2");
+    expect(setLocation).toHaveBeenCalledWith("/grocery-list/family-2");
+  });
+
+  it("shows when the visible list comes from offline cache while the server is unreachable", async () => {
+    const user = userEvent.setup();
     mockIsOnline = true;
     mockIsOfflineData = true;
     mockItems.push(groceryItem({ id: 1, name: "Melk" }));
@@ -207,9 +295,18 @@ describe("GroceryList shopping-friendly polish", () => {
         "We kunnen de server niet bereiken. Je ziet opgeslagen gegevens; wijzigingen worden later gesynchroniseerd.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Alles afvinken/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Nog te kopen/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Wis alles/i })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /Acties/i }));
+
+    expect(
+      screen.getByRole("menuitem", { name: /Alles afvinken/i }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByRole("menuitem", { name: /Nog te kopen/i }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByRole("menuitem", { name: /Wis alles/i }),
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("refetches cached offline data when the browser reports online again", async () => {

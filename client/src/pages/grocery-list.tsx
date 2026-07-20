@@ -8,7 +8,7 @@ import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
 import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, resolveGroceryItemAttribution } from "@/lib/family-member-names";
 import { GroceryItemComponent, GroceryItemDeleteSource, GroceryItemEditValues } from "@/components/grocery-item";
-import { AddItemForm } from "@/components/add-item-form";
+import { AddItemForm, ADD_ITEM_INPUT_ID } from "@/components/add-item-form";
 const SortableGroceryList = lazy(() =>
   import("@/components/sortable-grocery-list").then((module) => ({
     default: module.SortableGroceryList,
@@ -19,8 +19,16 @@ import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmatio
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { recordSwipeDeleteWarningShown, shouldShowSwipeDeleteWarning } from "@/lib/swipe-delete-warning";
 import { UserMenu } from "@/components/user-menu";
+import { FamilySwitcher } from "@/components/family-switcher";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAuth } from "@/hooks/use-auth";
 import { useFamilyStatus } from "@/hooks/use-family-status";
@@ -32,7 +40,7 @@ import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { useRefetchOnVisibility } from "@/hooks/use-refetch-on-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOfflineGrocerySync } from "@/hooks/use-offline-grocery-sync";
-import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle, GripVertical } from "lucide-react";
+import { Search, ShoppingCart, Trash2, RefreshCw, Users, CheckCircle, Circle, GripVertical, MoreVertical, Plus, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GroceryList() {
@@ -580,6 +588,19 @@ export default function GroceryList() {
     markAllPendingMutation.mutate();
   }, [markAllPendingMutation]);
 
+  const handleSwitchFamily = useCallback((newFamilyId: string) => {
+    if (newFamilyId === currentFamilyId) {
+      return;
+    }
+
+    updateCurrentFamily(newFamilyId);
+    setLocation(`/grocery-list/${newFamilyId}`);
+  }, [currentFamilyId, updateCurrentFamily, setLocation]);
+
+  const focusAddItemInput = useCallback(() => {
+    document.getElementById(ADD_ITEM_INPUT_ID)?.focus();
+  }, []);
+
   const handleReorderItems = useCallback((orderedIds: number[]) => {
     if (!isOnline || isOfflineData || reorderItemsMutation.isPending) {
       return;
@@ -669,12 +690,11 @@ export default function GroceryList() {
               <h1 className="break-words text-lg font-semibold leading-tight sm:text-xl">
                 {currentFamily?.familyName || 'Familie Boodschappenlijst'}
               </h1>
-              {allFamilies.length > 1 && (
-                <div className="flex items-center space-x-2 text-sm opacity-75">
-                  <Users className="w-3 h-3" />
-                  <span>{allFamilies.length} families</span>
-                </div>
-              )}
+              <FamilySwitcher
+                families={allFamilies}
+                currentFamilyId={currentFamilyId}
+                onSwitch={handleSwitchFamily}
+              />
             </div>
           </div>
           <UserMenu />
@@ -689,9 +709,19 @@ export default function GroceryList() {
             placeholder="Zoek in boodschappenlijst..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-4 py-4 text-base border-2 border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
+            className="pl-12 pr-12 py-4 text-base border-2 border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
           />
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Zoekopdracht wissen"
+              className="absolute right-1 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -739,38 +769,39 @@ export default function GroceryList() {
           </div>
         ) : null}
         {items.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllCompleted}
-              disabled={markAllCompletedMutation.isPending || !isOnline || isOfflineData}
-              className="min-h-11 text-green-600 border-green-500/30 hover:bg-green-500/10 hover:border-green-500/50 rounded-lg px-3 py-2 w-full"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Alles afvinken
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMarkAllPending}
-              disabled={markAllPendingMutation.isPending || !isOnline || isOfflineData}
-              className="min-h-11 text-orange-600 border-orange-500/30 hover:bg-orange-500/10 hover:border-orange-500/50 rounded-lg px-3 py-2 w-full"
-            >
-              <Circle className="w-4 h-4 mr-2" />
-              Nog te kopen
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDeleteAll}
-              disabled={!isOnline || isOfflineData}
-              className="min-h-11 text-red-600 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 rounded-lg px-3 py-2 w-full"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Wis alles
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="min-h-11 rounded-lg px-3">
+                <MoreVertical className="w-4 h-4 mr-2" />
+                Acties
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem
+                onSelect={handleMarkAllCompleted}
+                disabled={markAllCompletedMutation.isPending || !isOnline || isOfflineData}
+              >
+                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                Alles afvinken
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={handleMarkAllPending}
+                disabled={markAllPendingMutation.isPending || !isOnline || isOfflineData}
+              >
+                <Circle className="w-4 h-4 mr-2 text-orange-600" />
+                Nog te kopen
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={handleDeleteAll}
+                disabled={!isOnline || isOfflineData}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Wis alles
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -780,18 +811,14 @@ export default function GroceryList() {
           <div className="p-8 text-center text-muted-foreground sm:p-12">
             <ShoppingCart className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
             <h3 className="text-xl font-medium mb-3">Geen boodschappen</h3>
-            <p className="text-base">Voeg je eerste item toe om te beginnen</p>
+            <p className="text-base mb-6">Voeg je eerste item toe om te beginnen</p>
+            <Button onClick={focusAddItemInput}>
+              <Plus className="w-4 h-4 mr-2" />
+              Voeg je eerste item toe
+            </Button>
           </div>
         ) : (
           <>
-            {stats.remaining === 0 && items.length > 0 && !searchQuery ? (
-              <div className="mx-4 mt-6 rounded-2xl border border-primary/20 bg-primary/10 p-5 text-center sm:mx-6">
-                <CheckCircle className="mx-auto mb-3 h-9 w-9 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">Alles afgevinkt</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Je boodschappenlijst is klaar.</p>
-              </div>
-            ) : null}
-
             {/* Pending Items */}
             {filteredItems.pending.length > 0 && (
               <div className="px-4 py-4 sm:px-6">
@@ -873,7 +900,11 @@ export default function GroceryList() {
               <div className="p-8 text-center text-muted-foreground sm:p-12">
                 <Search className="w-20 h-20 mx-auto mb-6 text-muted-foreground/60" />
                 <h3 className="text-xl font-medium mb-3">Geen resultaten</h3>
-                <p className="text-base">Geen items gevonden voor "{searchQuery}"</p>
+                <p className="text-base mb-6">Geen items gevonden voor "{searchQuery}"</p>
+                <Button variant="outline" onClick={() => setSearchQuery("")}>
+                  <X className="w-4 h-4 mr-2" />
+                  Wis zoekopdracht
+                </Button>
               </div>
             )}
           </>

@@ -12,6 +12,8 @@ interface AddItemOptions {
   unit?: string;
 }
 
+export const ADD_ITEM_INPUT_ID = "new-item-name";
+
 interface AddItemFormProps {
   onAddItem: (name: string, addedBy: string, options?: AddItemOptions) => Promise<void>;
   onReactivateItem: (itemId: number) => void;
@@ -53,6 +55,7 @@ export function AddItemForm({
   const [isFocused, setIsFocused] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [showKeyboardHint, setShowKeyboardHint] = useState(false);
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -120,6 +123,20 @@ export function AddItemForm({
       inputRef.current.focus();
     }
   }, [isLoading]);
+
+  useEffect(() => {
+    // The "press Enter" hint only makes sense with a physical keyboard.
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const updateHintVisibility = () => setShowKeyboardHint(mediaQuery.matches);
+    updateHintVisibility();
+
+    mediaQuery.addEventListener("change", updateHintVisibility);
+    return () => mediaQuery.removeEventListener("change", updateHintVisibility);
+  }, []);
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -242,6 +259,7 @@ export function AddItemForm({
             <div className="min-w-0 flex-1">
               <Input
                 ref={inputRef}
+                id={ADD_ITEM_INPUT_ID}
                 type="text"
                 placeholder="Voeg een item toe..."
                 value={name}
@@ -295,18 +313,10 @@ export function AddItemForm({
                     key={match.displayName}
                     type="button"
                     onMouseDown={(event) => {
+                      // Keep focus in the input; the click handler selects.
                       event.preventDefault();
-                      handleSelectExisting(match);
                     }}
-                    onTouchStart={(event) => {
-                      event.preventDefault();
-                      handleSelectExisting(match);
-                    }}
-                    onClick={() => {
-                      if (name.trim()) {
-                        handleSelectExisting(match);
-                      }
-                    }}
+                    onClick={() => handleSelectExisting(match)}
                     className="min-h-11 px-3 py-2 text-sm bg-muted hover:bg-primary/10 rounded-full border border-border transition-colors"
                   >
                     {match.displayName}
@@ -389,7 +399,7 @@ export function AddItemForm({
           ) : null}
         </form>
 
-        {matchingExistingItems.length === 0 && !activeDuplicateItem && name.trim() ? (
+        {showKeyboardHint && matchingExistingItems.length === 0 && !activeDuplicateItem && name.trim() ? (
           <div className="mt-3 text-xs text-muted-foreground text-center">
             Druk op Enter om "{name.trim()}" toe te voegen
           </div>

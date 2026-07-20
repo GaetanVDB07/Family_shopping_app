@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AddItemForm } from '@/components/add-item-form';
 import type { GroceryItem } from '@shared/schema';
 
@@ -31,6 +31,10 @@ describe('AddItemForm', () => {
 
   beforeEach(() => {
     toastSpy.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('hides optional fields until the user expands Meer details', () => {
@@ -79,11 +83,39 @@ describe('AddItemForm', () => {
     fireEvent.change(input, { target: { value: 'app' } });
 
     const suggestion = await screen.findByRole('button', { name: 'Apples' });
-    fireEvent.mouseDown(suggestion);
+    fireEvent.click(suggestion);
 
+    expect(onReactivateItem).toHaveBeenCalledTimes(1);
     expect(onReactivateItem).toHaveBeenCalledWith(1);
     expect(input.value).toBe('');
     expect(onAddItem).not.toHaveBeenCalled();
+  });
+
+  it('does not select a suggestion on mouse down, only on click', async () => {
+    const onReactivateItem = vi.fn();
+
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={onReactivateItem}
+        isLoading={false}
+        existingItems={[baseItem({ id: 1, name: 'Apples', completed: true })]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'app' },
+    });
+
+    const suggestion = await screen.findByRole('button', { name: 'Apples' });
+    fireEvent.mouseDown(suggestion);
+
+    expect(onReactivateItem).not.toHaveBeenCalled();
+
+    fireEvent.click(suggestion);
+
+    expect(onReactivateItem).toHaveBeenCalledTimes(1);
+    expect(onReactivateItem).toHaveBeenCalledWith(1);
   });
 
   it('does not suggest pending items that are already on the list', () => {
@@ -170,7 +202,7 @@ describe('AddItemForm', () => {
       target: { value: 'mel' },
     });
 
-    fireEvent.mouseDown(screen.getByRole('button', { name: 'Melk' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Melk' }));
 
     expect(onReactivateItem).toHaveBeenCalledWith(2);
   });
@@ -293,5 +325,50 @@ describe('AddItemForm', () => {
       quantity: '2',
       unit: 'L',
     });
+  });
+
+  it('hides the Enter hint on touch devices without a hover-capable pointer', () => {
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+
+    expect(screen.queryByText(/Druk op Enter/)).not.toBeInTheDocument();
+  });
+
+  it('shows the Enter hint when a precise pointer with hover is available', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    })));
+
+    render(
+      <AddItemForm
+        onAddItem={vi.fn()}
+        onReactivateItem={vi.fn()}
+        isLoading={false}
+        existingItems={[]}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Voeg een item toe...'), {
+      target: { value: 'Melk' },
+    });
+
+    expect(screen.getByText('Druk op Enter om "Melk" toe te voegen')).toBeInTheDocument();
   });
 });
