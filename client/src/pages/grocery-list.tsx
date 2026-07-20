@@ -7,7 +7,7 @@ import { useGroceryItems } from "@/hooks/use-grocery-items";
 import { useGroceryHistory } from "@/hooks/use-grocery-history";
 import { useFamilyMemberNames } from "@/hooks/use-family-member-names";
 import { resolveAddedByDisplayName, applyMemberNamesToGroceryItems, resolveGroceryItemAttribution } from "@/lib/family-member-names";
-import { GroceryItemComponent, GroceryItemEditValues } from "@/components/grocery-item";
+import { GroceryItemComponent, GroceryItemDeleteSource, GroceryItemEditValues } from "@/components/grocery-item";
 import { AddItemForm } from "@/components/add-item-form";
 const SortableGroceryList = lazy(() =>
   import("@/components/sortable-grocery-list").then((module) => ({
@@ -16,6 +16,8 @@ const SortableGroceryList = lazy(() =>
 );
 import { sortGroceryItems } from "@/lib/grocery-item-sort";
 import { DeleteAllConfirmationDialog } from "@/components/delete-all-confirmation-dialog";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
+import { recordSwipeDeleteWarningShown, shouldShowSwipeDeleteWarning } from "@/lib/swipe-delete-warning";
 import { UserMenu } from "@/components/user-menu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function GroceryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [swipeDeleteCandidate, setSwipeDeleteCandidate] = useState<GroceryItem | null>(null);
   const [historySuggestionsActive, setHistorySuggestionsActive] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [, setLocation] = useLocation();
@@ -529,7 +532,7 @@ export default function GroceryList() {
     await editItemMutation.mutateAsync({ id, updates });
   }, [editItemMutation, queueUpdateItem]);
 
-  const handleDeleteItem = useCallback((item: GroceryItem) => {
+  const performDeleteItem = useCallback((item: GroceryItem) => {
     if (queueDeleteItem(item)) {
       return;
     }
@@ -537,6 +540,26 @@ export default function GroceryList() {
     // Delete immediately without confirmation
     deleteItemMutation.mutate(item.id);
   }, [deleteItemMutation, queueDeleteItem]);
+
+  const handleDeleteItem = useCallback((item: GroceryItem, source: GroceryItemDeleteSource) => {
+    // Swipe deletes are easy to trigger by accident: warn once per 60 minutes.
+    if (source === "swipe" && shouldShowSwipeDeleteWarning(user?.id || "")) {
+      setSwipeDeleteCandidate(item);
+      return;
+    }
+
+    performDeleteItem(item);
+  }, [performDeleteItem, user?.id]);
+
+  const handleConfirmSwipeDelete = useCallback(() => {
+    if (!swipeDeleteCandidate) {
+      return;
+    }
+
+    recordSwipeDeleteWarningShown(user?.id || "");
+    performDeleteItem(swipeDeleteCandidate);
+    setSwipeDeleteCandidate(null);
+  }, [performDeleteItem, swipeDeleteCandidate, user?.id]);
 
   const handleDeleteAll = useCallback(() => {
     setShowDeleteAllDialog(true);
@@ -865,6 +888,15 @@ export default function GroceryList() {
         existingItems={items}
         historyItems={historyItems}
         onSuggestionsActiveChange={setHistorySuggestionsActive}
+      />
+
+      {/* Swipe Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        item={swipeDeleteCandidate}
+        isOpen={swipeDeleteCandidate !== null}
+        onClose={() => setSwipeDeleteCandidate(null)}
+        onConfirm={handleConfirmSwipeDelete}
+        isLoading={deleteItemMutation.isPending}
       />
 
       {/* Delete All Confirmation Dialog */}

@@ -21,10 +21,12 @@ function formatQuantityLine(quantity: string | null, unit: string | null): strin
   return null;
 }
 
+export type GroceryItemDeleteSource = "swipe" | "button";
+
 interface GroceryItemProps {
   item: GroceryItem;
   onToggle: (id: number) => void;
-  onDelete: (item: GroceryItem) => void;
+  onDelete: (item: GroceryItem, source: GroceryItemDeleteSource) => void;
   onUpdate?: (id: number, updates: GroceryItemEditValues) => Promise<void> | void;
   dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
   dragHandleRef?: React.Ref<HTMLButtonElement>;
@@ -133,7 +135,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({
     
     // If swiped more than 60px (increased threshold), trigger delete
     if (swipeOffset < -60) {
-      onDelete(item);
+      onDelete(item, "swipe");
     }
     
     // Reset swipe offset
@@ -339,7 +341,7 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({
                   ? "text-red-500 hover:text-red-600 hover:bg-red-500/10"
                   : "text-red-500 hover:text-red-600 hover:bg-red-500/10"
               )}
-              onClick={() => onDelete(item)}
+              onClick={() => onDelete(item, "button")}
               aria-label={`${item.name} verwijderen`}
             >
               <Trash2 className="w-5 h-5" />
