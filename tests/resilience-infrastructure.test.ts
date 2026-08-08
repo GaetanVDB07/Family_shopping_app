@@ -23,6 +23,8 @@ describe('release and resilience infrastructure', () => {
     const script = read('scripts/backup-restore-drill.mjs');
 
     expect(workflow).toContain('BACKUP_ENCRYPTION_KEY');
+    expect(workflow).toContain('npm ci');
+    expect(workflow).toContain('SUPABASE_DB_URL is not configured');
     expect(workflow).toContain('production-public.dump.enc');
     expect(workflow).toContain('retention-days: 14');
     expect(script).toContain("'pg_restore'");
@@ -36,7 +38,10 @@ describe('release and resilience infrastructure', () => {
     const runbook = read('docs/RESILIENCE_RUNBOOK.md');
 
     expect(healthWorkflow).toContain('[monitoring] Production health check failing');
+    expect(healthWorkflow).toContain('attempt ${attempt} of 3');
+    expect(healthWorkflow).toContain("state: 'all'");
     expect(backupWorkflow).toContain('[monitoring] Encrypted production backup failing');
+    expect(backupWorkflow).toContain("state: 'all'");
     expect(runbook).toContain('Never point the restore-drill workflow at production.');
     expect(runbook).toContain('application data only');
   });

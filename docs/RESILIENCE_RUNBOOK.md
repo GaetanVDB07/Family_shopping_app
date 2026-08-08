@@ -4,8 +4,9 @@
 
 - `production-health.yml` runs every 30 minutes. It samples `/api/ping`, verifies
   the unauthenticated 401 guard, calls the protected database keepalive, and
-  fails when p95 latency exceeds 1500 ms or a service returns an unexpected
-  status. It opens one GitHub issue while unhealthy and closes it after recovery.
+  fails after three consecutive checks where p95 latency exceeds 1500 ms or a
+  service returns an unexpected status. It reuses one GitHub issue across
+  outages and closes it after recovery.
 - When `VERCEL_TOKEN` is configured, the same workflow also checks recent
   structured runtime logs for elevated 401/500 rates and slow p95 responses.
 - `database-backup.yml` creates an AES-256-GCM encrypted logical backup of

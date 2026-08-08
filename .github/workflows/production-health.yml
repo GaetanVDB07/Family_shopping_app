@@ -28,7 +28,17 @@ jobs:
           PROD_BASE_URL: ${{ secrets.PROD_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           MAX_API_P95_MS: '1500'
-        run: node scripts/check-production-health.mjs
+        run: |
+          for attempt in 1 2 3; do
+            echo "Synthetic health-check attempt ${attempt} of 3"
+            if node scripts/check-production-health.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+          exit 1
 
       - name: Inspect Vercel error rates when credentials are configured
         id: runtime
@@ -57,19 +67,28 @@ jobs:
             const title = '[monitoring] Production health check failing';
             const failed = process.env.HEALTH_OUTCOME === 'failure'
               || process.env.RUNTIME_OUTCOME === 'failure';
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'open',
+              state: 'all',
               per_page: 100,
             });
             const existing = issues.find((issue) => issue.title === title);
+            const body = `Production monitoring failed. Latest failed run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`;
             if (failed && !existing) {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title,
-                body: `Production monitoring failed. Review ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`,
+                body,
+              });
+            } else if (failed && existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'open',
+                body,
               });
             } else if (!failed && existing) {
               await github.rest.issues.update({

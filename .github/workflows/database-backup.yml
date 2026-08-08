@@ -21,6 +21,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Create encrypted backup and verify isolated restore
         id: backup
@@ -30,6 +34,14 @@ jobs:
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           BACKUP_OUTPUT: output/backups/production-public.dump.enc
         run: |
+          if [ -z "$SOURCE_DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DB_URL is not configured as a GitHub Actions secret."
+            exit 1
+          fi
+          if [ ${#BACKUP_ENCRYPTION_KEY} -lt 24 ]; then
+            echo "::error::BACKUP_ENCRYPTION_KEY must be configured and at least 24 characters."
+            exit 1
+          fi
           mkdir -p output/backups
           node scripts/backup-restore-drill.mjs
 
@@ -51,19 +63,28 @@ jobs:
           script: |
             const title = '[monitoring] Encrypted production backup failing';
             const failed = process.env.BACKUP_OUTCOME !== 'success';
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'open',
+              state: 'all',
               per_page: 100,
             });
             const existing = issues.find((issue) => issue.title === title);
+            const body = `Backup or restore verification failed. Latest failed run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`;
             if (failed && !existing) {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title,
-                body: `Backup or restore verification failed. Review ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}.`,
+                body,
+              });
+            } else if (failed && existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'open',
+                body,
               });
             } else if (!failed && existing) {
               await github.rest.issues.update({
