@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerServiceWorker } from "@/lib/service-worker";
+import packageJson from "../package.json";
 
 describe("registerServiceWorker", () => {
   const originalNavigator = globalThis.navigator;
@@ -73,7 +74,7 @@ describe("registerServiceWorker", () => {
     registerServiceWorker({ enabled: true });
 
     expect(addEventListener).toHaveBeenCalledWith("load", expect.any(Function));
-    expect(register).toHaveBeenCalledWith("/sw.js?v=1.11.0");
+    expect(register).toHaveBeenCalledWith(`/sw.js?v=${packageJson.version}`);
     expect(serviceWorkerAddEventListener).toHaveBeenCalledWith(
       "controllerchange",
       expect.any(Function),
