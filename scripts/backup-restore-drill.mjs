@@ -76,11 +76,18 @@ async function restoreAndVerify(dumpPath) {
 
     let ready = false;
     for (let attempt = 0; attempt < 30; attempt += 1) {
-      const result = run('docker', ['exec', containerName, 'pg_isready', '-U', 'postgres'], {
+      // The image starts a socket-only bootstrap server before creating POSTGRES_DB.
+      // Require a real query over TCP so we wait for initialization to finish.
+      const result = run('docker', [
+        'exec', '--env', 'PGPASSWORD=restore-drill-only', containerName,
+        'psql', '--host=127.0.0.1', '--username=postgres', '--dbname=restore_drill',
+        '--no-psqlrc', '--tuples-only', '--no-align', '--set=ON_ERROR_STOP=1',
+        '--command=SELECT 1',
+      ], {
         capture: true,
         allowFailure: true,
       });
-      if (result.status === 0) {
+      if (result.status === 0 && result.stdout.trim() === '1') {
         ready = true;
         break;
       }
